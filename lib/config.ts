@@ -70,7 +70,7 @@ const DEFAULTS: ConfigMap = {
   mp_titulo: 'Pagá como quieras 💳',
   mp_texto: 'Aceptamos todas las tarjetas y transferencia bancaria a través de Mercado Pago.',
   footer_tagline: 'Tu librería y juguetería de confianza. Todo lo que necesitás para aprender, crear y jugar.',
-  footer_instagram: 'https://instagram.com/flowthings',
+  footer_instagram: 'https://instagram.com/flowthings__',
   footer_tienda_titulo: 'Tienda',
   footer_contacto_titulo: 'Contacto',
   footer_email: 'contacto@flowthings.com.ar',
