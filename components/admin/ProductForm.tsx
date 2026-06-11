@@ -131,6 +131,7 @@ function VarianteForm({
       stock: parseInt(stock) || 0,
       imagen_url: imagenUrl || null,
       imagenes,
+      activo: true,
       ...(initial ? { id: initial.id } : {}),
     }
 
