@@ -8,6 +8,7 @@ import { useEditMode } from '@/lib/useEditMode'
 import EditableText from '@/components/EditableText'
 import EditableImage from '@/components/EditableImage'
 import type { ConfigMap } from '@/lib/config'
+import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 
 interface HeaderProps {
   cfg: ConfigMap
@@ -26,11 +27,12 @@ export default function Header({ cfg }: HeaderProps) {
       <>{cfg[k]}</>
     )
 
-  const navLinks = [
-    { href: '/productos', key: 'header_nav_catalogo' },
-    { href: '/productos?categoria=libreria', key: 'header_nav_libreria' },
-    { href: '/productos?categoria=jugueteria', key: 'header_nav_jugueteria' },
+  const allNavLinks = [
+    { href: '/productos', key: 'header_nav_catalogo', slug: null },
+    { href: '/productos?categoria=libreria', key: 'header_nav_libreria', slug: 'libreria' },
+    { href: '/productos?categoria=jugueteria', key: 'header_nav_jugueteria', slug: 'jugueteria' },
   ]
+  const navLinks = allNavLinks.filter(l => !l.slug || !CATEGORIAS_PAUSADAS.includes(l.slug))
 
   return (
     <header className="sticky top-0 z-40 bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
@@ -138,13 +140,6 @@ export default function Header({ cfg }: HeaderProps) {
                 <ET k={link.key} />
               </Link>
             ))}
-            <Link
-              href="/productos?categoria=utiles-escolares"
-              onClick={() => setMenuOpen(false)}
-              className="text-brand-text-muted hover:text-brand-neon py-2 px-3 rounded-lg hover:bg-brand-bg-soft transition-colors text-sm font-medium uppercase tracking-wide"
-            >
-              Útiles Escolares
-            </Link>
           </nav>
         </div>
       )}
