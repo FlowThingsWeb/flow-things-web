@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useParams, notFound } from 'next/navigation'
+import { useParams, useSearchParams, notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useCartStore } from '@/lib/store'
 import { Producto, Variante } from '@/types'
@@ -23,6 +23,8 @@ function waLink(telefono: string, texto: string) {
 
 export default function ProductoDetallePage() {
   const { slug } = useParams()
+  const searchParams = useSearchParams()
+  const varianteParam = searchParams.get('variante')
   const [producto, setProducto] = useState<Producto | null>(null)
   const [loading, setLoading]   = useState(true)
   const [imagenActiva, setImagenActiva] = useState(0)
@@ -37,6 +39,9 @@ export default function ProductoDetallePage() {
   const [email,    setEmail]    = useState('contacto@flowthings.com.ar')
 
   const addItem = useCartStore(s => s.addItem)
+
+  // Selected variant by ID (declared early so the load effect can set it)
+  const [varianteId, setVarianteId] = useState<string | null>(null)
 
   // --- Fetch product + variants + contact config ---
   useEffect(() => {
@@ -57,6 +62,13 @@ export default function ProductoDetallePage() {
       if (!prodRes.data) { setLoading(false); return }
       setProducto(prodRes.data as Producto)
 
+      // Pre-select variant from URL param
+      if (varianteParam) {
+        const variantesActivas = ((prodRes.data.variantes || []) as Variante[]).filter(v => v.activo)
+        const match = variantesActivas.find(v => v.id === varianteParam)
+        if (match) setVarianteId(match.id)
+      }
+
       for (const row of cfgRes.data || []) {
         if (row.clave === 'footer_telefono' && row.valor) setTelefono(row.valor)
         if (row.clave === 'footer_email'    && row.valor) setEmail(row.valor)
@@ -74,9 +86,6 @@ export default function ProductoDetallePage() {
   )
 
   const tieneVariantes = variantes.length > 0
-
-  // Selected variant by ID
-  const [varianteId, setVarianteId] = useState<string | null>(null)
 
   const varianteSeleccionada: Variante | null = useMemo(
     () => variantes.find(v => v.id === varianteId) ?? null,

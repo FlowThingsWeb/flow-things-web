@@ -1,16 +1,21 @@
 import { Suspense } from 'react'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import ProductCard from '@/components/ProductCard'
-import { Producto } from '@/types'
+import { Producto, Variante } from '@/types'
 
 interface PageProps {
   searchParams: Promise<{ categoria?: string; q?: string }>
 }
 
-async function getProductos(categoria?: string, q?: string): Promise<Producto[]> {
+export type CatalogItem = {
+  producto: Producto
+  variante: Variante | null
+}
+
+async function getProductos(categoria?: string, q?: string): Promise<CatalogItem[]> {
   let query = supabaseAdmin
     .from('productos')
-    .select('*, categorias(id, nombre, slug)')
+    .select('*, categorias(id, nombre, slug), variantes(*)')
     .eq('activo', true)
     .order('created_at', { ascending: false })
 
@@ -19,7 +24,7 @@ async function getProductos(categoria?: string, q?: string): Promise<Producto[]>
   }
 
   const { data } = await query
-  let productos = data || []
+  let productos: Producto[] = data || []
 
   if (categoria) {
     productos = productos.filter(
@@ -27,7 +32,20 @@ async function getProductos(categoria?: string, q?: string): Promise<Producto[]>
     )
   }
 
-  return productos
+  // Expand: one card per active variant, or one card if no variants
+  const items: CatalogItem[] = []
+  for (const producto of productos) {
+    const variantesActivas: Variante[] = ((producto.variantes || []) as Variante[]).filter(v => v.activo)
+    if (variantesActivas.length > 0) {
+      for (const variante of variantesActivas) {
+        items.push({ producto, variante })
+      }
+    } else {
+      items.push({ producto, variante: null })
+    }
+  }
+
+  return items
 }
 
 async function getCategorias() {
@@ -37,7 +55,7 @@ async function getCategorias() {
 
 export default async function ProductosPage({ searchParams }: PageProps) {
   const params = await searchParams
-  const [productos, categorias] = await Promise.all([
+  const [items, categorias] = await Promise.all([
     getProductos(params.categoria, params.q),
     getCategorias(),
   ])
@@ -54,7 +72,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
           {categoriaActiva ? categoriaActiva.nombre : 'Todo el catálogo'}
         </h1>
         <p className="text-brand-text-muted mt-1">
-          {productos.length} producto{productos.length !== 1 ? 's' : ''}
+          {items.length} artículo{items.length !== 1 ? 's' : ''}
         </p>
       </div>
 
@@ -122,7 +140,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
             </div>
           </form>
 
-          {productos.length === 0 ? (
+          {items.length === 0 ? (
             <div className="text-center py-20">
               <span className="text-5xl block mb-4">🔍</span>
               <p className="text-brand-text-muted">No encontramos productos para tu búsqueda</p>
@@ -132,8 +150,12 @@ export default async function ProductosPage({ searchParams }: PageProps) {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {productos.map((producto) => (
-                <ProductCard key={producto.id} producto={producto} />
+              {items.map(({ producto, variante }) => (
+                <ProductCard
+                  key={variante ? `${producto.id}-${variante.id}` : producto.id}
+                  producto={producto}
+                  variante={variante}
+                />
               ))}
             </div>
           )}
