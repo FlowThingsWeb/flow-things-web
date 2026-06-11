@@ -20,7 +20,7 @@ export default function EditableText({
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
 
   const save = async (text: string) => {
-    if (text.trim() === value.trim()) return
+    if (text === value) return
     setStatus('saving')
     try {
       await fetch('/api/admin/config', {
@@ -45,7 +45,7 @@ export default function EditableText({
       suppressHydrationWarning
       data-edit-key={configKey}
       onBlur={async (e: React.FocusEvent<HTMLElement>) => {
-        await save(e.currentTarget.textContent || '')
+        await save(e.currentTarget.innerHTML || '')
       }}
       onKeyDown={(e: React.KeyboardEvent<HTMLElement>) => {
         if (!multiline && e.key === 'Enter') {

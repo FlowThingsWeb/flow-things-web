@@ -33,8 +33,33 @@ export default async function RootLayout({
 }) {
   const cfg = await getConfig()
 
+  // Build Google Fonts URL if a custom font is set
+  const fontFamily = cfg.design_font_family && cfg.design_font_family !== 'inherit'
+    ? cfg.design_font_family
+    : null
+
+  const fontUrl = fontFamily
+    ? `https://fonts.googleapis.com/css2?family=${fontFamily.replace(/ /g, '+')}:wght@300;400;500;600;700;800&display=swap`
+    : null
+
   return (
     <html lang="es">
+      <head>
+        {fontUrl && (
+          <>
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+            <link href={fontUrl} rel="stylesheet" />
+          </>
+        )}
+        {cfg.design_overrides && (
+          <style
+            id="flow-design-override"
+            dangerouslySetInnerHTML={{ __html: cfg.design_overrides }}
+          />
+        )}
+      </head>
       <body>
         <AnnouncementBar />
         <Header cfg={cfg} />

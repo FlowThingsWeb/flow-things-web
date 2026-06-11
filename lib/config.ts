@@ -39,6 +39,12 @@ export interface ConfigMap {
   footer_link_utiles: string
   footer_banner_url: string
   footer_copyright: string
+  // Design
+  design_overrides: string
+  design_font_family: string
+  design_color_primary: string
+  design_color_accent: string
+  design_color_bg: string
   [key: string]: string
 }
 
@@ -75,6 +81,12 @@ const DEFAULTS: ConfigMap = {
   footer_link_utiles: 'Útiles escolares',
   footer_banner_url: '/banner.png',
   footer_copyright: 'Todos los derechos reservados.',
+  // Design
+  design_overrides: '',
+  design_font_family: 'inherit',
+  design_color_primary: '#9333ea',
+  design_color_accent: '#c8ff00',
+  design_color_bg: '#0f0f0f',
 }
 
 export async function getConfig(): Promise<ConfigMap> {
