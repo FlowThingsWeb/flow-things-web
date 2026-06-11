@@ -74,13 +74,21 @@ export async function POST(req: NextRequest) {
     }
 
     const endpointsToTry = [
-      // Con parámetros de origen/destino como query params
-      `${CABIFY_API_BASE}/v1/shipping_types/available?pickup_address=${encodeURIComponent(origenDireccion)}&dropoff_address=${encodeURIComponent(destinoDireccion)}`,
-      `${CABIFY_API_BASE}/v1/shipping_types/available?origin=${encodeURIComponent(origenDireccion)}&destination=${encodeURIComponent(destinoDireccion)}`,
-      // Sin parámetros
+      // Sin versión
+      `${CABIFY_API_BASE}/shipping_types/available`,
+      `${CABIFY_API_BASE}/shipping_types`,
+      `${CABIFY_API_BASE}/shipping-types/available`,
+      // Con v1
       `${CABIFY_API_BASE}/v1/shipping_types/available`,
       `${CABIFY_API_BASE}/v1/shipping_types`,
-      `${CABIFY_API_BASE}/v1/shipping-types/available`,
+      // Con prefijo /logistics
+      `${CABIFY_API_BASE}/logistics/v1/shipping_types/available`,
+      `${CABIFY_API_BASE}/logistics/shipping_types/available`,
+      // Dominio alternativo
+      `https://api.cabify.com/logistics/v1/shipping_types/available`,
+      `https://api.cabify.com/v1/shipping_types/available`,
+      // Con query params de origen/destino
+      `${CABIFY_API_BASE}/v1/shipping_types/available?pickup_address=${encodeURIComponent(origenDireccion)}&dropoff_address=${encodeURIComponent(destinoDireccion)}`,
     ]
 
     let shippingRes: Response | null = null
