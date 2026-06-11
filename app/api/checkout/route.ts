@@ -10,11 +10,17 @@ export async function POST(request: NextRequest) {
       comprador,
       codigo_descuento,
       descuento_monto: descuentoFrontend,
+      envio_tipo,
+      envio_nombre,
+      envio_costo,
     }: {
       items: ItemOrden[]
       comprador: DatosComprador
       codigo_descuento?: string | null
       descuento_monto?: number
+      envio_tipo?: string | null
+      envio_nombre?: string | null
+      envio_costo?: number
     } = await request.json()
 
     if (!items?.length) {
@@ -67,7 +73,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const total = Math.max(0, subtotal - descuento_monto)
+    const costoEnvio = Number(envio_costo ?? 0)
+    const total = Math.max(0, subtotal - descuento_monto) + costoEnvio
 
     // Crear orden en Supabase
     const { data: orden, error: ordenError } = await supabaseAdmin
@@ -77,7 +84,10 @@ export async function POST(request: NextRequest) {
           estado: 'pending',
           total,
           items,
-          datos_comprador: comprador,
+          datos_comprador: {
+            ...comprador,
+            ...(envio_tipo ? { envio_tipo, envio_nombre, envio_costo: costoEnvio } : {}),
+          },
           descuento_monto,
           codigo_descuento: codigoValidado,
         },
@@ -94,18 +104,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear preferencia de pago en Mercado Pago con el total con descuento
-    const itemsParaMP = descuento_monto > 0
-      ? [
-          ...items,
-          {
-            id: 'descuento',
-            nombre: `Descuento (${codigoValidado})`,
-            precio: -descuento_monto,
-            cantidad: 1,
-            imagen_url: null,
-          },
-        ]
-      : items
+    let itemsParaMP: any[] = [...items]
+
+    if (descuento_monto > 0) {
+      itemsParaMP.push({
+        id: 'descuento',
+        nombre: `Descuento (${codigoValidado})`,
+        precio: -descuento_monto,
+        cantidad: 1,
+        imagen_url: null,
+      })
+    }
+
+    if (costoEnvio > 0) {
+      itemsParaMP.push({
+        id: 'envio',
+        nombre: `Envío ${envio_nombre ?? envio_tipo ?? ''}`.trim(),
+        precio: costoEnvio,
+        cantidad: 1,
+        imagen_url: null,
+      })
+    }
 
     const mpPreference = await crearPreferencia({
       items: itemsParaMP,

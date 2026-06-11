@@ -33,6 +33,16 @@ interface DescuentoAplicado {
   mensaje: string
 }
 
+interface OpcionEnvio {
+  id: string
+  nombre: string
+  modalidad: string
+  precio: number | null
+  moneda: string
+  descripcion: string | null
+  tiempo_estimado: string | null
+}
+
 export default function CarritoPage() {
   const router = useRouter()
   const { items, removeItem, updateCantidad, total, clearCart } = useCartStore()
@@ -46,8 +56,57 @@ export default function CarritoPage() {
   const [descuentoError, setDescuentoError] = useState('')
   const [validandoCodigo, setValidandoCodigo] = useState(false)
 
+  // Envío
+  const [envioOpciones, setEnvioOpciones] = useState<OpcionEnvio[]>([])
+  const [envioSeleccionado, setEnvioSeleccionado] = useState<OpcionEnvio | null>(null)
+  const [calculandoEnvio, setCalculandoEnvio] = useState(false)
+  const [envioError, setEnvioError] = useState('')
+  const [envioCalculado, setEnvioCalculado] = useState(false)
+
   const subtotal = total()
-  const totalFinal = Math.max(0, subtotal - (descuento?.descuento_monto ?? 0))
+  const costoEnvio = envioSeleccionado?.precio ?? 0
+  const totalFinal = Math.max(0, subtotal - (descuento?.descuento_monto ?? 0)) + costoEnvio
+
+  const puedeCalcularEnvio = !!form.direccion.trim() && !!form.ciudad.trim() && !!form.provincia.trim()
+
+  const calcularEnvio = async () => {
+    setEnvioError('')
+    setCalculandoEnvio(true)
+    setEnvioSeleccionado(null)
+    setEnvioCalculado(false)
+
+    try {
+      const res = await fetch('/api/envio/cotizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          direccion: form.direccion,
+          ciudad: form.ciudad,
+          provincia: form.provincia,
+          codigo_postal: form.codigo_postal,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || data.error) {
+        setEnvioError(data.error || 'No se pudo calcular el envío.')
+        return
+      }
+
+      setEnvioOpciones(data.opciones ?? [])
+      setEnvioCalculado(true)
+
+      // Auto-seleccionar la primera opción si hay una sola
+      if (data.opciones?.length === 1) {
+        setEnvioSeleccionado(data.opciones[0])
+      }
+    } catch {
+      setEnvioError('Error de conexión. Intentá de nuevo.')
+    } finally {
+      setCalculandoEnvio(false)
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -116,6 +175,9 @@ export default function CarritoPage() {
           comprador: form,
           codigo_descuento: descuento?.codigo ?? null,
           descuento_monto: descuento?.descuento_monto ?? 0,
+          envio_tipo: envioSeleccionado?.modalidad ?? null,
+          envio_nombre: envioSeleccionado?.nombre ?? null,
+          envio_costo: envioSeleccionado?.precio ?? 0,
         }),
       })
 
@@ -262,6 +324,82 @@ export default function CarritoPage() {
             </div>
           </div>
 
+          {/* Envío */}
+          <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-white">Envío</h2>
+              <button
+                type="button"
+                onClick={calcularEnvio}
+                disabled={calculandoEnvio || !puedeCalcularEnvio}
+                className="text-sm bg-brand-purple hover:bg-brand-purple-light disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                {calculandoEnvio ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Calculando...
+                  </>
+                ) : (
+                  envioCalculado ? '↻ Recalcular' : 'Calcular costo'
+                )}
+              </button>
+            </div>
+
+            {!puedeCalcularEnvio && !envioCalculado && (
+              <p className="text-xs text-brand-text-muted">
+                Completá tu dirección, ciudad y provincia para calcular el envío.
+              </p>
+            )}
+
+            {envioError && (
+              <p className="text-red-400 text-sm flex items-center gap-1.5">
+                <span>⚠</span> {envioError}
+              </p>
+            )}
+
+            {envioCalculado && envioOpciones.length === 0 && (
+              <p className="text-brand-text-muted text-sm">
+                No hay opciones de envío disponibles. Contactanos por WhatsApp.
+              </p>
+            )}
+
+            {envioOpciones.length > 0 && (
+              <div className="space-y-2">
+                {envioOpciones.map((op) => (
+                  <label
+                    key={op.id}
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                      envioSeleccionado?.id === op.id
+                        ? 'border-brand-purple bg-brand-purple/10'
+                        : 'border-brand-border hover:border-brand-purple/50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="envio"
+                      value={op.id}
+                      checked={envioSeleccionado?.id === op.id}
+                      onChange={() => setEnvioSeleccionado(op)}
+                      className="accent-brand-purple"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white capitalize">{op.nombre}</p>
+                      {op.tiempo_estimado && (
+                        <p className="text-xs text-brand-text-muted">{op.tiempo_estimado}</p>
+                      )}
+                      {op.descripcion && (
+                        <p className="text-xs text-brand-text-muted">{op.descripcion}</p>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-brand-neon whitespace-nowrap">
+                      {op.precio != null ? formatPrecio(op.precio) : 'A confirmar'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Código de descuento */}
           <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
             <h2 className="font-semibold text-white mb-4">¿Tenés un código de descuento?</h2>
@@ -335,7 +473,7 @@ export default function CarritoPage() {
                 Procesando...
               </>
             ) : (
-              `Pagar ${formatPrecio(totalFinal)} con Mercado Pago`
+              `Pagar ${formatPrecio(totalFinal)} con Mercado Pago${envioSeleccionado ? '' : ' (sin envío)'}`
             )}
           </button>
 
@@ -398,6 +536,21 @@ export default function CarritoPage() {
                     <span className="text-xs font-mono text-green-500/70 ml-1">({descuento.codigo})</span>
                   </span>
                   <span className="font-semibold">− {formatPrecio(descuento.descuento_monto)}</span>
+                </div>
+              )}
+
+              {/* Envío */}
+              {envioSeleccionado && (
+                <div className="flex justify-between items-center text-sm text-brand-text-muted">
+                  <span className="flex items-center gap-1">
+                    🚚 Envío
+                    <span className="text-xs text-brand-text-light ml-1">({envioSeleccionado.nombre})</span>
+                  </span>
+                  <span className="font-semibold text-brand-text">
+                    {envioSeleccionado.precio != null
+                      ? formatPrecio(envioSeleccionado.precio)
+                      : 'A confirmar'}
+                  </span>
                 </div>
               )}
 
