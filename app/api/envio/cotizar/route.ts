@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getConfig } from '@/lib/config'
 
 const CABIFY_CLIENT_ID = process.env.CABIFY_CLIENT_ID
 const CABIFY_CLIENT_SECRET = process.env.CABIFY_CLIENT_SECRET
@@ -60,20 +61,47 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { direccion, ciudad, provincia, codigo_postal } = body ?? {}
 
-    const token = await getCabifyToken()
+    const [token, cfg] = await Promise.all([getCabifyToken(), getConfig()])
 
-    // Consultar tipos de envío disponibles para la cuenta
-    const shippingRes = await fetch(`${CABIFY_API_BASE}/v1/shipping_types/available`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    })
+    const origenDireccion = cfg.cabify_direccion_origen || 'Federico Lacroze 3885, CABA, 1427'
+    const destinoDireccion = [direccion, ciudad, provincia, codigo_postal].filter(Boolean).join(', ')
 
-    if (!shippingRes.ok) {
-      const text = await shippingRes.text()
-      console.error('[cotizar] shipping_types error:', shippingRes.status, text)
-      throw new Error(`Cabify API error ${shippingRes.status}`)
+    // Probar distintos endpoints — algunos requieren parámetros de origen/destino
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    }
+
+    const endpointsToTry = [
+      // Con parámetros de origen/destino como query params
+      `${CABIFY_API_BASE}/v1/shipping_types/available?pickup_address=${encodeURIComponent(origenDireccion)}&dropoff_address=${encodeURIComponent(destinoDireccion)}`,
+      `${CABIFY_API_BASE}/v1/shipping_types/available?origin=${encodeURIComponent(origenDireccion)}&destination=${encodeURIComponent(destinoDireccion)}`,
+      // Sin parámetros
+      `${CABIFY_API_BASE}/v1/shipping_types/available`,
+      `${CABIFY_API_BASE}/v1/shipping_types`,
+      `${CABIFY_API_BASE}/v1/shipping-types/available`,
+    ]
+
+    let shippingRes: Response | null = null
+    let lastStatus = 0
+    let lastBody = ''
+
+    for (const url of endpointsToTry) {
+      const r = await fetch(url, { headers })
+      const bodyText = await r.text()
+      console.log(`[cotizar] ${url} → ${r.status} ${bodyText.slice(0, 300)}`)
+
+      if (r.ok) {
+        shippingRes = new Response(bodyText, { status: r.status, headers: { 'Content-Type': 'application/json' } })
+        break
+      }
+      lastStatus = r.status
+      lastBody = bodyText
+    }
+
+    if (!shippingRes) {
+      throw new Error(`Todos los endpoints fallaron. Último: ${lastStatus} ${lastBody.slice(0, 200)}`)
     }
 
     const shippingData = await shippingRes.json()
@@ -120,7 +148,7 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error('[cotizar]', err.message)
     return NextResponse.json(
-      { error: 'No se pudo calcular el costo de envío. Intentá de nuevo.' },
+      { error: `Error: ${err.message}` },
       { status: 500 }
     )
   }

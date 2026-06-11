@@ -39,6 +39,8 @@ export interface ConfigMap {
   footer_link_utiles: string
   footer_banner_url: string
   footer_copyright: string
+  // Envíos
+  cabify_direccion_origen: string
   // Design
   design_overrides: string
   design_font_family: string
@@ -81,6 +83,8 @@ const DEFAULTS: ConfigMap = {
   footer_link_utiles: 'Útiles escolares',
   footer_banner_url: '/banner.png',
   footer_copyright: 'Todos los derechos reservados.',
+  // Envíos
+  cabify_direccion_origen: 'Federico Lacroze 3885, CABA, 1427',
   // Design
   design_overrides: '',
   design_font_family: 'inherit',
