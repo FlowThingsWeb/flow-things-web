@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import ProductCard from '@/components/ProductCard'
+import SearchInput from '@/components/SearchInput'
 import { Producto, Variante } from '@/types'
 
 interface PageProps {
@@ -19,8 +20,14 @@ async function getProductos(categoria?: string, q?: string): Promise<CatalogItem
     .eq('activo', true)
     .order('created_at', { ascending: false })
 
-  if (q) {
-    query = query.ilike('nombre', `%${q}%`)
+  if (q?.trim()) {
+    // Split into words and build OR filter across nombre + descripcion
+    const words = q.trim().split(/\s+/).filter(Boolean)
+    const filters = words.flatMap(w => [
+      `nombre.ilike.%${w}%`,
+      `descripcion.ilike.%${w}%`,
+    ])
+    query = query.or(filters.join(','))
   }
 
   const { data } = await query
@@ -114,31 +121,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
 
         {/* Grid de productos */}
         <div className="flex-1">
-          {/* Buscador */}
-          <form className="mb-6" method="GET">
-            {params.categoria && (
-              <input type="hidden" name="categoria" value={params.categoria} />
-            )}
-            <div className="relative">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-light"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-              </svg>
-              <input
-                type="text"
-                name="q"
-                defaultValue={params.q}
-                placeholder="Buscar productos..."
-                className="input-dark pl-9"
-              />
-            </div>
-          </form>
+          <SearchInput categoria={params.categoria} />
 
           {items.length === 0 ? (
             <div className="text-center py-20">
