@@ -29,24 +29,7 @@ async function getProductos(categoria?: string, q?: string): Promise<CatalogItem
     )
   }
 
-  // Filter by search query in JS — matches nombre, descripcion, AND variant attribute values
-  if (q?.trim()) {
-    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
-    productos = productos.filter(p => {
-      const haystack = [
-        p.nombre,
-        p.descripcion ?? '',
-        // all active variant attribute values: "Rosa", "M", "Azul", etc.
-        ...((p.variantes || []) as Variante[])
-          .filter(v => v.activo)
-          .flatMap(v => Object.values(v.atributos)),
-      ].join(' ').toLowerCase()
-
-      return words.every(w => haystack.includes(w))
-    })
-  }
-
-  // Expand: one card per active variant, or one card if no variants
+  // Expand first: one card per active variant, or one card if no variants
   const items: CatalogItem[] = []
   for (const producto of productos) {
     const variantesActivas: Variante[] = ((producto.variantes || []) as Variante[]).filter(v => v.activo)
@@ -57,6 +40,20 @@ async function getProductos(categoria?: string, q?: string): Promise<CatalogItem
     } else {
       items.push({ producto, variante: null })
     }
+  }
+
+  // Filter each card individually — a variant card only matches if THAT variant has the term
+  if (q?.trim()) {
+    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    return items.filter(({ producto, variante }) => {
+      const haystack = [
+        producto.nombre,
+        producto.descripcion ?? '',
+        // Only this specific variant's attributes, not all variants of the product
+        ...(variante ? Object.values(variante.atributos) : []),
+      ].join(' ').toLowerCase()
+      return words.every(w => haystack.includes(w))
+    })
   }
 
   return items
