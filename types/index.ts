@@ -31,6 +31,7 @@ export interface Variante {
   atributos: Record<string, string> // { "Color": "Rosa", "Talle": "M" }
   sku: string | null
   stock: number
+  imagen_url: string | null
   activo: boolean
   created_at: string
 }

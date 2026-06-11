@@ -117,6 +117,8 @@ export default function ProductoDetallePage() {
     setSelectedAttrs(prev => ({ ...prev, [key]: val }))
     setCantidad(1)
     setSinStockMsg(false)
+    // Reset to first image so variant image takes over
+    setImagenActiva(0)
   }
 
   // Gallery helpers — defined early, used after producto is loaded
@@ -166,9 +168,12 @@ export default function ProductoDetallePage() {
 
   if (!producto) return notFound()
 
+  // If selected variant has its own image, put it first
+  const imagenVariante = varianteSeleccionada?.imagen_url || null
   const todasLasImagenes = [
-    ...(producto.imagen_url ? [producto.imagen_url] : []),
-    ...(producto.imagenes || []),
+    ...(imagenVariante ? [imagenVariante] : []),
+    ...(producto.imagen_url && producto.imagen_url !== imagenVariante ? [producto.imagen_url] : []),
+    ...(producto.imagenes || []).filter(img => img !== imagenVariante),
   ]
 
   const tieneDescuento = producto.precio_anterior && producto.precio_anterior > producto.precio
