@@ -136,6 +136,54 @@ export default function CartDrawer() {
         {/* Footer */}
         {items.length > 0 && (
           <div className="border-t border-brand-border p-5 space-y-4">
+            {/* Progreso envío gratis */}
+            {(() => {
+              const AMBA = 40000
+              const INTERIOR = 120000
+              const pctAmba = Math.min(100, (totalAmount / AMBA) * 100)
+              const pctInterior = Math.min(100, (totalAmount / INTERIOR) * 100)
+              const libreAmba = totalAmount >= AMBA
+              const libreInterior = totalAmount >= INTERIOR
+
+              if (libreInterior) {
+                return (
+                  <div className="bg-green-900/30 border border-green-500/30 rounded-xl px-3 py-2">
+                    <p className="text-xs text-green-300 font-medium">
+                      🎉 ¡Envío gratis a todo el país!
+                    </p>
+                  </div>
+                )
+              }
+
+              return (
+                <div className="bg-brand-bg-soft rounded-xl p-3 space-y-3">
+                  {/* AMBA */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-brand-text-muted">🚚 AMBA</p>
+                      {libreAmba
+                        ? <span className="text-xs text-green-400 font-semibold">¡Gratis! ✓</span>
+                        : <span className="text-xs text-brand-text-muted">Falta <span className="text-white font-bold">{formatPrecio(AMBA - totalAmount)}</span></span>
+                      }
+                    </div>
+                    <div className="w-full h-1.5 bg-brand-border rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-500 ${libreAmba ? 'bg-green-400' : 'bg-brand-neon'}`} style={{ width: `${pctAmba}%` }} />
+                    </div>
+                  </div>
+                  {/* Interior */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-brand-text-muted">🚚 Interior del país</p>
+                      <span className="text-xs text-brand-text-muted">Falta <span className="text-white font-bold">{formatPrecio(INTERIOR - totalAmount)}</span></span>
+                    </div>
+                    <div className="w-full h-1.5 bg-brand-border rounded-full overflow-hidden">
+                      <div className="h-full bg-brand-purple rounded-full transition-all duration-500" style={{ width: `${pctInterior}%` }} />
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
             <div className="flex items-center justify-between">
               <span className="text-brand-text-muted text-sm">Subtotal</span>
               <span className="font-bold text-brand-text text-lg">
@@ -143,7 +191,7 @@ export default function CartDrawer() {
               </span>
             </div>
             <p className="text-xs text-brand-text-light">
-              Envío y descuentos calculados al finalizar la compra
+              Descuentos calculados al finalizar la compra
             </p>
             <Link
               href="/carrito"

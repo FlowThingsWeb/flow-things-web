@@ -229,9 +229,9 @@ export default function ProductoDetallePage() {
               <span>🚚</span>
               <span>Envío a todo el país</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span>💳</span>
-              <span>Hasta 12 cuotas sin interés con Mercado Pago</span>
+            <div className="flex items-start gap-2">
+              <span>🎁</span>
+              <span>Envío gratis en AMBA +$40.000 · Interior del país +$120.000</span>
             </div>
             <div className="flex items-center gap-2">
               <span>🔒</span>

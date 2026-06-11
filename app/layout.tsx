@@ -3,6 +3,7 @@ import './globals.css'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import CartDrawer from '@/components/CartDrawer'
+import AnnouncementBar from '@/components/AnnouncementBar'
 import { getConfig } from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
@@ -35,6 +36,7 @@ export default async function RootLayout({
   return (
     <html lang="es">
       <body>
+        <AnnouncementBar />
         <Header cfg={cfg} />
         <main className="min-h-screen">{children}</main>
         <CartDrawer />
