@@ -11,7 +11,8 @@ export default function SearchInput({ categoria }: SearchInputProps) {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const [value, setValue] = useState(searchParams.get('q') || '')
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const typingRef   = useRef(false)  // true mientras el usuario está escribiendo
 
   const push = useCallback((q: string) => {
     const params = new URLSearchParams()
@@ -23,18 +24,26 @@ export default function SearchInput({ categoria }: SearchInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const q = e.target.value
     setValue(q)
+    typingRef.current = true
     if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => push(q), 300)
+    timerRef.current = setTimeout(() => {
+      push(q)
+      // Dar tiempo a que el re-render del servidor termine antes de liberar el lock
+      setTimeout(() => { typingRef.current = false }, 300)
+    }, 300)
   }
 
   const handleClear = () => {
+    typingRef.current = false
     setValue('')
     push('')
   }
 
-  // Sync if URL changes externally (e.g. category click)
+  // Sync solo si el cambio en la URL vino de afuera (cambio de categoría, back/forward)
   useEffect(() => {
-    setValue(searchParams.get('q') || '')
+    if (!typingRef.current) {
+      setValue(searchParams.get('q') || '')
+    }
   }, [searchParams])
 
   return (
