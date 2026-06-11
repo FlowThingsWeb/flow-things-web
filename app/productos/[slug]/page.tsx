@@ -117,15 +117,42 @@ export default function ProductoDetallePage() {
     setSelectedAttrs(prev => ({ ...prev, [key]: val }))
     setCantidad(1)
     setSinStockMsg(false)
-    // Reset to first image so variant image takes over
     setImagenActiva(0)
   }
 
-  // Gallery helpers — defined early, used after producto is loaded
-  const galeriaLen = useMemo(() => {
-    if (!producto) return 0
-    return (producto.imagen_url ? 1 : 0) + (producto.imagenes?.length || 0)
-  }, [producto])
+  // Build gallery images — if variant selected, show only that variant's images
+  const todasLasImagenes = useMemo(() => {
+    if (!producto) return []
+    if (varianteSeleccionada) {
+      const imgs: string[] = []
+      if (varianteSeleccionada.imagen_url) imgs.push(varianteSeleccionada.imagen_url)
+      for (const img of (varianteSeleccionada.imagenes || [])) {
+        if (!imgs.includes(img)) imgs.push(img)
+      }
+      // fallback: if variant has no images at all, show product images
+      if (imgs.length === 0) {
+        if (producto.imagen_url) imgs.push(producto.imagen_url)
+        for (const img of (producto.imagenes || [])) {
+          if (!imgs.includes(img)) imgs.push(img)
+        }
+      }
+      return imgs
+    }
+    // No variant: show product images
+    const imgs: string[] = []
+    if (producto.imagen_url) imgs.push(producto.imagen_url)
+    for (const img of (producto.imagenes || [])) {
+      if (!imgs.includes(img)) imgs.push(img)
+    }
+    return imgs
+  }, [producto, varianteSeleccionada])
+
+  const galeriaLen = todasLasImagenes.length
+
+  // If active image index is out of range after gallery changes (variant switch), reset it
+  useEffect(() => {
+    if (galeriaLen > 0 && imagenActiva >= galeriaLen) setImagenActiva(0)
+  }, [galeriaLen, imagenActiva])
 
   const prevImg = useCallback(() =>
     setImagenActiva(i => (i - 1 + galeriaLen) % galeriaLen), [galeriaLen])
@@ -167,14 +194,6 @@ export default function ProductoDetallePage() {
   }
 
   if (!producto) return notFound()
-
-  // If selected variant has its own image, put it first
-  const imagenVariante = varianteSeleccionada?.imagen_url || null
-  const todasLasImagenes = [
-    ...(imagenVariante ? [imagenVariante] : []),
-    ...(producto.imagen_url && producto.imagen_url !== imagenVariante ? [producto.imagen_url] : []),
-    ...(producto.imagenes || []).filter(img => img !== imagenVariante),
-  ]
 
   const tieneDescuento = producto.precio_anterior && producto.precio_anterior > producto.precio
 

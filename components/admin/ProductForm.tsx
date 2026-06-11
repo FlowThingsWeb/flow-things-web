@@ -54,14 +54,17 @@ function VarianteForm({
       ? Object.entries(initial.atributos).map(([key, val]) => ({ key, val }))
       : [{ key: 'Color', val: '' }]
   )
-  const [sku,       setSku]      = useState(initial?.sku || '')
-  const [stock,     setStock]    = useState(String(initial?.stock ?? 0))
-  const [imagenUrl, setImagenUrl] = useState(initial?.imagen_url || '')
+  const [sku,        setSku]       = useState(initial?.sku || '')
+  const [stock,      setStock]     = useState(String(initial?.stock ?? 0))
+  const [imagenUrl,  setImagenUrl]  = useState(initial?.imagen_url || '')
   const [imgPreview, setImgPreview] = useState(initial?.imagen_url || '')
+  const [imagenes,   setImagenes]   = useState<string[]>(initial?.imagenes || [])
   const [uploading,  setUploading]  = useState(false)
+  const [uploadingExtra, setUploadingExtra] = useState(false)
   const [saving,     setSaving]     = useState(false)
   const [error,      setError]      = useState('')
-  const fileRef = useRef<HTMLInputElement>(null)
+  const fileRef      = useRef<HTMLInputElement>(null)
+  const extraFileRef = useRef<HTMLInputElement>(null)
 
   const addAtributo = () => setAtributos(p => [...p, { key: '', val: '' }])
   const removeAtributo = (i: number) => setAtributos(p => p.filter((_, idx) => idx !== i))
@@ -85,6 +88,35 @@ function VarianteForm({
     }
   }
 
+  const handleExtraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    setUploadingExtra(true)
+    try {
+      const urls = await Promise.all(files.map(uploadFile))
+      setImagenes(prev => [...prev, ...urls])
+    } catch {
+      setError('Error al subir imagen')
+    } finally {
+      setUploadingExtra(false)
+      e.target.value = ''
+    }
+  }
+
+  const moveExtra = (idx: number, dir: -1 | 1) => {
+    setImagenes(prev => {
+      const arr = [...prev]
+      const target = idx + dir
+      if (target < 0 || target >= arr.length) return arr
+      ;[arr[idx], arr[target]] = [arr[target], arr[idx]]
+      return arr
+    })
+  }
+
+  const removeExtra = (idx: number) => {
+    setImagenes(prev => prev.filter((_, i) => i !== idx))
+  }
+
   const handleSave = async () => {
     const validAttrs = atributos.filter(a => a.key.trim() && a.val.trim())
     if (!validAttrs.length) { setError('Agregá al menos un atributo'); return }
@@ -98,6 +130,7 @@ function VarianteForm({
       sku: sku.trim() || null,
       stock: parseInt(stock) || 0,
       imagen_url: imagenUrl || null,
+      imagenes,
       ...(initial ? { id: initial.id } : {}),
     }
 
@@ -208,6 +241,62 @@ function VarianteForm({
         </div>
       </div>
 
+      {/* Galería extra de la variante */}
+      <div>
+        <p className="text-xs font-semibold text-brand-text-muted mb-2">
+          Fotos adicionales de esta variante
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {imagenes.map((img, idx) => (
+            <div key={idx} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-brand-border flex-shrink-0">
+              <Image src={img} alt={`Extra ${idx + 1}`} fill className="object-cover" sizes="64px" />
+              {/* Overlay con acciones */}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5">
+                <div className="flex gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => moveExtra(idx, -1)}
+                    disabled={idx === 0}
+                    className="w-5 h-5 rounded bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center disabled:opacity-30"
+                  >‹</button>
+                  <button
+                    type="button"
+                    onClick={() => moveExtra(idx, 1)}
+                    disabled={idx === imagenes.length - 1}
+                    className="w-5 h-5 rounded bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center disabled:opacity-30"
+                  >›</button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeExtra(idx)}
+                  className="w-5 h-5 rounded bg-red-500/70 hover:bg-red-500 text-white text-xs flex items-center justify-center"
+                >✕</button>
+              </div>
+            </div>
+          ))}
+
+          {/* Botón agregar */}
+          <button
+            type="button"
+            onClick={() => extraFileRef.current?.click()}
+            disabled={uploadingExtra}
+            className="w-16 h-16 rounded-xl border-2 border-dashed border-brand-border hover:border-brand-purple bg-brand-bg flex items-center justify-center text-brand-text-muted hover:text-brand-purple transition-colors flex-shrink-0 text-xl disabled:opacity-50"
+          >
+            {uploadingExtra ? (
+              <div className="w-4 h-4 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+            ) : '+'}
+          </button>
+          <input
+            ref={extraFileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleExtraUpload}
+          />
+        </div>
+      </div>
+
       {error && <p className="text-xs text-red-400">{error}</p>}
 
       {/* Acciones */}
@@ -264,7 +353,11 @@ function VarianteCard({
         <div className="flex items-center gap-3 mt-0.5">
           <span className="text-xs text-brand-text-muted">Stock: <b className="text-white">{variante.stock}</b></span>
           {variante.sku && <span className="font-mono text-[10px] text-brand-neon">{variante.sku}</span>}
-          {variante.imagen_url && <span className="text-[10px] text-green-400">📷 con foto</span>}
+          {(variante.imagen_url || variante.imagenes?.length > 0) && (
+            <span className="text-[10px] text-green-400">
+              📷 {(variante.imagen_url ? 1 : 0) + (variante.imagenes?.length || 0)} foto{((variante.imagen_url ? 1 : 0) + (variante.imagenes?.length || 0)) !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       </div>
 

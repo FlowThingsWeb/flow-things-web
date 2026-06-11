@@ -29,9 +29,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'producto_id y atributos son requeridos' }, { status: 400 })
   }
 
+  const { imagenes, ...rest } = body
   const { data, error } = await supabaseAdmin
     .from('variantes')
-    .insert([{ producto_id, atributos, sku: sku || null, stock: stock ?? 0, imagen_url: imagen_url || null }])
+    .insert([{
+      producto_id, atributos,
+      sku: sku || null,
+      stock: stock ?? 0,
+      imagen_url: imagen_url || null,
+      imagenes: imagenes || [],
+    }])
     .select()
     .single()
 

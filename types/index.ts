@@ -32,6 +32,7 @@ export interface Variante {
   sku: string | null
   stock: number
   imagen_url: string | null
+  imagenes: string[]
   activo: boolean
   created_at: string
 }
