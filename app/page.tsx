@@ -6,6 +6,7 @@ import EditableImage from '@/components/EditableImage'
 import EditBar from '@/components/EditBar'
 import { Producto } from '@/types'
 import { getConfig } from '@/lib/config'
+import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,14 +17,16 @@ async function getDestacados(): Promise<Producto[]> {
     .eq('activo', true)
     .eq('destacado', true)
     .order('created_at', { ascending: false })
-    .limit(8)
+    .limit(20) // fetch more to account for filtering
 
-  return data || []
+  return (data || [])
+    .filter((p: any) => !CATEGORIAS_PAUSADAS.includes(p.categorias?.slug))
+    .slice(0, 8)
 }
 
 async function getCategorias() {
   const { data } = await supabaseAdmin.from('categorias').select('*')
-  return data || []
+  return (data || []).filter((c: any) => !CATEGORIAS_PAUSADAS.includes(c.slug))
 }
 
 export default async function HomePage({

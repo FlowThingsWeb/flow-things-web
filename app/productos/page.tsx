@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import ProductCard from '@/components/ProductCard'
 import SearchInput from '@/components/SearchInput'
 import { Producto, Variante } from '@/types'
+import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 
 interface PageProps {
   searchParams: Promise<{ categoria?: string; q?: string }>
@@ -13,8 +14,6 @@ export type CatalogItem = {
   variante: Variante | null
 }
 
-// Categorías temporalmente pausadas — no aparecen en el catálogo ni en el sidebar
-const CATEGORIAS_PAUSADAS = ['libreria', 'utiles-escolares', 'juegos-de-mesa']
 
 async function getProductos(categoria?: string, q?: string): Promise<CatalogItem[]> {
   let query = supabaseAdmin

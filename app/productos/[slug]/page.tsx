@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useParams, useSearchParams, notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import { useCartStore } from '@/lib/store'
 import { Producto, Variante } from '@/types'
 
@@ -60,6 +61,11 @@ export default function ProductoDetallePage() {
       ])
 
       if (!prodRes.data) { setLoading(false); return }
+
+      // Block access if product belongs to a paused category
+      const catSlug = (prodRes.data as any).categorias?.slug
+      if (catSlug && CATEGORIAS_PAUSADAS.includes(catSlug)) { setLoading(false); return }
+
       setProducto(prodRes.data as Producto)
 
       // Pre-select variant from URL param
