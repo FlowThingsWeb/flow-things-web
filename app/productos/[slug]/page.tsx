@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useParams, notFound } from 'next/navigation'
@@ -26,9 +26,11 @@ export default function ProductoDetallePage() {
   const [producto, setProducto] = useState<Producto | null>(null)
   const [loading, setLoading]   = useState(true)
   const [imagenActiva, setImagenActiva] = useState(0)
+  const [lightbox, setLightbox] = useState(false)
   const [cantidad, setCantidad] = useState(1)
   const [agregado, setAgregado] = useState(false)
   const [sinStockMsg, setSinStockMsg] = useState(false)
+  const touchStartX = useRef(0)
 
   // Contact info from config
   const [telefono, setTelefono] = useState('+54 9 11 5607 5633')
@@ -117,6 +119,29 @@ export default function ProductoDetallePage() {
     setSinStockMsg(false)
   }
 
+  // Gallery helpers — defined early, used after producto is loaded
+  const galeriaLen = useMemo(() => {
+    if (!producto) return 0
+    return (producto.imagen_url ? 1 : 0) + (producto.imagenes?.length || 0)
+  }, [producto])
+
+  const prevImg = useCallback(() =>
+    setImagenActiva(i => (i - 1 + galeriaLen) % galeriaLen), [galeriaLen])
+  const nextImg = useCallback(() =>
+    setImagenActiva(i => (i + 1) % galeriaLen), [galeriaLen])
+
+  // Keyboard navigation + Escape to close lightbox
+  useEffect(() => {
+    if (galeriaLen <= 1 && !lightbox) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft')  prevImg()
+      if (e.key === 'ArrowRight') nextImg()
+      if (e.key === 'Escape')     setLightbox(false)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [galeriaLen, lightbox, prevImg, nextImg])
+
   // Quantity handlers — validate against stock silently
   const incrementarCantidad = () => {
     if (cantidad >= stockEfectivo) {
@@ -197,38 +222,170 @@ export default function ProductoDetallePage() {
 
         {/* ── Galería ── */}
         <div className="space-y-3">
-          <div className="relative aspect-square bg-brand-bg-card border border-brand-border rounded-3xl overflow-hidden">
+          {/* Main image */}
+          <div
+            className="relative aspect-square bg-brand-bg-card border border-brand-border rounded-3xl overflow-hidden group"
+            onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+            onTouchEnd={e => {
+              const dx = e.changedTouches[0].clientX - touchStartX.current
+              if (Math.abs(dx) > 40) { dx < 0 ? nextImg() : prevImg() }
+            }}
+          >
             {todasLasImagenes.length > 0 ? (
-              <Image
-                src={todasLasImagenes[imagenActiva]}
-                alt={producto.nombre}
-                fill
-                className="object-cover"
-                priority
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
+              <>
+                <Image
+                  src={todasLasImagenes[imagenActiva]}
+                  alt={producto.nombre}
+                  fill
+                  className="object-cover cursor-zoom-in transition-transform duration-300 group-hover:scale-[1.02]"
+                  onClick={() => setLightbox(true)}
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                />
+
+                {/* Arrows — hidden when only 1 image */}
+                {todasLasImagenes.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevImg}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm z-10"
+                      aria-label="Imagen anterior"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={nextImg}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm z-10"
+                      aria-label="Imagen siguiente"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+
+                    {/* Counter badge */}
+                    <span className="absolute bottom-3 right-3 bg-black/60 text-white text-xs font-medium px-2.5 py-1 rounded-full backdrop-blur-sm z-10">
+                      {imagenActiva + 1} / {todasLasImagenes.length}
+                    </span>
+                  </>
+                )}
+
+                {/* Zoom hint */}
+                <span className="absolute bottom-3 left-3 bg-black/50 text-white/70 text-[10px] px-2 py-1 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity z-10 hidden sm:flex items-center gap-1">
+                  <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current stroke-2">
+                    <circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="m21 21-4.35-4.35M11 8v6M8 11h6"/>
+                  </svg>
+                  Ampliar
+                </span>
+              </>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-8xl">📦</div>
             )}
           </div>
+
+          {/* Thumbnails */}
           {todasLasImagenes.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {todasLasImagenes.map((img, i) => (
                 <button
                   key={i}
                   onClick={() => setImagenActiva(i)}
-                  className={`relative w-16 h-16 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-colors ${
+                  className={`relative flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-200 ${
                     i === imagenActiva
-                      ? 'border-brand-purple'
-                      : 'border-transparent hover:border-brand-purple/40'
+                      ? 'border-brand-purple w-20 h-20 opacity-100 ring-2 ring-brand-purple/30'
+                      : 'border-transparent w-16 h-16 opacity-60 hover:opacity-100 hover:border-brand-purple/50'
                   }`}
                 >
-                  <Image src={img} alt={`Vista ${i + 1}`} fill className="object-cover" sizes="64px" />
+                  <Image src={img} alt={`Vista ${i + 1}`} fill className="object-cover" sizes="80px" />
                 </button>
               ))}
             </div>
           )}
         </div>
+
+        {/* ── Lightbox ── */}
+        {lightbox && todasLasImagenes.length > 0 && (
+          <div
+            className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center"
+            onClick={() => setLightbox(false)}
+            onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+            onTouchEnd={e => {
+              const dx = e.changedTouches[0].clientX - touchStartX.current
+              if (Math.abs(dx) > 40) { e.stopPropagation(); dx < 0 ? nextImg() : prevImg() }
+            }}
+          >
+            {/* Close */}
+            <button
+              onClick={() => setLightbox(false)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center z-10 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current stroke-2">
+                <path strokeLinecap="round" d="M6 18 18 6M6 6l12 12"/>
+              </svg>
+            </button>
+
+            {/* Counter */}
+            {todasLasImagenes.length > 1 && (
+              <span className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm font-medium">
+                {imagenActiva + 1} / {todasLasImagenes.length}
+              </span>
+            )}
+
+            {/* Image */}
+            <div
+              className="relative w-full h-full max-w-4xl max-h-[90vh] mx-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <Image
+                src={todasLasImagenes[imagenActiva]}
+                alt={producto.nombre}
+                fill
+                className="object-contain"
+                sizes="100vw"
+                priority
+              />
+            </div>
+
+            {/* Prev / Next */}
+            {todasLasImagenes.length > 1 && (
+              <>
+                <button
+                  onClick={e => { e.stopPropagation(); prevImg() }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current stroke-2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+                  </svg>
+                </button>
+                <button
+                  onClick={e => { e.stopPropagation(); nextImg() }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current stroke-2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+                  </svg>
+                </button>
+
+                {/* Dot indicators */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                  {todasLasImagenes.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={e => { e.stopPropagation(); setImagenActiva(i) }}
+                      className={`rounded-full transition-all ${
+                        i === imagenActiva
+                          ? 'w-6 h-2 bg-white'
+                          : 'w-2 h-2 bg-white/40 hover:bg-white/70'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* ── Info ── */}
         <div className="space-y-6">
