@@ -36,9 +36,6 @@ export default function ProductoDetallePage() {
   const [telefono, setTelefono] = useState('+54 9 11 5607 5633')
   const [email,    setEmail]    = useState('contacto@flowthings.com.ar')
 
-  // Variant selection
-  const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({})
-
   const addItem = useCartStore(s => s.addItem)
 
   // --- Fetch product + variants + contact config ---
@@ -76,45 +73,23 @@ export default function ProductoDetallePage() {
     [producto]
   )
 
-  // Group attribute names → unique values: { "Color": ["Rosa","Azul"], "Talle": ["M","L"] }
-  const atributoGroups = useMemo(() => {
-    const groups: Record<string, string[]> = {}
-    for (const v of variantes) {
-      for (const [key, val] of Object.entries(v.atributos)) {
-        if (!groups[key]) groups[key] = []
-        if (!groups[key].includes(val)) groups[key].push(val)
-      }
-    }
-    return groups
-  }, [variantes])
+  const tieneVariantes = variantes.length > 0
 
-  const atributoKeys   = Object.keys(atributoGroups)
-  const tieneVariantes = atributoKeys.length > 0
+  // Selected variant by ID
+  const [varianteId, setVarianteId] = useState<string | null>(null)
 
-  // Variant that matches the full current selection
-  const varianteSeleccionada: Variante | null = useMemo(() => {
-    if (!tieneVariantes) return null
-    return variantes.find(v =>
-      Object.entries(selectedAttrs).every(([k, val]) => v.atributos[k] === val) &&
-      Object.keys(v.atributos).length === Object.keys(selectedAttrs).length
-    ) ?? null
-  }, [variantes, selectedAttrs, tieneVariantes])
+  const varianteSeleccionada: Variante | null = useMemo(
+    () => variantes.find(v => v.id === varianteId) ?? null,
+    [variantes, varianteId]
+  )
 
-  const seleccionCompleta = !tieneVariantes || atributoKeys.every(k => !!selectedAttrs[k])
+  const seleccionCompleta = !tieneVariantes || !!varianteSeleccionada
 
-  // Effective stock (never shown as a number to the customer)
+  // Effective stock
   const stockEfectivo = varianteSeleccionada?.stock ?? (tieneVariantes ? 0 : (producto?.stock ?? 0))
 
-  // Is a given attr value available given current partial selection?
-  const isValueAvailable = (attrKey: string, attrVal: string) =>
-    variantes.some(v =>
-      v.atributos[attrKey] === attrVal &&
-      v.stock > 0 &&
-      Object.entries(selectedAttrs).every(([k, val]) => k === attrKey || v.atributos[k] === val)
-    )
-
-  const selectAttr = (key: string, val: string) => {
-    setSelectedAttrs(prev => ({ ...prev, [key]: val }))
+  const selectVariante = (v: Variante) => {
+    setVarianteId(v.id)
     setCantidad(1)
     setSinStockMsg(false)
     setImagenActiva(0)
@@ -454,60 +429,73 @@ export default function ProductoDetallePage() {
 
           {/* ── Variantes ── */}
           {tieneVariantes && (
-            <div className="border-t border-brand-border pt-5 space-y-5">
-              {atributoKeys.map(attrKey => (
-                <div key={attrKey}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <p className="text-sm font-semibold text-brand-text">{attrKey}</p>
-                    {selectedAttrs[attrKey] && (
-                      <span className="text-xs text-brand-text-muted">
-                        — <span className="text-white font-medium">{selectedAttrs[attrKey]}</span>
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {atributoGroups[attrKey].map(val => {
-                      const isSelected  = selectedAttrs[attrKey] === val
-                      const isAvailable = isValueAvailable(attrKey, val)
-                      return (
-                        <button
-                          key={val}
-                          onClick={() => isAvailable && selectAttr(attrKey, val)}
-                          disabled={!isAvailable}
-                          title={!isAvailable ? 'Sin stock disponible' : undefined}
-                          className={[
-                            'relative px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all',
-                            isSelected
-                              ? 'border-brand-purple bg-brand-purple text-white'
-                              : isAvailable
-                              ? 'border-brand-border bg-brand-bg-soft text-brand-text hover:border-brand-purple hover:text-brand-purple'
-                              : 'border-brand-border/40 bg-brand-bg-soft/50 text-brand-text-light cursor-not-allowed opacity-40',
-                          ].join(' ')}
-                        >
-                          {val}
-                          {!isAvailable && (
-                            <span
-                              className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none"
-                              aria-hidden
-                            >
-                              <span
-                                className="absolute inset-0 border-t border-brand-text-light/40"
-                                style={{ transform: 'rotate(-12deg) scaleX(1.3)', transformOrigin: 'center' }}
-                              />
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
+            <div className="border-t border-brand-border pt-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-brand-text">Variantes</p>
+                {varianteSeleccionada && (
+                  <span className="text-xs text-brand-text-muted">
+                    {Object.entries(varianteSeleccionada.atributos).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                  </span>
+                )}
+              </div>
 
-              {/* Hint when selection incomplete */}
-              {!seleccionCompleta && (
-                <p className="text-xs text-brand-text-muted italic">
-                  Seleccioná {atributoKeys.filter(k => !selectedAttrs[k]).join(' y ')} para continuar
-                </p>
+              <div className="flex flex-wrap gap-2">
+                {variantes.map(v => {
+                  const isSelected = varianteSeleccionada?.id === v.id
+                  const sinStock   = v.stock === 0
+                  const tieneImg   = !!v.imagen_url
+                  const label      = Object.values(v.atributos).join(' / ')
+
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => !sinStock && selectVariante(v)}
+                      title={sinStock ? 'Sin stock disponible' : label}
+                      className={[
+                        'relative flex items-center gap-2 rounded-xl border-2 transition-all duration-200',
+                        tieneImg ? 'p-1.5 pr-3' : 'px-4 py-2',
+                        isSelected
+                          ? 'border-brand-purple ring-2 ring-brand-purple/30 bg-brand-purple/10'
+                          : sinStock
+                          ? 'border-brand-border/30 opacity-40 cursor-not-allowed'
+                          : 'border-brand-border bg-brand-bg-soft hover:border-brand-purple hover:bg-brand-purple/5 cursor-pointer',
+                      ].join(' ')}
+                    >
+                      {/* Thumbnail */}
+                      {tieneImg && (
+                        <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-brand-bg">
+                          <Image
+                            src={v.imagen_url!}
+                            alt={label}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                          />
+                        </div>
+                      )}
+
+                      {/* Label */}
+                      <span className={[
+                        'text-sm font-medium leading-tight',
+                        isSelected ? 'text-white' : sinStock ? 'text-brand-text-muted' : 'text-brand-text',
+                      ].join(' ')}>
+                        {label}
+                      </span>
+
+                      {/* Sin stock — línea diagonal */}
+                      {sinStock && (
+                        <span className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none" aria-hidden>
+                          <span className="absolute inset-0 border-t border-brand-text-light/40"
+                            style={{ transform: 'rotate(-8deg) scaleX(1.2)', transformOrigin: 'center' }} />
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {!varianteSeleccionada && (
+                <p className="text-xs text-brand-text-muted italic">Seleccioná una variante para continuar</p>
               )}
             </div>
           )}
