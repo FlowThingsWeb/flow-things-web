@@ -13,6 +13,9 @@ export type CatalogItem = {
   variante: Variante | null
 }
 
+// Categorías temporalmente pausadas — no aparecen en el catálogo ni en el sidebar
+const CATEGORIAS_PAUSADAS = ['libreria', 'utiles-escolares', 'juegos-de-mesa']
+
 async function getProductos(categoria?: string, q?: string): Promise<CatalogItem[]> {
   let query = supabaseAdmin
     .from('productos')
@@ -22,6 +25,11 @@ async function getProductos(categoria?: string, q?: string): Promise<CatalogItem
 
   const { data } = await query
   let productos: Producto[] = data || []
+
+  // Excluir categorías pausadas
+  productos = productos.filter(
+    (p: Producto) => !CATEGORIAS_PAUSADAS.includes((p.categorias as any)?.slug)
+  )
 
   if (categoria) {
     productos = productos.filter(
@@ -61,7 +69,7 @@ async function getProductos(categoria?: string, q?: string): Promise<CatalogItem
 
 async function getCategorias() {
   const { data } = await supabaseAdmin.from('categorias').select('*')
-  return data || []
+  return (data || []).filter((c: any) => !CATEGORIAS_PAUSADAS.includes(c.slug))
 }
 
 export default async function ProductosPage({ searchParams }: PageProps) {
