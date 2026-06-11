@@ -56,7 +56,8 @@ export default function SearchInput({ categoria }: SearchInputProps) {
         onChange={handleChange}
         placeholder="Buscar productos..."
         autoComplete="off"
-        className="input-dark pl-9 pr-9 w-full"
+        className="input-dark w-full"
+        style={{ paddingLeft: '2.25rem', paddingRight: value ? '2.25rem' : undefined }}
       />
 
       {value && (

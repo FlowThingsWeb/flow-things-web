@@ -20,16 +20,6 @@ async function getProductos(categoria?: string, q?: string): Promise<CatalogItem
     .eq('activo', true)
     .order('created_at', { ascending: false })
 
-  if (q?.trim()) {
-    // Split into words and build OR filter across nombre + descripcion
-    const words = q.trim().split(/\s+/).filter(Boolean)
-    const filters = words.flatMap(w => [
-      `nombre.ilike.%${w}%`,
-      `descripcion.ilike.%${w}%`,
-    ])
-    query = query.or(filters.join(','))
-  }
-
   const { data } = await query
   let productos: Producto[] = data || []
 
@@ -37,6 +27,23 @@ async function getProductos(categoria?: string, q?: string): Promise<CatalogItem
     productos = productos.filter(
       (p: Producto) => (p.categorias as any)?.slug === categoria
     )
+  }
+
+  // Filter by search query in JS — matches nombre, descripcion, AND variant attribute values
+  if (q?.trim()) {
+    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    productos = productos.filter(p => {
+      const haystack = [
+        p.nombre,
+        p.descripcion ?? '',
+        // all active variant attribute values: "Rosa", "M", "Azul", etc.
+        ...((p.variantes || []) as Variante[])
+          .filter(v => v.activo)
+          .flatMap(v => Object.values(v.atributos)),
+      ].join(' ').toLowerCase()
+
+      return words.every(w => haystack.includes(w))
+    })
   }
 
   // Expand: one card per active variant, or one card if no variants
