@@ -3,34 +3,42 @@ const forge = require('node-forge')
 
 const WSAA_URL_PROD = 'https://wsaa.afip.gov.ar/ws/services/LoginCms'
 
+// Argentina es UTC-3 sin horario de verano
+function toART(d: Date): string {
+  const artMs = d.getTime() - 3 * 60 * 60 * 1000
+  return new Date(artMs).toISOString().replace('Z', '-03:00')
+}
+
 function buildTRA(service: string): string {
   const now = new Date()
   const expire = new Date(now.getTime() + 12 * 60 * 60 * 1000)
-  const fmt = (d: Date) => d.toISOString().replace('Z', '-03:00')
   const uniqueId = Math.floor(Date.now() / 1000)
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<loginTicketRequest version="1.0">\n  <header>\n    <uniqueId>${uniqueId}</uniqueId>\n    <generationTime>${fmt(now)}</generationTime>\n    <expirationTime>${fmt(expire)}</expirationTime>\n  </header>\n  <service>${service}</service>\n</loginTicketRequest>`
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<loginTicketRequest version="1.0">\n  <header>\n    <uniqueId>${uniqueId}</uniqueId>\n    <generationTime>${toART(now)}</generationTime>\n    <expirationTime>${toART(expire)}</expirationTime>\n  </header>\n  <service>${service}</service>\n</loginTicketRequest>`
 }
 
 function signCMS(tra: string, certPEM: string, keyPEM: string): string {
-  const p7 = forge.pkcs7.createSignedData()
-  p7.content = forge.util.createBuffer(tra, 'utf8')
-
   const cert = forge.pki.certificateFromPem(certPEM)
   const privateKey = forge.pki.privateKeyFromPem(keyPEM)
 
+  const p7 = forge.pkcs7.createSignedData()
+  p7.content = forge.util.createBuffer(tra, 'utf8')
   p7.addCertificate(cert)
   p7.addSigner({
     key: privateKey,
     certificate: cert,
     digestAlgorithm: forge.pki.oids.sha256,
-    authenticatedAttributes: [],
+    authenticatedAttributes: [
+      { type: forge.pki.oids.contentType, value: forge.pki.oids.data },
+      { type: forge.pki.oids.messageDigest },
+      { type: forge.pki.oids.signingTime, value: new Date() },
+    ],
   })
 
-  p7.sign({ detached: false })
+  p7.sign()
 
-  const der = forge.asn1.toDer(p7.toAsn1())
-  return Buffer.from(der.bytes(), 'binary').toString('base64')
+  const der = forge.asn1.toDer(p7.toAsn1()).getBytes()
+  return Buffer.from(der, 'binary').toString('base64')
 }
 
 function extractXml(xml: string, tag: string): string {
@@ -65,7 +73,8 @@ export async function getTokenAuth(
   const responseText = await response.text()
 
   if (!response.ok) {
-    throw new Error(`WSAA HTTP ${response.status}: ${responseText.slice(0, 300)}`)
+    const faultMsg = extractXml(responseText, 'faultstring') || extractXml(responseText, 'faultcode')
+    throw new Error(`WSAA error: ${faultMsg || responseText.slice(0, 400)}`)
   }
 
   let ticketXml = extractXml(responseText, 'loginCmsReturn')
