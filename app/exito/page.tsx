@@ -4,11 +4,18 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import { useCartStore } from '@/lib/store'
 
 function ExitoContent() {
   const searchParams = useSearchParams()
   const ordenId = searchParams.get('orden_id')
   const pending = searchParams.get('pending')
+  const clearCart = useCartStore((s) => s.clearCart)
+
+  // Limpiar el carrito al llegar a esta página (el pago se confirmó o está pendiente)
+  useEffect(() => {
+    clearCart()
+  }, [clearCart])
 
   return (
     <div className="max-w-lg mx-auto px-4 py-20 text-center">

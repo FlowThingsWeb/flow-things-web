@@ -63,11 +63,8 @@ export async function POST(request: NextRequest) {
           }
           codigoValidado = codigo.codigo
 
-          // Incrementar usos
-          await db
-            .from('codigos_descuento')
-            .update({ usos_actuales: codigo.usos_actuales + 1 })
-            .eq('id', codigo.id)
+          // El incremento de usos se realiza en el webhook, una vez que el pago se aprueba.
+          // Así evitamos quemar el código si MP falla o el usuario abandona el pago.
         }
         // Si el código no es válido, descuento queda en 0 (ignoramos lo que mandó el frontend)
       }
@@ -103,18 +100,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Crear preferencia de pago en Mercado Pago con el total con descuento
+    // Crear preferencia de pago en Mercado Pago con el total con descuento.
+    // El descuento se pasa como `coupon_amount` (MP rechaza items con unit_price negativo).
     let itemsParaMP: any[] = [...items]
-
-    if (descuento_monto > 0) {
-      itemsParaMP.push({
-        id: 'descuento',
-        nombre: `Descuento (${codigoValidado})`,
-        precio: -descuento_monto,
-        cantidad: 1,
-        imagen_url: null,
-      })
-    }
 
     if (costoEnvio > 0) {
       itemsParaMP.push({
@@ -130,6 +118,7 @@ export async function POST(request: NextRequest) {
       items: itemsParaMP,
       comprador,
       ordenId: orden.id,
+      couponAmount: descuento_monto > 0 ? descuento_monto : undefined,
     })
 
     // Guardar preference_id en la orden
