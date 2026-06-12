@@ -59,7 +59,7 @@ function numeroALetras(n: number): string {
   const resto = entero % 1000
   if (resto > 0) resultado += menorMil(resto) + ' '
 
-  resultado = resultado.trim() + ' pesos'
+  resultado = resultado.trim() + (entero === 1 ? ' peso' : ' pesos')
   if (centavos > 0) resultado += ` con ${centavos} centavos`
   return resultado
 }
@@ -173,10 +173,10 @@ function generarHTMLFactura(r: FacturaResultado): string {
     .moneda-row { text-align:right; border:1.5px solid #333; border-top:0; padding:6px 16px; font-size:11px; }
     .moneda-row strong { font-weight:bold; }
 
+    @page { size:A4; margin:0; }
     @media print {
-      body { padding:0; }
-      .page { padding:10px; }
-      @page { margin:10mm; size:A4; }
+      body { padding:12mm 15mm; }
+      .page { padding:0; max-width:none; }
     }
   </style>
 </head>
@@ -302,6 +302,9 @@ export default function FacturacionAdminPage() {
   const [testing, setTesting] = useState(false)
   const [resultado, setResultado] = useState<FacturaResultado | null>(null)
   const [error, setError] = useState('')
+  const [emailTest, setEmailTest] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailMsg, setEmailMsg] = useState('')
 
   const handlePrueba = async () => {
     setTesting(true)
@@ -316,6 +319,26 @@ export default function FacturacionAdminPage() {
       setError(e.message)
     } finally {
       setTesting(false)
+    }
+  }
+
+  const handleEnviarEmail = async () => {
+    if (!emailTest || !resultado) return
+    setSendingEmail(true)
+    setEmailMsg('')
+    try {
+      const res = await fetch('/api/admin/factura-prueba', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailTest, facturaData: resultado }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error desconocido')
+      setEmailMsg('✅ Email enviado correctamente')
+    } catch (e: any) {
+      setEmailMsg('❌ ' + e.message)
+    } finally {
+      setSendingEmail(false)
     }
   }
 
@@ -389,6 +412,30 @@ export default function FacturacionAdminPage() {
             >
               📄 Ver / Descargar PDF
             </button>
+            <div className="pt-2 space-y-2">
+              <p className="text-white text-sm font-medium">Enviar email de prueba</p>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={emailTest}
+                  onChange={e => setEmailTest(e.target.value)}
+                  placeholder="destinatario@ejemplo.com"
+                  className="flex-1 bg-brand-bg border border-brand-border rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-purple placeholder:text-brand-text-muted"
+                />
+                <button
+                  onClick={handleEnviarEmail}
+                  disabled={sendingEmail || !emailTest}
+                  className="bg-brand-purple hover:bg-brand-purple-dark disabled:opacity-60 text-white font-semibold px-4 py-2 rounded-xl transition-colors text-sm whitespace-nowrap"
+                >
+                  {sendingEmail ? 'Enviando...' : '✉️ Enviar'}
+                </button>
+              </div>
+              {emailMsg && (
+                <p className={`text-sm ${emailMsg.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>
+                  {emailMsg}
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>

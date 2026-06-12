@@ -1,11 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTokenAuth } from '@/lib/afip-wsaa'
 import { getLastVoucher, solicitarCAE } from '@/lib/afip-wsfe'
+import { sendEmail, renderTemplate, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get('admin_token')?.value
   if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
+  let body: { email?: string; facturaData?: Record<string, unknown> } = {}
+  try { body = await req.json() } catch { /* no body */ }
+
+  const { email, facturaData } = body
+
+  // Si viene facturaData y email, solo enviar el email (sin emitir nueva factura)
+  if (email && facturaData) {
+    try {
+      const { data: rows } = await supabase.from('configuracion').select('clave,valor')
+      const cfg: Record<string, string> = {}
+      ;(rows || []).forEach((r: { clave: string; valor: string }) => { cfg[r.clave] = r.valor })
+
+      const asunto = cfg.notif_email_asunto || DEFAULT_EMAIL_ASUNTO
+      const template = cfg.notif_email_cuerpo || DEFAULT_EMAIL_CUERPO
+
+      const cuerpo = renderTemplate(template, {
+        nombre: 'Admin (prueba)',
+        orden_id: String(facturaData.nroComprobante ?? '–'),
+        total: facturaData.importe as string || '$1,00',
+        fecha: facturaData.fecha as string || new Date().toLocaleDateString('es-AR'),
+        productos: 'Factura de prueba – Flow Things',
+      })
+
+      await sendEmail({ to: email, asunto, cuerpo })
+      return NextResponse.json({ ok: true, emailEnviado: true })
+    } catch (err: any) {
+      console.error('[factura-prueba] email error', err)
+      return NextResponse.json({ error: err.message || 'Error al enviar email' }, { status: 500 })
+    }
+  }
+
+  // Flujo normal: emitir factura
   try {
     const cert = (process.env.AFIP_CERT || '').replace(/\\n/g, '\n')
     const key = (process.env.AFIP_KEY || '').replace(/\\n/g, '\n')
