@@ -257,9 +257,13 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   y += rowH
 
   // Item rows
+  const efectiveItems = p.items?.length
+    ? p.items
+    : [{ descripcion: 'Factura de prueba – Flow Things', cantidad: 1, precioUnitario: p.totalNumerico }]
+
   setBlack(); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
   setBorder()
-  for (const item of p.items) {
+  for (const item of efectiveItems) {
     doc.text(item.sku || '–',                          colSku,  y + 5)
     doc.text(item.descripcion.substring(0, 48),        colDesc, y + 5)
     doc.text(String(item.cantidad),                    colQty,  y + 5, { align: 'right' })

@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
       importe: '$1,00 (factura de prueba)',
       totalNumerico: 1.00,
       ambiente: 'PRODUCCIÓN',
+      items: [{ descripcion: 'Factura de prueba – Flow Things', cantidad: 1, precioUnitario: 1.00 }],
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error desconocido'
