@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 async function getOrdenes() {
@@ -94,7 +95,7 @@ export default async function AdminOrdenesPage() {
               </thead>
               <tbody className="divide-y divide-brand-border">
                 {ordenes.map((orden) => (
-                  <tr key={orden.id} className="hover:bg-brand-bg-soft/50 transition-colors">
+                  <tr key={orden.id} className="hover:bg-brand-bg-soft/50 transition-colors cursor-pointer" onClick={() => { window.location.href = `/admin/ordenes/${orden.id}` }}>
                     <td className="px-5 py-4">
                       <p className="text-xs text-brand-text-muted whitespace-nowrap">
                         {formatFecha(orden.created_at)}
