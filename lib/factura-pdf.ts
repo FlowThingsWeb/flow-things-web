@@ -286,9 +286,7 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   // Empty filler rows
   y += rowH * 2
 
-  // Bottom border of table
-  doc.rect(ML, y - rowH * 9 - hdrH - cliH + hdrH + cliH, CW, y - (ML + hdrH + cliH), '')
-  // Actually just draw a rect around the table area
+  // Border alrededor de toda la tabla
   setBorder()
   const tableTop = ML + hdrH + cliH
   doc.rect(ML, tableTop, CW, y - tableTop)
