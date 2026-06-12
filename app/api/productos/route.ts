@@ -10,9 +10,15 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get('page') || '1')
   const offset = (page - 1) * limit
 
+  // Con categoría: !inner excluye productos cuya categoría no coincide (INNER JOIN).
+  // Sin categoría: left join para traer todos los productos con o sin categoría.
+  const selectStr = categoria
+    ? '*, categorias!inner(id, nombre, slug)'
+    : '*, categorias(id, nombre, slug)'
+
   let query = supabaseAdmin
     .from('productos')
-    .select('*, categorias(id, nombre, slug)', { count: 'exact' })
+    .select(selectStr, { count: 'exact' })
     .eq('activo', true)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
@@ -36,6 +42,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/productos — Crear nuevo producto (admin)
 export async function POST(request: NextRequest) {
+  if (!request.cookies.get('admin_token')?.value)
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   try {
     const body = await request.json()
 
@@ -57,6 +65,8 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/productos — Actualizar producto (admin)
 export async function PUT(request: NextRequest) {
+  if (!request.cookies.get('admin_token')?.value)
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   try {
     const body = await request.json()
     const { id, ...updates } = body
@@ -84,6 +94,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE /api/productos?id=xxx — Eliminar producto (admin)
 export async function DELETE(request: NextRequest) {
+  if (!request.cookies.get('admin_token')?.value)
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
 

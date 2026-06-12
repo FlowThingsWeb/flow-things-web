@@ -12,10 +12,11 @@ function ExitoContent() {
   const pending = searchParams.get('pending')
   const clearCart = useCartStore((s) => s.clearCart)
 
-  // Limpiar el carrito al llegar a esta página (el pago se confirmó o está pendiente)
+  // Limpiar el carrito solo si el pago fue aprobado.
+  // Si está pendiente no lo limpiamos: si el pago termina rechazado, el usuario recupera su carrito.
   useEffect(() => {
-    clearCart()
-  }, [clearCart])
+    if (!pending) clearCart()
+  }, [pending, clearCart])
 
   return (
     <div className="max-w-lg mx-auto px-4 py-20 text-center">

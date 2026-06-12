@@ -52,6 +52,16 @@ export interface DatosComprador {
   ciudad: string
   provincia: string
   codigo_postal: string
+  dni?: string
+  // Datos de envío (guardados dentro de datos_comprador en la DB)
+  envio_tipo?: string | null
+  envio_nombre?: string | null
+  envio_costo?: number
+  // Datos de factura AFIP (persistidos tras emitir CAE)
+  factura_cae?: string
+  factura_nro?: number
+  factura_fecha?: string
+  factura_vto?: string
 }
 
 export interface Orden {
