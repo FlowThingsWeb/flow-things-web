@@ -322,69 +322,23 @@ export default function FacturacionAdminPage() {
       if (!res.ok) throw new Error(data.error || 'Error desconocido')
       setResultado(data)
 
-      // Generar el PDF UNA sola vez — mismo HTML que "Ver PDF", convertido a PDF real
+      // Generar el PDF con el mismo motor que usa el webhook
       setGeneratingPdf(true)
-
-      // Elementos temporales para el render
-      const overlay = document.createElement('div')
-      const wrapper = document.createElement('div')
-
       try {
-        // 1. Generar QR client-side (evita CORS con api.qrserver.com)
-        const QRCode = (await import('qrcode')).default
-        const qrObj = {
-          ver: 1, fecha: data.fechaISO, cuit: data.cuit, ptoVta: data.ptoVenta,
-          tipoCmp: 11, nroCmp: data.nroComprobante, importe: data.totalNumerico,
-          moneda: 'PES', ctz: 1, tipoDocRec: 99, nroDocRec: 0,
-          tipoCodAut: 'E', codAut: Number(data.cae),
-        }
-        const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${btoa(JSON.stringify(qrObj))}`
-        const qrDataUrl = await QRCode.toDataURL(qrUrl, { width: 130, margin: 1 })
-
-        // 2. Mismo HTML que "Ver PDF"
-        let html = generarHTMLFactura(data)
-        html = html.replace(/src="https:\/\/api\.qrserver\.com\/[^"]*"/, `src="${qrDataUrl}"`)
-        html = html.replace(/<script[\s\S]*?<\/script>/gi, '')
-
-        const styleMatch = html.match(/<style[^>]*>([\s\S]*)<\/style>/i)
-        const styles = styleMatch ? `<style>${styleMatch[1]}</style>` : ''
-        const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
-        const bodyContent = bodyMatch ? bodyMatch[1] : ''
-
-        // 3. Overlay oscuro para ocultar el HTML mientras se renderiza
-        //    html2canvas requiere que el elemento esté visible en el DOM
-        overlay.style.cssText =
-          'position:fixed;inset:0;background:rgba(10,0,30,.85);z-index:99999;' +
-          'display:flex;align-items:center;justify-content:center'
-        overlay.innerHTML =
-          '<p style="color:#fff;font-size:14px;font-family:sans-serif;letter-spacing:.5px">Generando PDF...</p>'
-
-        // El wrapper queda detrás del overlay — el usuario no lo ve
-        wrapper.innerHTML = styles + bodyContent
-        wrapper.style.cssText =
-          'position:fixed;top:0;left:0;width:794px;background:#fff;z-index:99998;overflow:hidden'
-
-        document.body.appendChild(overlay)
-        document.body.appendChild(wrapper)
-
-        // 4. html2pdf.js: convierte el HTML a PDF con la misma fidelidad visual
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const m = await import('html2pdf.js' as any)
-        const html2pdf = m.default ?? m
-
-        const dataUri: string = await html2pdf()
-          .set({
-            margin:      0,
-            filename:    `FACTURA #${data.nroComprobante}.pdf`,
-            image:       { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false, width: 794 },
-            jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-          })
-          .from(wrapper)
-          .outputPdf('datauristring')
-
-        // 5. Guardar — mismo archivo para "Ver PDF" y para enviar por mail
-        const base64 = dataUri.split(',')[1]
+        const { generateFacturaPDFBase64 } = await import('@/lib/factura-pdf')
+        const base64 = await generateFacturaPDFBase64({
+          nroComprobante: data.nroComprobante,
+          ptoVenta:       data.ptoVenta,
+          cuit:           data.cuit,
+          fecha:          data.fecha,
+          fechaISO:       data.fechaISO,
+          caeFechaVto:    data.caeFechaVto,
+          cae:            data.cae,
+          totalNumerico:  data.totalNumerico,
+          cliente:        data.cliente,
+          items:          data.items,
+          costoEnvio:     data.costoEnvio,
+        })
         const byteArr = new Uint8Array(atob(base64).split('').map(c => c.charCodeAt(0)))
         const blob = new Blob([byteArr], { type: 'application/pdf' })
         setPdfBase64(base64)
@@ -392,8 +346,6 @@ export default function FacturacionAdminPage() {
       } catch (pdfErr) {
         console.warn('Error generando PDF:', pdfErr)
       } finally {
-        if (document.body.contains(wrapper)) document.body.removeChild(wrapper)
-        if (document.body.contains(overlay)) document.body.removeChild(overlay)
         setGeneratingPdf(false)
       }
     } catch (e: any) {
