@@ -299,22 +299,58 @@ function generarHTMLFactura(r: FacturaResultado): string {
 }
 
 export default function FacturacionAdminPage() {
-  const [testing, setTesting] = useState(false)
-  const [resultado, setResultado] = useState<FacturaResultado | null>(null)
-  const [error, setError] = useState('')
-  const [emailTest, setEmailTest] = useState('')
+  const [testing, setTesting]       = useState(false)
+  const [resultado, setResultado]   = useState<FacturaResultado | null>(null)
+  const [error, setError]           = useState('')
+  const [emailTest, setEmailTest]   = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
-  const [emailMsg, setEmailMsg] = useState('')
+  const [emailMsg, setEmailMsg]     = useState('')
+  // PDF generado una sola vez al emitir — se reutiliza para ver Y para enviar
+  const [pdfBase64, setPdfBase64]   = useState<string | null>(null)
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null)
+  const [generatingPdf, setGeneratingPdf] = useState(false)
 
   const handlePrueba = async () => {
     setTesting(true)
     setError('')
     setResultado(null)
+    setPdfBase64(null)
+    setPdfBlobUrl(null)
     try {
       const res = await fetch('/api/admin/factura-prueba', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error desconocido')
       setResultado(data)
+
+      // Generar el PDF UNA sola vez, inmediatamente después de obtener el CAE
+      setGeneratingPdf(true)
+      try {
+        const { generateFacturaPDFBase64 } = await import('@/lib/factura-pdf')
+        const items = data.items || [{ descripcion: 'Factura de prueba – Flow Things', cantidad: 1, precioUnitario: data.totalNumerico }]
+        const base64 = await generateFacturaPDFBase64({
+          nroComprobante: data.nroComprobante,
+          ptoVenta:       data.ptoVenta,
+          cuit:           data.cuit,
+          fecha:          data.fecha,
+          caeFechaVto:    data.caeFechaVto,
+          cae:            data.cae,
+          totalNumerico:  data.totalNumerico,
+          cliente:        data.cliente,
+          items,
+          costoEnvio:     data.costoEnvio,
+        })
+        setPdfBase64(base64)
+        // Crear blob URL para poder abrirlo en el navegador
+        const byteChars = atob(base64)
+        const byteArr = new Uint8Array(byteChars.length)
+        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i)
+        const blob = new Blob([byteArr], { type: 'application/pdf' })
+        setPdfBlobUrl(URL.createObjectURL(blob))
+      } catch (pdfErr) {
+        console.warn('No se pudo generar PDF:', pdfErr)
+      } finally {
+        setGeneratingPdf(false)
+      }
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -325,119 +361,17 @@ export default function FacturacionAdminPage() {
   const handleEnviarEmail = async () => {
     if (!emailTest || !resultado) return
     setSendingEmail(true)
-    setEmailMsg('Generando PDF...')
+    setEmailMsg('Enviando...')
     try {
-      // Generar PDF cliente-side con jsPDF
-      let pdfBase64: string | undefined
-      try {
-        const { jsPDF } = await import('jspdf')
-        const r = resultado
-        const nroCbte = `${String(r.ptoVenta).padStart(4,'0')}-${String(r.nroComprobante).padStart(8,'0')}`
-        const vtoCAE = fmtFecha(r.caeFechaVto)
-        const items = r.items || [{ sku:'–', descripcion:'Factura de prueba – Flow Things', cantidad:1, precioUnitario:r.totalNumerico }]
-
-        const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' })
-        const W = 210
-
-        // Header morado
-        doc.setFillColor(124, 58, 237)
-        doc.rect(0, 0, W, 28, 'F')
-        doc.setTextColor(255,255,255)
-        doc.setFontSize(18); doc.setFont('helvetica','bold')
-        doc.text('Flow Things', 14, 18)
-        doc.setFontSize(14)
-        doc.text('FACTURA C', W/2, 18, { align:'center' })
-        doc.setFontSize(10); doc.setFont('helvetica','normal')
-        doc.text('Comprobante Nro: ' + nroCbte, W-14, 18, { align:'right' })
-
-        // Info empresa / comprobante
-        doc.setTextColor(0,0,0)
-        doc.setFontSize(9)
-        let y = 36
-        doc.setFont('helvetica','bold'); doc.text('Emisor', 14, y)
-        doc.setFont('helvetica','normal')
-        doc.text('BARMAN LUCAS · CUIT: ' + r.cuit, 14, y+5)
-        doc.text('Monotributo · Av. Gallardo 160, CABA', 14, y+10)
-        doc.text('Inicio de actividad: 01/04/2026', 14, y+15)
-
-        doc.setFont('helvetica','bold'); doc.text('Datos del comprobante', W/2+5, y)
-        doc.setFont('helvetica','normal')
-        doc.text('Fecha de emisión: ' + r.fecha, W/2+5, y+5)
-        doc.text('Punto de venta: ' + String(r.ptoVenta).padStart(4,'0'), W/2+5, y+10)
-        doc.text('Nro comprobante: ' + String(r.nroComprobante).padStart(8,'0'), W/2+5, y+15)
-
-        // Línea separadora
-        y += 24
-        doc.setDrawColor(200,200,200); doc.line(14, y, W-14, y)
-
-        // Cliente
-        y += 7
-        doc.setFont('helvetica','bold'); doc.text('Receptor', 14, y)
-        doc.setFont('helvetica','normal'); y += 5
-        doc.text('Nombre: ' + (r.cliente?.nombre || 'Consumidor Final'), 14, y); y += 5
-        doc.text('CUIT/DNI: ' + (r.cliente?.cuitDni || '–'), 14, y); y += 5
-        doc.text('Condición IVA: Consumidor Final · Condición de venta: Contado', 14, y)
-
-        // Línea
-        y += 8; doc.line(14, y, W-14, y)
-
-        // Tabla items — header
-        y += 7
-        doc.setFillColor(245,245,245); doc.rect(14, y-5, W-28, 8, 'F')
-        doc.setFont('helvetica','bold'); doc.setFontSize(8)
-        doc.text('Descripción', 16, y)
-        doc.text('Cant.', 130, y, { align:'right' })
-        doc.text('Precio unit.', 163, y, { align:'right' })
-        doc.text('Subtotal', W-16, y, { align:'right' })
-
-        // Tabla items — filas
-        doc.setFont('helvetica','normal'); doc.setFontSize(9); y += 6
-        for (const it of items) {
-          doc.text(it.descripcion, 16, y)
-          doc.text(String(it.cantidad), 130, y, { align:'right' })
-          doc.text(fmtMoneda(it.precioUnitario), 163, y, { align:'right' })
-          doc.text(fmtMoneda(it.cantidad * it.precioUnitario), W-16, y, { align:'right' })
-          y += 7
-          if (y > 240) { doc.addPage(); y = 20 }
-        }
-
-        // Total
-        y += 3; doc.line(14, y, W-14, y); y += 7
-        doc.setFont('helvetica','bold'); doc.setFontSize(11)
-        doc.text('TOTAL:', W-70, y)
-        doc.setTextColor(124,58,237)
-        doc.text(fmtMoneda(r.totalNumerico), W-16, y, { align:'right' })
-        doc.setTextColor(0,0,0)
-        doc.setFontSize(8); doc.setFont('helvetica','normal')
-        y += 6
-        doc.text('Son: ' + numeroALetras(r.totalNumerico).toUpperCase(), 14, y)
-
-        // CAE
-        y += 12; doc.line(14, y, W-14, y); y += 7
-        doc.setFontSize(9); doc.setFont('helvetica','bold')
-        doc.text('CAE: ' + r.cae, 14, y)
-        doc.setFont('helvetica','normal')
-        doc.text('Vencimiento CAE: ' + vtoCAE, 14, y+6)
-        doc.text('Moneda: Pesos Argentinos (PES)', 14, y+12)
-
-        // Footer
-        doc.setFontSize(7); doc.setTextColor(150,150,150)
-        doc.text('Comprobante generado por Flow Things · flowthings.com.ar', W/2, 287, { align:'center' })
-
-        pdfBase64 = doc.output('datauristring').split(',')[1]
-      } catch (pdfErr) {
-        console.warn('No se pudo generar PDF, se enviará sin adjunto:', pdfErr)
-      }
-
-      setEmailMsg('Enviando...')
+      // Usa el mismo pdfBase64 generado al emitir — no se genera uno nuevo
       const res = await fetch('/api/admin/factura-prueba', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailTest, facturaData: resultado, pdfBase64 }),
+        body: JSON.stringify({ email: emailTest, facturaData: resultado, pdfBase64: pdfBase64 ?? undefined }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error desconocido')
-      setEmailMsg(pdfBase64 ? '✅ Email enviado con la factura adjunta' : '✅ Email enviado (sin adjunto PDF)')
+      setEmailMsg(pdfBase64 ? '✅ Email enviado con la factura adjunta' : '✅ Email enviado')
     } catch (e: any) {
       setEmailMsg('❌ ' + e.message)
     } finally {
@@ -445,13 +379,15 @@ export default function FacturacionAdminPage() {
     }
   }
 
+  // Abre exactamente el mismo PDF que se adjunta por email
   const handleDescargarPDF = () => {
-    if (!resultado) return
-    const html = generarHTMLFactura(resultado)
-    const win = window.open('', '_blank')
-    if (win) {
-      win.document.write(html)
-      win.document.close()
+    if (pdfBlobUrl) {
+      window.open(pdfBlobUrl, '_blank')
+    } else if (resultado) {
+      // Fallback: HTML para visualización
+      const html = generarHTMLFactura(resultado)
+      const win = window.open('', '_blank')
+      if (win) { win.document.write(html); win.document.close() }
     }
   }
 
@@ -511,9 +447,10 @@ export default function FacturacionAdminPage() {
             </div>
             <button
               onClick={handleDescargarPDF}
-              className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
+              disabled={generatingPdf}
+              className="w-full bg-white/10 hover:bg-white/20 disabled:opacity-60 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
             >
-              📄 Ver / Descargar PDF
+              {generatingPdf ? '⏳ Generando PDF...' : pdfBlobUrl ? '📄 Ver / Descargar PDF' : '📄 Ver factura'}
             </button>
             <div className="pt-2 space-y-2">
               <p className="text-white text-sm font-medium">Enviar email de prueba</p>

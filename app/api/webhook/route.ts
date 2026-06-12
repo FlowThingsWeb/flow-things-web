@@ -4,6 +4,7 @@ import MercadoPagoConfig, { Payment } from 'mercadopago'
 import { sendTelegram, formatVentaMsg } from '@/lib/telegram'
 import { emitirFacturaC } from '@/lib/afip'
 import { sendEmail, renderTemplate, buildProductosFilas, buildDesgloseItems, buildFilaDescuento, buildMedioPago, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
+import { generateFacturaPDFBase64, facturaFileName } from '@/lib/factura-pdf'
 import { sendWhatsApp, DEFAULT_WPP_MENSAJE } from '@/lib/whatsapp'
 
 const client = new MercadoPagoConfig({
@@ -159,7 +160,51 @@ export async function POST(request: NextRequest) {
           if (emailHabilitado && compradorData.email) {
             const asunto = renderTemplate(cfg.notif_email_asunto || DEFAULT_EMAIL_ASUNTO, vars)
             const cuerpo = renderTemplate(cfg.notif_email_cuerpo || DEFAULT_EMAIL_CUERPO, vars)
-            await sendEmail({ to: compradorData.email, asunto, cuerpo }).catch(e =>
+
+            // Adjuntar la factura PDF (la misma que fue generada por AFIP)
+            let adjuntos: { filename: string; content: string; encoding: 'base64'; contentType: 'application/pdf' }[] | undefined
+            const facturaCAE  = compradorData.factura_cae
+            const facturaNro  = compradorData.factura_nro
+            const facturaFecha = compradorData.factura_fecha
+            const facturaVto  = compradorData.factura_vto
+            const ptoVenta    = Number(process.env.AFIP_PTO_VENTA || 5)
+            const cuit        = Number(process.env.AFIP_CUIT)
+
+            if (facturaCAE && facturaNro) {
+              try {
+                const pdfBase64 = await generateFacturaPDFBase64({
+                  nroComprobante: facturaNro,
+                  ptoVenta,
+                  cuit,
+                  fecha:         facturaFecha || fechaFmt,
+                  caeFechaVto:   facturaVto   || '',
+                  cae:           facturaCAE,
+                  totalNumerico: orden.total ?? 0,
+                  cliente: {
+                    nombre:     compradorData.nombre || 'Consumidor Final',
+                    cuitDni:    compradorData.dni    || '–',
+                    direccion:  compradorData.envio?.direccion || '–',
+                    ciudad:     compradorData.envio?.ciudad    || '–',
+                  },
+                  items: items.map((i: any) => ({
+                    descripcion:    i.nombre,
+                    cantidad:       i.cantidad,
+                    precioUnitario: i.precio,
+                  })),
+                  costoEnvio,
+                })
+                adjuntos = [{
+                  filename:    facturaFileName(facturaNro),
+                  content:     pdfBase64,
+                  encoding:    'base64',
+                  contentType: 'application/pdf',
+                }]
+              } catch (pdfErr: any) {
+                console.error('[email] Error generando PDF factura:', pdfErr.message)
+              }
+            }
+
+            await sendEmail({ to: compradorData.email, asunto, cuerpo, adjuntos }).catch(e =>
               console.error('[email] Error:', e.message))
           }
 

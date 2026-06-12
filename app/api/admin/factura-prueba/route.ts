@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
       const adjuntos = pdfBase64
         ? [{
-            filename: `factura-${facturaData.nroComprobante ?? 'prueba'}.pdf`,
+            filename: `FACTURA #${facturaData.nroComprobante ?? 'prueba'}.pdf`,
             content: pdfBase64,
             encoding: 'base64' as const,
             contentType: 'application/pdf',
