@@ -1,8 +1,9 @@
-import Afip from 'afipjs'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Afip = require('afipjs')
 
-let _afip: Afip | null = null
+let _afip: any = null
 
-function getAfip(): Afip {
+function getAfip(): any {
   if (_afip) return _afip
 
   const cert = (process.env.AFIP_CERT || '').replace(/\\n/g, '\n')
