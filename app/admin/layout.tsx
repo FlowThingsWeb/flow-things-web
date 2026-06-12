@@ -12,7 +12,6 @@ const navItems = [
   { href: '/admin/envios', label: 'Envíos', icon: '🚚', exact: false },
   { href: '/admin/facturacion', label: 'Facturación', icon: '🧾', exact: false },
   { href: '/admin/mailing', label: 'Mailing', icon: '✉️', exact: false },
-  { href: '/admin/notificaciones', label: 'Notificaciones', icon: '📣', exact: false },
   { href: '/admin/editor', label: 'Editor de página', icon: '✏️', exact: false },
 ]
 
