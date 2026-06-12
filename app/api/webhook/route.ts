@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import MercadoPagoConfig, { Payment } from 'mercadopago'
+import { sendTelegram, formatVentaMsg } from '@/lib/telegram'
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN!,
@@ -58,11 +59,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'DB error' }, { status: 500 })
     }
 
-    // Si el pago fue aprobado, descontar stock
+    // Si el pago fue aprobado, descontar stock y notificar por Telegram
     if (nuevoEstado === 'approved') {
       const { data: orden } = await supabaseAdmin
         .from('ordenes')
-        .select('items')
+        .select('items, total, datos_comprador')
         .eq('id', ordenId)
         .single()
 
@@ -73,6 +74,29 @@ export async function POST(request: NextRequest) {
             p_cantidad: item.cantidad,
           })
         }
+
+        // Notificación Telegram
+        const comprador = orden.datos_comprador ?? {}
+        const envio = comprador.envio ?? {}
+        const msg = formatVentaMsg({
+          ordenId,
+          total: orden.total ?? 0,
+          comprador: {
+            nombre: comprador.nombre,
+            email: comprador.email,
+            telefono: comprador.telefono,
+          },
+          items: orden.items.map((i: any) => ({
+            nombre: i.nombre,
+            cantidad: i.cantidad,
+            precio: i.precio,
+          })),
+          envio: {
+            nombre: envio.nombre,
+            costo: envio.costo,
+          },
+        })
+        await sendTelegram(msg)
       }
     }
 

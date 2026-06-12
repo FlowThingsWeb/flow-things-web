@@ -1,0 +1,50 @@
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID
+
+export async function sendTelegram(message: string): Promise<void> {
+  if (!BOT_TOKEN || !CHAT_ID) return
+
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: message,
+        parse_mode: 'HTML',
+      }),
+    })
+  } catch (err) {
+    console.error('[telegram] Error enviando mensaje:', err)
+  }
+}
+
+export function formatVentaMsg(params: {
+  ordenId: string
+  total: number
+  comprador: { nombre?: string; email?: string; telefono?: string }
+  items: { nombre: string; cantidad: number; precio: number }[]
+  envio?: { nombre?: string; costo?: number }
+}): string {
+  const { ordenId, total, comprador, items, envio } = params
+
+  const itemsStr = items
+    .map(i => `  • ${i.nombre} x${i.cantidad} — $${i.precio.toLocaleString('es-AR')}`)
+    .join('\n')
+
+  const envioStr =
+    envio?.nombre
+      ? `\n🚚 <b>Envío:</b> ${envio.nombre} — $${(envio.costo ?? 0).toLocaleString('es-AR')}`
+      : ''
+
+  return (
+    `🛍️ <b>¡Nueva venta!</b>\n\n` +
+    `📦 <b>Orden:</b> #${ordenId.slice(0, 8).toUpperCase()}\n` +
+    `👤 <b>Cliente:</b> ${comprador.nombre || 'Sin nombre'}\n` +
+    `📧 <b>Email:</b> ${comprador.email || '-'}\n` +
+    `📱 <b>Tel:</b> ${comprador.telefono || '-'}\n` +
+    `${envioStr}\n\n` +
+    `🧾 <b>Productos:</b>\n${itemsStr}\n\n` +
+    `💰 <b>Total:</b> $${total.toLocaleString('es-AR')}`
+  )
+}
