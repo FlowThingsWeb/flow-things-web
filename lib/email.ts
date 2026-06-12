@@ -81,6 +81,39 @@ export function buildTrackingBoton(trackingUrl: string, accentColor = '#7C3AED')
   </table>`
 }
 
+// Formatea el medio de pago a partir del objeto payment de MercadoPago
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function buildMedioPago(payment: any): string {
+  const type   = payment?.payment_type_id   ?? ''
+  const method = payment?.payment_method_id ?? ''
+  const cuotas = payment?.installments      ?? 1
+  const last4  = payment?.card?.last_four_digits ?? ''
+
+  const brandNames: Record<string, string> = {
+    visa: 'Visa', master: 'Mastercard', amex: 'American Express',
+    naranja: 'Naranja', cabal: 'Cabal', diners: 'Diners Club',
+    argencard: 'Argencard', cencosud: 'Cencosud', cordobesa: 'Cordobesa',
+    maestro: 'Maestro',
+  }
+  const brand = brandNames[method] || method
+
+  if (type === 'credit_card') {
+    let result = `Tarjeta de crédito ${brand}`
+    if (last4) result += ` terminada en ${last4}`
+    result += cuotas > 1 ? ` · ${cuotas} cuotas` : ' · 1 pago'
+    return result
+  }
+  if (type === 'debit_card') {
+    let result = `Tarjeta de débito ${brand}`
+    if (last4) result += ` terminada en ${last4}`
+    return result
+  }
+  if (type === 'ticket')        return 'Pago en efectivo (Rapipago / Pago Fácil)'
+  if (type === 'bank_transfer') return 'Transferencia bancaria'
+  if (type === 'account_money') return 'Saldo en Mercado Pago'
+  return brand || 'Mercado Pago'
+}
+
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
 export const DEFAULT_EMAIL_ASUNTO = 'Tu pedido de Flow Things fue confirmado &#x1F389;'
@@ -131,8 +164,11 @@ export const DEFAULT_EMAIL_CUERPO = `<!DOCTYPE html>
       <td style="font-size:14px;color:#333;text-align:right;padding:4px 0 0">{{envio}}</td>
     </tr>
     <tr>
-      <td style="font-size:19px;font-weight:700;color:#111;padding:14px 0 0;border-top:2px solid #111">Total</td>
-      <td style="font-size:19px;font-weight:700;color:#7C3AED;text-align:right;padding:14px 0 0;border-top:2px solid #111">{{total}}</td>
+      <td style="font-size:19px;font-weight:700;color:#111;padding:14px 0 8px;border-top:2px solid #111">Total</td>
+      <td style="font-size:19px;font-weight:700;color:#7C3AED;text-align:right;padding:14px 0 8px;border-top:2px solid #111">{{total}}</td>
+    </tr>
+    <tr>
+      <td style="font-size:13px;color:#999;padding:0 0 8px" colspan="2">&#x1F4B3; {{medio_pago}}</td>
     </tr>
   </table>
 </td></tr>

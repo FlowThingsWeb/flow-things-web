@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import MercadoPagoConfig, { Payment } from 'mercadopago'
 import { sendTelegram, formatVentaMsg } from '@/lib/telegram'
 import { emitirFacturaC } from '@/lib/afip'
-import { sendEmail, renderTemplate, buildProductosFilas, buildFilaDescuento, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
+import { sendEmail, renderTemplate, buildProductosFilas, buildFilaDescuento, buildMedioPago, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
 import { sendWhatsApp, DEFAULT_WPP_MENSAJE } from '@/lib/whatsapp'
 
 const client = new MercadoPagoConfig({
@@ -149,6 +149,7 @@ export async function POST(request: NextRequest) {
             productos_filas: productosFilas,
             fecha:           fechaFmt,
             // retrocompatibilidad
+            medio_pago:      buildMedioPago(payment),
             productos: items.map((i: any) => `${i.cantidad}x ${i.nombre}`).join(', '),
           }
 
