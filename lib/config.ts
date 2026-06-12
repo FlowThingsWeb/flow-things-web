@@ -39,7 +39,16 @@ export interface ConfigMap {
   footer_link_utiles: string
   footer_banner_url: string
   footer_copyright: string
-  // Envíos
+  // Envíos — precios por zona
+  envio_precio_caba: string
+  envio_precio_gba: string
+  envio_precio_interior: string
+  envio_gratis_caba_desde: string
+  envio_gratis_gba_desde: string
+  envio_gratis_interior_desde: string
+  envio_tiempo_caba: string
+  envio_tiempo_gba: string
+  envio_tiempo_interior: string
   cabify_direccion_origen: string
   // Design
   design_overrides: string
@@ -83,7 +92,16 @@ const DEFAULTS: ConfigMap = {
   footer_link_utiles: 'Útiles escolares',
   footer_banner_url: '/banner.png',
   footer_copyright: 'Todos los derechos reservados.',
-  // Envíos
+  // Envíos — precios por zona
+  envio_precio_caba: '2500',
+  envio_precio_gba: '3500',
+  envio_precio_interior: '6000',
+  envio_gratis_caba_desde: '40000',
+  envio_gratis_gba_desde: '60000',
+  envio_gratis_interior_desde: '120000',
+  envio_tiempo_caba: '24-48 hs hábiles',
+  envio_tiempo_gba: '48-72 hs hábiles',
+  envio_tiempo_interior: '3-7 días hábiles',
   cabify_direccion_origen: 'Federico Lacroze 3885, CABA, 1427',
   // Design
   design_overrides: '',

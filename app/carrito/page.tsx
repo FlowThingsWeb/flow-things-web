@@ -67,7 +67,7 @@ export default function CarritoPage() {
   const costoEnvio = envioSeleccionado?.precio ?? 0
   const totalFinal = Math.max(0, subtotal - (descuento?.descuento_monto ?? 0)) + costoEnvio
 
-  const puedeCalcularEnvio = !!form.direccion.trim() && !!form.ciudad.trim() && !!form.provincia.trim()
+  const puedeCalcularEnvio = !!form.provincia.trim()
 
   const calcularEnvio = async () => {
     setEnvioError('')
@@ -84,6 +84,7 @@ export default function CarritoPage() {
           ciudad: form.ciudad,
           provincia: form.provincia,
           codigo_postal: form.codigo_postal,
+          subtotal,
         }),
       })
 
@@ -347,7 +348,7 @@ export default function CarritoPage() {
 
             {!puedeCalcularEnvio && !envioCalculado && (
               <p className="text-xs text-brand-text-muted">
-                Completá tu dirección, ciudad y provincia para calcular el envío.
+                Seleccioná tu provincia para calcular el costo de envío.
               </p>
             )}
 

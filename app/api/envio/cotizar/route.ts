@@ -1,162 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getConfig } from '@/lib/config'
 
-const CABIFY_CLIENT_ID = process.env.CABIFY_CLIENT_ID
-const CABIFY_CLIENT_SECRET = process.env.CABIFY_CLIENT_SECRET
-const CABIFY_AUTH_URL = 'https://cabify.com/auth/api/authorization'
-const CABIFY_API_BASE = 'https://logistics.api.cabify.com'
+// Provincias que pertenecen a GBA / Buenos Aires provincia
+const PROVINCIAS_GBA = ['Buenos Aires']
+const PROVINCIAS_CABA = ['CABA']
 
-// Cache del token en memoria del proceso del servidor (~30 días de validez)
-let tokenCache: { token: string; expiresAt: number } | null = null
-
-async function getCabifyToken(): Promise<string> {
-  const now = Date.now()
-
-  // Reutilizar si queda más de 5 minutos de vida
-  if (tokenCache && tokenCache.expiresAt > now + 300_000) {
-    return tokenCache.token
-  }
-
-  const res = await fetch(CABIFY_AUTH_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: CABIFY_CLIENT_ID!,
-      client_secret: CABIFY_CLIENT_SECRET!,
-    }),
-  })
-
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Cabify auth error ${res.status}: ${text}`)
-  }
-
-  const data = await res.json()
-
-  tokenCache = {
-    token: data.access_token,
-    // expires_in viene en segundos (~2591999 = ~30 días)
-    expiresAt: now + data.expires_in * 1000,
-  }
-
-  return tokenCache.token
-}
-
-const MODALIDAD_LABEL: Record<string, string> = {
-  express: 'Express (mismo día, pocas horas)',
-  same_day: 'Same Day (hoy)',
-  next_day: 'Next Day (al día siguiente)',
+function getZona(provincia: string): 'caba' | 'gba' | 'interior' {
+  if (PROVINCIAS_CABA.includes(provincia)) return 'caba'
+  if (PROVINCIAS_GBA.includes(provincia)) return 'gba'
+  return 'interior'
 }
 
 export async function POST(req: NextRequest) {
   try {
-    if (!CABIFY_CLIENT_ID || !CABIFY_CLIENT_SECRET) {
-      return NextResponse.json(
-        { error: 'Servicio de envío no configurado en el servidor.' },
-        { status: 503 }
-      )
-    }
-
     const body = await req.json()
-    const { direccion, ciudad, provincia, codigo_postal } = body ?? {}
+    const { provincia, subtotal = 0 } = body ?? {}
 
-    const [token, cfg] = await Promise.all([getCabifyToken(), getConfig()])
-
-    const origenDireccion = cfg.cabify_direccion_origen || 'Federico Lacroze 3885, CABA, 1427'
-    const destinoDireccion = [direccion, ciudad, provincia, codigo_postal].filter(Boolean).join(', ')
-
-    // Probar distintos endpoints — algunos requieren parámetros de origen/destino
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
+    if (!provincia) {
+      return NextResponse.json({ error: 'Provincia requerida' }, { status: 400 })
     }
 
-    const endpointsToTry = [
-      // Sin versión
-      `${CABIFY_API_BASE}/shipping_types/available`,
-      `${CABIFY_API_BASE}/shipping_types`,
-      `${CABIFY_API_BASE}/shipping-types/available`,
-      // Con v1
-      `${CABIFY_API_BASE}/v1/shipping_types/available`,
-      `${CABIFY_API_BASE}/v1/shipping_types`,
-      // Con prefijo /logistics
-      `${CABIFY_API_BASE}/logistics/v1/shipping_types/available`,
-      `${CABIFY_API_BASE}/logistics/shipping_types/available`,
-      // Dominio alternativo
-      `https://api.cabify.com/logistics/v1/shipping_types/available`,
-      `https://api.cabify.com/v1/shipping_types/available`,
-      // Con query params de origen/destino
-      `${CABIFY_API_BASE}/v1/shipping_types/available?pickup_address=${encodeURIComponent(origenDireccion)}&dropoff_address=${encodeURIComponent(destinoDireccion)}`,
-    ]
+    const cfg = await getConfig()
+    const zona = getZona(provincia)
 
-    let shippingRes: Response | null = null
-    let lastStatus = 0
-    let lastBody = ''
-
-    for (const url of endpointsToTry) {
-      const r = await fetch(url, { headers })
-      const bodyText = await r.text()
-      console.log(`[cotizar] ${url} → ${r.status} ${bodyText.slice(0, 300)}`)
-
-      if (r.ok) {
-        shippingRes = new Response(bodyText, { status: r.status, headers: { 'Content-Type': 'application/json' } })
-        break
-      }
-      lastStatus = r.status
-      lastBody = bodyText
+    const precios = {
+      caba: {
+        precio: Number(cfg.envio_precio_caba) || 2500,
+        gratis_desde: Number(cfg.envio_gratis_caba_desde) || 40000,
+        tiempo: cfg.envio_tiempo_caba || '24-48 hs hábiles',
+        nombre: 'Envío a CABA',
+        id: 'caba',
+      },
+      gba: {
+        precio: Number(cfg.envio_precio_gba) || 3500,
+        gratis_desde: Number(cfg.envio_gratis_gba_desde) || 60000,
+        tiempo: cfg.envio_tiempo_gba || '48-72 hs hábiles',
+        nombre: 'Envío GBA / Provincia de Buenos Aires',
+        id: 'gba',
+      },
+      interior: {
+        precio: Number(cfg.envio_precio_interior) || 6000,
+        gratis_desde: Number(cfg.envio_gratis_interior_desde) || 120000,
+        tiempo: cfg.envio_tiempo_interior || '3-7 días hábiles',
+        nombre: 'Envío al interior del país',
+        id: 'interior',
+      },
     }
 
-    if (!shippingRes) {
-      throw new Error(`Todos los endpoints fallaron. Último: ${lastStatus} ${lastBody.slice(0, 200)}`)
-    }
-
-    const shippingData = await shippingRes.json()
-
-    // La API puede devolver { shipping_types: [...] } o directamente un array
-    const tipos: any[] = Array.isArray(shippingData)
-      ? shippingData
-      : (shippingData.shipping_types ?? shippingData.data ?? [])
-
-    const opciones = tipos.map((t: any) => {
-      const modalidad: string = t.modality ?? t.type ?? t.id ?? ''
-      const precio =
-        t.price?.amount != null
-          ? t.price.amount
-          : t.price != null
-          ? t.price
-          : t.cost?.amount != null
-          ? t.cost.amount
-          : t.cost != null
-          ? t.cost
-          : null
-
-      return {
-        id: t.id ?? t.code ?? modalidad,
-        nombre:
-          t.name ??
-          t.label ??
-          MODALIDAD_LABEL[modalidad] ??
-          modalidad,
-        modalidad,
-        precio,
-        moneda: t.price?.currency ?? t.currency ?? 'ARS',
-        descripcion: t.description ?? null,
-        tiempo_estimado: t.estimated_time ?? t.eta ?? t.delivery_time ?? null,
-      }
-    })
+    const opcion = precios[zona]
+    const esGratis = subtotal > 0 && subtotal >= opcion.gratis_desde
+    const precioFinal = esGratis ? 0 : opcion.precio
 
     return NextResponse.json({
-      opciones,
-      direccion_destino: [direccion, ciudad, provincia, codigo_postal]
-        .filter(Boolean)
-        .join(', '),
+      opciones: [
+        {
+          id: opcion.id,
+          nombre: opcion.nombre,
+          modalidad: 'standard',
+          precio: precioFinal,
+          moneda: 'ARS',
+          descripcion: esGratis ? '¡Envío gratis por superar el mínimo!' : null,
+          tiempo_estimado: opcion.tiempo,
+        },
+      ],
     })
   } catch (err: any) {
     console.error('[cotizar]', err.message)
     return NextResponse.json(
-      { error: `Error: ${err.message}` },
+      { error: 'No se pudo calcular el envío.' },
       { status: 500 }
     )
   }
