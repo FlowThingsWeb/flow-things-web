@@ -17,16 +17,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan variables AFIP_CERT, AFIP_KEY o AFIP_CUIT' }, { status: 500 })
     }
 
-    // Debug temporal — verificar formato del certificado
-    return NextResponse.json({
-      debug: true,
-      cuit,
-      certPrimeraLinea: cert.split('\n')[0],
-      certUltimaLinea: cert.split('\n').filter(Boolean).slice(-1)[0],
-      certLineas: cert.split('\n').length,
-      keyPrimeraLinea: key.split('\n')[0],
-    })
-
     // Entorno de PRODUCCIÓN con importe mínimo ($1)
     const afip = new Afip({ CUIT: cuit, cert, key, production: true })
     const fe = afip.ElectronicBilling
