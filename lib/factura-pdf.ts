@@ -76,22 +76,6 @@ function numeroALetras(n: number): string {
   return resultado
 }
 
-async function fetchAsDataUrl(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const buf = await res.arrayBuffer()
-    const bytes = new Uint8Array(buf)
-    let binary = ''
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-    const ext = url.split('.').pop()?.toLowerCase() ?? 'png'
-    const mime = ext === 'jpg' ? 'image/jpeg' : 'image/png'
-    return `data:${mime};base64,${btoa(binary)}`
-  } catch {
-    return null
-  }
-}
-
 // ─── Main generator ───────────────────────────────────────────────────────────
 
 export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<string> {
@@ -105,12 +89,8 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   const costoEnvio = p.costoEnvio ?? 0
   const nroCbte = `${String(p.ptoVenta).padStart(4, '0')}-${String(p.nroComprobante).padStart(8, '0')}`
 
-  // Fetch logo & QR in parallel
-  const [logoDataUrl, QRCode] = await Promise.all([
-    fetchAsDataUrl('https://flow-things-web.vercel.app/logo.png'),
-    // qrcode es CommonJS — m.default puede ser undefined; usamos m directamente si es necesario
-    import('qrcode').then(m => (m.default ?? m) as { toDataURL: (text: string, opts?: object) => Promise<string> }),
-  ])
+  // Solo el QR — el logo no se embebe como imagen para mantener el PDF pequeño
+  const QRCode = await import('qrcode').then(m => (m.default ?? m) as { toDataURL: (text: string, opts?: object) => Promise<string> })
 
   const qrObj = {
     ver: 1,
@@ -142,10 +122,7 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   doc.line(ML + leftW,        y, ML + leftW,        y + hdrH)
   doc.line(ML + leftW + midW, y, ML + leftW + midW, y + hdrH)
 
-  // Left: logo + company info
-  if (logoDataUrl) {
-    try { doc.addImage(logoDataUrl, 'PNG', ML + 2, y + 2, 22, 11) } catch {}
-  }
+  // Left: company info (sin imagen de logo para mantener PDF pequeño)
   setBlack()
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13)
   doc.text('Flow Things', ML + 2, y + 18)
