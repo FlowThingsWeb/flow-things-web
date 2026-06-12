@@ -324,8 +324,13 @@ export default function FacturacionAdminPage() {
 
       // Generar el PDF UNA sola vez — mismo HTML que "Ver PDF", convertido a PDF real
       setGeneratingPdf(true)
+
+      // Elementos temporales para el render
+      const overlay = document.createElement('div')
+      const wrapper = document.createElement('div')
+
       try {
-        // 1. Generar QR client-side para evitar CORS con api.qrserver.com
+        // 1. Generar QR client-side (evita CORS con api.qrserver.com)
         const QRCode = (await import('qrcode')).default
         const qrObj = {
           ver: 1, fecha: data.fechaISO, cuit: data.cuit, ptoVta: data.ptoVenta,
@@ -336,52 +341,59 @@ export default function FacturacionAdminPage() {
         const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${btoa(JSON.stringify(qrObj))}`
         const qrDataUrl = await QRCode.toDataURL(qrUrl, { width: 130, margin: 1 })
 
-        // 2. Obtener el mismo HTML que usa "Ver PDF"
+        // 2. Mismo HTML que "Ver PDF"
         let html = generarHTMLFactura(data)
-        // Reemplazar QR externo con el generado localmente
         html = html.replace(/src="https:\/\/api\.qrserver\.com\/[^"]*"/, `src="${qrDataUrl}"`)
-        // Quitar el script de auto-print
         html = html.replace(/<script[\s\S]*?<\/script>/gi, '')
 
-        // 3. Extraer estilos y cuerpo para html2pdf
-        const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i)
+        const styleMatch = html.match(/<style[^>]*>([\s\S]*)<\/style>/i)
         const styles = styleMatch ? `<style>${styleMatch[1]}</style>` : ''
         const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
-        const bodyContent = bodyMatch ? bodyMatch[1] : html
+        const bodyContent = bodyMatch ? bodyMatch[1] : ''
 
-        const wrapper = document.createElement('div')
+        // 3. Overlay oscuro para ocultar el HTML mientras se renderiza
+        //    html2canvas requiere que el elemento esté visible en el DOM
+        overlay.style.cssText =
+          'position:fixed;inset:0;background:rgba(10,0,30,.85);z-index:99999;' +
+          'display:flex;align-items:center;justify-content:center'
+        overlay.innerHTML =
+          '<p style="color:#fff;font-size:14px;font-family:sans-serif;letter-spacing:.5px">Generando PDF...</p>'
+
+        // El wrapper queda detrás del overlay — el usuario no lo ve
         wrapper.innerHTML = styles + bodyContent
-        wrapper.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:210mm;background:#fff'
+        wrapper.style.cssText =
+          'position:fixed;top:0;left:0;width:794px;background:#fff;z-index:99998;overflow:hidden'
+
+        document.body.appendChild(overlay)
         document.body.appendChild(wrapper)
 
-        // 4. Convertir a PDF — misma salida visual que el navegador
+        // 4. html2pdf.js: convierte el HTML a PDF con la misma fidelidad visual
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const html2pdf = (await import('html2pdf.js' as any)).default
-        const pdfBlob: Blob = await html2pdf()
+        const m = await import('html2pdf.js' as any)
+        const html2pdf = m.default ?? m
+
+        const dataUri: string = await html2pdf()
           .set({
-            margin:     [12, 15, 12, 15],   // simula los márgenes de impresión
-            filename:   `FACTURA #${data.nroComprobante}.pdf`,
-            image:      { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF:      { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            margin:      0,
+            filename:    `FACTURA #${data.nroComprobante}.pdf`,
+            image:       { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false, width: 794 },
+            jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
           })
           .from(wrapper)
-          .outputPdf('blob')
+          .outputPdf('datauristring')
 
-        document.body.removeChild(wrapper)
-
-        // 5. Guardar base64 y blob URL — el mismo archivo para ver Y para mandar
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload  = () => resolve((reader.result as string).split(',')[1])
-          reader.onerror = reject
-          reader.readAsDataURL(pdfBlob)
-        })
+        // 5. Guardar — mismo archivo para "Ver PDF" y para enviar por mail
+        const base64 = dataUri.split(',')[1]
+        const byteArr = new Uint8Array(atob(base64).split('').map(c => c.charCodeAt(0)))
+        const blob = new Blob([byteArr], { type: 'application/pdf' })
         setPdfBase64(base64)
-        setPdfBlobUrl(URL.createObjectURL(pdfBlob))
+        setPdfBlobUrl(URL.createObjectURL(blob))
       } catch (pdfErr) {
-        console.warn('No se pudo generar PDF:', pdfErr)
+        console.warn('Error generando PDF:', pdfErr)
       } finally {
+        if (document.body.contains(wrapper)) document.body.removeChild(wrapper)
+        if (document.body.contains(overlay)) document.body.removeChild(overlay)
         setGeneratingPdf(false)
       }
     } catch (e: any) {
