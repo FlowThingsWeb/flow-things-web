@@ -51,11 +51,22 @@ export interface TokenAuth {
   sign: string
 }
 
+// Caché en módulo — válido mientras el proceso Node.js esté activo.
+// AFIP emite tokens de 12h; renovamos con 5 min de margen.
+const tokenCache: Record<string, { token: string; sign: string; expiresAt: number }> = {}
+
 export async function getTokenAuth(
   service: string,
   certPEM: string,
   keyPEM: string
 ): Promise<TokenAuth> {
+  const cacheKey = service
+  const now = Date.now()
+  const cached = tokenCache[cacheKey]
+  if (cached && cached.expiresAt > now) {
+    return { token: cached.token, sign: cached.sign }
+  }
+
   const tra = buildTRA(service)
   const cms = signCMS(tra, certPEM, keyPEM)
 
@@ -98,6 +109,13 @@ export async function getTokenAuth(
 
   if (!token || !sign) {
     throw new Error(`WSAA sin token. Respuesta: ${responseText.slice(0, 500)}`)
+  }
+
+  // Guardar en caché con expiración a las 11h 55min (5 min de margen antes de las 12h de AFIP)
+  tokenCache[cacheKey] = {
+    token,
+    sign,
+    expiresAt: now + (12 * 60 - 5) * 60 * 1000,
   }
 
   return { token, sign }

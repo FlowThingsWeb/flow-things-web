@@ -45,7 +45,7 @@ interface OpcionEnvio {
 
 export default function CarritoPage() {
   const router = useRouter()
-  const { items, removeItem, updateCantidad, total, clearCart } = useCartStore()
+  const { items, removeItem, updateCantidad, total } = useCartStore()
   const [form, setForm] = useState<DatosComprador>(formInicial)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

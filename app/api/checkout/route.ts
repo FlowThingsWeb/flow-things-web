@@ -118,7 +118,9 @@ export async function POST(request: NextRequest) {
       items: itemsParaMP,
       comprador,
       ordenId: orden.id,
-      couponAmount: descuento_monto > 0 ? descuento_monto : undefined,
+      // Si hay descuento, pasar el total final para usar un ítem único en MP
+      // (MP rechaza unit_price negativos — no se puede pasar un ítem de descuento)
+      totalConDescuento: descuento_monto > 0 ? total : undefined,
     })
 
     // Guardar preference_id en la orden
