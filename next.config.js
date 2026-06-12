@@ -14,6 +14,7 @@ const nextConfig = {
       allowedOrigins: ['flowthings.com.ar', 'localhost:3000'],
     },
   },
+  serverExternalPackages: ['afip'],
 }
 
 module.exports = nextConfig
