@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 // ─── Preview vars de ejemplo ──────────────────────────────────────────────────
 
@@ -88,7 +88,7 @@ const DEFAULT_CONFIRM_DESIGN: ConfirmDesign = {
   showLogo: true,
   titulo: 'Gracias, {{nombre}}!',
   introText: 'Recibimos tu pedido y ya lo estamos preparando con mucho cariño.',
-  closingText: 'Vamos a preparar tu pedido y cuando lo enviemos te avisamos por mail con los datos de seguimiento.\nAnte cualquier consulta escribinos por Instagram @flowthings__',
+  closingText: 'Vamos a preparar tu pedido y cuando lo enviemos te avisamos por mail con los datos de seguimiento.\nAnte cualquier consulta escribinos por mail a contacto@flowthings.com.ar o por WhatsApp al +54 9 11 5607-5633.',
   footerText: 'Flow Things',
 }
 
@@ -98,7 +98,7 @@ const DEFAULT_DESPACHO_DESIGN: DespachoDesign = {
   showLogo: true,
   headline: 'Tu pedido esta en camino, {{nombre}}!',
   subtitleText: 'Ya salio de nuestro deposito y se dirige a vos.',
-  contactText: 'Ante cualquier inconveniente escribinos por mail a flowthings@gmail.com o por WhatsApp al +54 9 11 XXXX-XXXX',
+  contactText: 'Ante cualquier inconveniente escribinos por mail a contacto@flowthings.com.ar o por WhatsApp al +54 9 11 5607-5633.',
   footerText: 'Flow Things',
 }
 
@@ -401,14 +401,23 @@ export default function MailingPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Rebuild HTML when visual design changes
+  // Rebuild HTML only when the design object itself changes (not when mode changes)
+  // This prevents the visual editor from overwriting manual HTML edits on tab switch
+  const prevConfirmDesign = useRef(confirmDesign)
   useEffect(() => {
-    if (mode === 'visual') setConfirmHtml(buildConfirmHTML(confirmDesign))
-  }, [confirmDesign, mode])
+    if (prevConfirmDesign.current !== confirmDesign) {
+      prevConfirmDesign.current = confirmDesign
+      setConfirmHtml(buildConfirmHTML(confirmDesign))
+    }
+  }, [confirmDesign])
 
+  const prevDespachoDesign = useRef(despachoDesign)
   useEffect(() => {
-    if (mode === 'visual') setDespachoHtml(buildDespachoHTML(despachoDesign))
-  }, [despachoDesign, mode])
+    if (prevDespachoDesign.current !== despachoDesign) {
+      prevDespachoDesign.current = despachoDesign
+      setDespachoHtml(buildDespachoHTML(despachoDesign))
+    }
+  }, [despachoDesign])
 
   // Debounce preview
   useEffect(() => {

@@ -181,7 +181,7 @@ export const DEFAULT_EMAIL_CUERPO = `<!DOCTYPE html>
       <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#111">Que sigue ahora?</p>
       <p style="margin:0;font-size:14px;color:#555;line-height:1.7">
         Vamos a preparar tu pedido y cuando lo enviemos te avisamos por mail con los datos de seguimiento.<br/>
-        Ante cualquier consulta escribinos por Instagram @flowthings__
+        Ante cualquier consulta escribinos por mail a contacto@flowthings.com.ar o por WhatsApp al +54 9 11 5607-5633
       </p>
     </td></tr>
   </table>
@@ -245,7 +245,7 @@ export const DEFAULT_DESPACHO_CUERPO = `<!DOCTYPE html>
     Pedido <strong style="color:#555">#{{orden_id}}</strong> - Despachado el {{fecha}}
   </p>
   <p style="margin:8px 0 0;font-size:14px;color:#666;line-height:1.6">
-    Ante cualquier inconveniente escribinos por Instagram @flowthings__
+    Ante cualquier inconveniente escribinos por mail a contacto@flowthings.com.ar o por WhatsApp al +54 9 11 5607-5633
   </p>
 </td></tr>
 
