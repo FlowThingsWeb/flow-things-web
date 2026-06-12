@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan variables AFIP_CERT, AFIP_KEY o AFIP_CUIT' }, { status: 500 })
     }
 
-    // Entorno de HOMOLOGACIÓN (prueba) — production: false
-    const afip = new Afip({ CUIT: cuit, cert, key, production: false })
+    // Entorno de PRODUCCIÓN con importe mínimo ($1)
+    const afip = new Afip({ CUIT: cuit, cert, key, production: true })
     const fe = afip.ElectronicBilling
 
     const ultimoNro = await fe.getLastVoucher(ptoVenta, 11)
@@ -35,9 +35,9 @@ export async function POST(req: NextRequest) {
       CbteDesde: nroComprobante,
       CbteHasta: nroComprobante,
       CbteFch: fecha,
-      ImpTotal: 1000.00,
+      ImpTotal: 1.00,
       ImpTotConc: 0,
-      ImpNeto: 1000.00,
+      ImpNeto: 1.00,
       ImpOpEx: 0,
       ImpIVA: 0,
       ImpTrib: 0,
@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
       nroComprobante,
       ptoVenta,
       fecha: new Date().toLocaleDateString('es-AR'),
-      importe: '$1.000,00 (factura de prueba)',
-      ambiente: 'HOMOLOGACIÓN',
+      importe: '$1,00 (factura de prueba — producción)',
+      ambiente: 'PRODUCCIÓN',
     })
   } catch (err: any) {
     console.error('[factura-prueba]', err)

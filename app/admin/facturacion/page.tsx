@@ -55,7 +55,7 @@ export default function FacturacionAdminPage() {
       <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
         <h2 className="font-semibold text-white mb-2">Factura de prueba</h2>
         <p className="text-brand-text-muted text-sm mb-5">
-          Emite una Factura C de $1.000 en el entorno de <span className="text-yellow-400 font-medium">homologación</span> de AFIP (no tiene efecto real ni fiscal).
+          Emite una Factura C de <span className="text-white font-medium">$1</span> real en AFIP para verificar que la integración funciona correctamente.
         </p>
 
         <button
