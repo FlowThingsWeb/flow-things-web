@@ -61,14 +61,27 @@ export async function getTokenAuth(
 
   const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:wsaa="http://wsaa.view.sua.dvadac.desein.afip.gov"><soapenv:Header/><soapenv:Body><wsaa:loginCms><wsaa:in0>${cms}</wsaa:in0></wsaa:loginCms></soapenv:Body></soapenv:Envelope>`
 
-  const response = await fetch(WSAA_URL_PROD, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/xml; charset=UTF-8',
-      'SOAPAction': 'loginCms',
-    },
-    body: soapBody,
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 30000)
+
+  let response: Response
+  try {
+    response = await fetch(WSAA_URL_PROD, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/xml; charset=UTF-8',
+        'SOAPAction': 'loginCms',
+      },
+      body: soapBody,
+      signal: controller.signal,
+    })
+  } catch (err: any) {
+    const cause = err?.cause
+    const code = cause?.code || cause?.message || 'sin código'
+    throw new Error(`WSAA conexión fallida: ${err.message} | causa: ${code}`)
+  } finally {
+    clearTimeout(timer)
+  }
 
   const responseText = await response.text()
 
