@@ -107,8 +107,7 @@ function buildConfirmHTML(d: ConfirmDesign): string {
   const logoBlock = d.showLogo
     ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>`
     : `<span style="color:#ffffff;font-size:24px;font-weight:800">Flow Things</span>`
-  const closing = d.closingText.split('
-').join('<br/>')
+  const closing = d.closingText.split('\n').join('<br/>')
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
