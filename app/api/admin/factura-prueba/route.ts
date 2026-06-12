@@ -13,12 +13,12 @@ export async function POST(req: NextRequest) {
   const token = req.cookies.get('admin_token')?.value
   if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  let body: { email?: string; facturaData?: Record<string, unknown> } = {}
+  let body: { email?: string; facturaData?: Record<string, unknown>; pdfBase64?: string } = {}
   try { body = await req.json() } catch { /* no body */ }
 
-  const { email, facturaData } = body
+  const { email, facturaData, pdfBase64 } = body
 
-  // Si viene facturaData y email, solo enviar el email (sin emitir nueva factura)
+  // Si viene facturaData y email → solo enviar el email (sin emitir nueva factura)
   if (email && facturaData) {
     try {
       const { data: rows } = await supabase.from('configuracion').select('clave,valor')
@@ -32,15 +32,31 @@ export async function POST(req: NextRequest) {
         nombre: 'Admin (prueba)',
         orden_id: String(facturaData.nroComprobante ?? '–'),
         total: facturaData.importe as string || '$1,00',
-        fecha: facturaData.fecha as string || new Date().toLocaleDateString('es-AR'),
+        subtotal: facturaData.importe as string || '$1,00',
+        envio: 'Gratis',
+        descuento: '',
+        fila_descuento: '',
+        productos_filas: '<tr><td style="font-size:14px;color:#111;padding:12px 0">Factura de prueba – Flow Things</td><td style="text-align:center;padding:12px 0;color:#666">1</td><td style="text-align:right;padding:12px 0;color:#111">$1,00</td></tr>',
         productos: 'Factura de prueba – Flow Things',
+        fecha: facturaData.fecha as string || new Date().toLocaleDateString('es-AR'),
+        medio_pago: 'Mercado Pago (prueba)',
       })
 
-      await sendEmail({ to: email, asunto, cuerpo })
+      const adjuntos = pdfBase64
+        ? [{
+            filename: `factura-${facturaData.nroComprobante ?? 'prueba'}.pdf`,
+            content: pdfBase64,
+            encoding: 'base64' as const,
+            contentType: 'application/pdf',
+          }]
+        : undefined
+
+      await sendEmail({ to: email, asunto: 'Factura de prueba – Flow Things', cuerpo, adjuntos })
       return NextResponse.json({ ok: true, emailEnviado: true })
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al enviar email'
       console.error('[factura-prueba] email error', err)
-      return NextResponse.json({ error: err.message || 'Error al enviar email' }, { status: 500 })
+      return NextResponse.json({ error: message }, { status: 500 })
     }
   }
 
@@ -74,8 +90,9 @@ export async function POST(req: NextRequest) {
       totalNumerico: 1.00,
       ambiente: 'PRODUCCIÓN',
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error desconocido'
     console.error('[factura-prueba]', err)
-    return NextResponse.json({ error: err.message || 'Error desconocido' }, { status: 500 })
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

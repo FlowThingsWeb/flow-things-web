@@ -25,6 +25,7 @@ export async function sendEmail(params: {
   to: string
   asunto: string
   cuerpo: string
+  adjuntos?: { filename: string; content: string; encoding: 'base64'; contentType: string }[]
 }): Promise<void> {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
     console.warn('[email] GMAIL_USER o GMAIL_APP_PASSWORD no configurados')
@@ -36,6 +37,12 @@ export async function sendEmail(params: {
     to: params.to,
     subject: params.asunto,
     html: params.cuerpo,
+    attachments: params.adjuntos?.map(a => ({
+      filename: a.filename,
+      content: a.content,
+      encoding: a.encoding,
+      contentType: a.contentType,
+    })),
   })
 }
 
