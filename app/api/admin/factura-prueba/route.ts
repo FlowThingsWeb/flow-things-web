@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const Afip = require('afipjs')
+const AfipModule = require('afipjs')
+const Afip = AfipModule.default ?? AfipModule
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get('admin_token')?.value
