@@ -49,6 +49,20 @@ export async function POST(request: NextRequest) {
 
     const nuevoEstado = estadoMap[estado] || 'pending'
 
+    // Idempotencia: si la orden ya está aprobada, ignorar el reintento de MP
+    if (nuevoEstado === 'approved') {
+      const { data: ordenActual } = await supabaseAdmin
+        .from('ordenes')
+        .select('estado')
+        .eq('id', ordenId)
+        .single()
+
+      if (ordenActual?.estado === 'approved') {
+        console.log(`[webhook] Orden ${ordenId} ya estaba aprobada — reintento ignorado`)
+        return NextResponse.json({ received: true, idempotent: true })
+      }
+    }
+
     // Actualizar orden en Supabase
     const { error } = await supabaseAdmin
       .from('ordenes')
@@ -77,6 +91,23 @@ export async function POST(request: NextRequest) {
             p_producto_id: item.id,
             p_cantidad: item.cantidad,
           })
+        }
+
+        // Incrementar uso del código de descuento (se hace aquí, no en checkout,
+        // para no quemar el código si el usuario abandona el pago)
+        if (orden.codigo_descuento) {
+          const { data: codigoRow } = await supabaseAdmin
+            .from('codigos_descuento')
+            .select('usos_actuales')
+            .eq('codigo', orden.codigo_descuento)
+            .single()
+          if (codigoRow) {
+            await supabaseAdmin
+              .from('codigos_descuento')
+              .update({ usos_actuales: (codigoRow.usos_actuales ?? 0) + 1 })
+              .eq('codigo', orden.codigo_descuento)
+              .catch((e: any) => console.error('[webhook] Error incrementando uso de código:', e.message))
+          }
         }
 
         // Factura electrónica AFIP
@@ -182,8 +213,8 @@ export async function POST(request: NextRequest) {
                   cliente: {
                     nombre:     compradorData.nombre    || 'Consumidor Final',
                     cuitDni:    compradorData.dni        || '–',
-                    direccion:  compradorData.envio?.direccion || '–',
-                    ciudad:     compradorData.envio?.ciudad    || '–',
+                    direccion:  compradorData.direccion  || '–',
+                    ciudad:     compradorData.ciudad     || '–',
                   },
                   items: items.map((i: any) => ({
                     descripcion:    i.nombre,
@@ -220,7 +251,6 @@ export async function POST(request: NextRequest) {
 
         // Notificación Telegram
         const comprador = orden.datos_comprador ?? {}
-        const envio = comprador.envio ?? {}
         const msg = formatVentaMsg({
           ordenId,
           total: orden.total ?? 0,
@@ -235,8 +265,8 @@ export async function POST(request: NextRequest) {
             precio: i.precio,
           })),
           envio: {
-            nombre: envio.nombre,
-            costo: envio.costo,
+            nombre: comprador.envio_nombre ?? null,
+            costo: comprador.envio_costo ?? 0,
           },
         })
         await sendTelegram(msg)

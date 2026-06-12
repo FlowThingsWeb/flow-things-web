@@ -189,7 +189,8 @@ export default function CarritoPage() {
         return
       }
 
-      clearCart()
+      // El carrito se limpia en la página de éxito (/exito),
+      // así no se pierde si el redirect falla.
       window.location.href = data.initPoint
     } catch {
       setError('Error de conexión. Intentá de nuevo.')

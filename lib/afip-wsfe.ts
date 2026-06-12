@@ -38,7 +38,7 @@ function callWsfe(method: string, innerXml: string): Promise<string> {
         res.on('data', (chunk) => chunks.push(chunk))
         res.on('end', () => {
           const text = Buffer.concat(chunks).toString('utf8')
-          if (res.statusCode && res.statusCode >= 400 && res.statusCode !== 500) {
+          if (res.statusCode && res.statusCode >= 400) {
             reject(new Error(`WSFE HTTP ${res.statusCode}: ${text.slice(0, 300)}`))
           } else {
             resolve(text)

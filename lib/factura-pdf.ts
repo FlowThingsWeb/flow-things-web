@@ -251,7 +251,7 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   }
 
   // Costo envío row
-  const envioFmt = costoEnvio > 0 ? fmtMoneda(costoEnvio) : '0.00'
+  const envioFmt = fmtMoneda(costoEnvio)
   doc.text('–',        colSku,  y + 5)
   doc.text('Costo Envío', colDesc, y + 5)
   doc.text('–',        colQty,  y + 5, { align: 'right' })

@@ -11,12 +11,14 @@ export interface CreatePreferenceParams {
   items: ItemOrden[]
   comprador: DatosComprador
   ordenId: string
+  couponAmount?: number
 }
 
 export async function crearPreferencia({
   items,
   comprador,
   ordenId,
+  couponAmount,
 }: CreatePreferenceParams) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL!
 
@@ -49,6 +51,7 @@ export async function crearPreferencia({
       notification_url: `${baseUrl}/api/webhook`,
       external_reference: ordenId,
       statement_descriptor: 'Flow Things',
+      ...(couponAmount && couponAmount > 0 ? { coupon_amount: couponAmount } : {}),
     },
   })
 
