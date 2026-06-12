@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const AfipModule = require('afipjs')
+const AfipModule = require('afip')
 const Afip = AfipModule.default ?? AfipModule
 
 export async function POST(req: NextRequest) {

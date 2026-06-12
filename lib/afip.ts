@@ -1,5 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const AfipModule = require('afipjs')
+const AfipModule = require('afip')
 const Afip = AfipModule.default ?? AfipModule
 
 let _afip: any = null
