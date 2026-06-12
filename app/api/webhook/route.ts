@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import MercadoPagoConfig, { Payment } from 'mercadopago'
 import { sendTelegram, formatVentaMsg } from '@/lib/telegram'
+import { emitirFacturaC } from '@/lib/afip'
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN!,
@@ -73,6 +74,38 @@ export async function POST(request: NextRequest) {
             p_producto_id: item.id,
             p_cantidad: item.cantidad,
           })
+        }
+
+        // Factura electrónica AFIP
+        try {
+          const comprador = orden.datos_comprador ?? {}
+          const factura = await emitirFacturaC({
+            nombre: comprador.nombre || 'Consumidor Final',
+            email: comprador.email || '',
+            total: orden.total ?? 0,
+            items: orden.items.map((i: any) => ({
+              nombre: i.nombre,
+              cantidad: i.cantidad,
+              precio: i.precio,
+            })),
+          })
+
+          // Guardar CAE en la orden
+          await supabaseAdmin
+            .from('ordenes')
+            .update({
+              datos_comprador: {
+                ...comprador,
+                factura_cae: factura.cae,
+                factura_nro: factura.nroComprobante,
+                factura_fecha: factura.fecha,
+                factura_vto: factura.caeFechaVto,
+              },
+            })
+            .eq('id', ordenId)
+        } catch (facturaErr: any) {
+          // No cortamos el flujo si falla la factura
+          console.error('[afip] Error emitiendo factura:', facturaErr.message)
         }
 
         // Notificación Telegram
