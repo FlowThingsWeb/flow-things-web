@@ -11,11 +11,12 @@ const PREVIEW_CONFIRMACION: Record<string, string> = {
   subtotal: '$ 8.000,00',
   envio: '$ 1.200,00',
   fecha: '12/06/2026',
-  fila_descuento: `<tr><td style="font-size:14px;color:#16a34a;padding:4px 0">Descuento (SUMMER10)</td><td style="font-size:14px;color:#16a34a;font-weight:600;text-align:right;padding:4px 0">- $ 800,00</td></tr>`,
+  medio_pago: 'Tarjeta de crédito Visa terminada en 1234 · 3 cuotas',
+  fila_descuento: `<tr><td style="font-size:14px;color:#16a34a;padding:6px 0">🏷️ Descuento (SUMMER10)</td><td style="font-size:14px;color:#16a34a;font-weight:600;text-align:right;padding:6px 0">- $ 800,00</td></tr>`,
   productos_filas: `
-    <tr><td style="font-size:14px;color:#111;padding:12px 0;border-bottom:1px solid #f0f0f0">Muneca articulada premium</td><td style="font-size:14px;color:#666;text-align:center;padding:12px 0;border-bottom:1px solid #f0f0f0">1</td><td style="font-size:14px;color:#111;text-align:right;padding:12px 0;border-bottom:1px solid #f0f0f0;white-space:nowrap">$ 4.500,00</td></tr>
-    <tr><td style="font-size:14px;color:#111;padding:12px 0;border-bottom:1px solid #f0f0f0">LEGO City Set 60303</td><td style="font-size:14px;color:#666;text-align:center;padding:12px 0;border-bottom:1px solid #f0f0f0">2</td><td style="font-size:14px;color:#111;text-align:right;padding:12px 0;border-bottom:1px solid #f0f0f0;white-space:nowrap">$ 3.500,00</td></tr>`,
-  productos: '1x Muneca articulada, 2x LEGO City',
+    <tr><td style="font-size:14px;color:#111;padding:12px 0;border-bottom:1px solid #f3f0ff;line-height:1.4">Muñeca articulada premium</td><td style="font-size:14px;color:#a78bfa;text-align:center;padding:12px 0;border-bottom:1px solid #f3f0ff">1</td><td style="font-size:14px;color:#111;text-align:right;padding:12px 0;border-bottom:1px solid #f3f0ff;white-space:nowrap;font-weight:500">$ 4.500,00</td></tr>
+    <tr><td style="font-size:14px;color:#111;padding:12px 0;line-height:1.4">LEGO City Set 60303</td><td style="font-size:14px;color:#a78bfa;text-align:center;padding:12px 0">2</td><td style="font-size:14px;color:#111;text-align:right;padding:12px 0;white-space:nowrap;font-weight:500">$ 3.500,00</td></tr>`,
+  productos: '1x Muñeca articulada, 2x LEGO City',
   descuento: '$ 800,00',
 }
 
@@ -104,75 +105,88 @@ const DEFAULT_DESPACHO_DESIGN: DespachoDesign = {
 
 function buildConfirmHTML(d: ConfirmDesign): string {
   const logoBlock = d.showLogo
-    ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="44" alt="Flow Things" style="display:block;margin:0 auto"/>`
-    : `<span style="color:#ffffff;font-size:22px;font-weight:bold">Flow Things</span>`
-  const closing = d.closingText.split('\n').join('<br/>')
+    ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>`
+    : `<span style="color:#ffffff;font-size:24px;font-weight:800">Flow Things</span>`
+  const closing = d.closingText.split('
+').join('<br/>')
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background:#f1f0f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f0f5">
-<tr><td align="center" style="padding:40px 16px 48px">
-<table width="600" cellpadding="0" cellspacing="0" style="border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10)">
+<body style="margin:0;padding:0;background:#ede9f7;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ede9f7">
+<tr><td align="center" style="padding:36px 16px 48px">
+<table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(80,0,200,0.13)">
 
-<tr><td style="background:${d.headerColor};padding:32px 40px;text-align:center">${logoBlock}</td></tr>
+<tr><td style="background:linear-gradient(135deg,#5b21b6 0%,${d.headerColor} 60%,#9333ea 100%);padding:28px 40px 24px;text-align:center">${logoBlock}</td></tr>
 
-<tr><td style="background:#ffffff;padding:36px 40px 0;text-align:center">
-  <div style="display:inline-block;background:#f0ebff;border-radius:50px;padding:6px 20px;margin-bottom:20px">
-    <span style="color:${d.accentColor};font-size:13px;font-weight:600">Pedido #{{orden_id}}</span>
+<tr><td style="background:#f5f0ff;padding:36px 40px 28px;text-align:center;border-bottom:1px solid #ede9f7">
+  <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:${d.accentColor};margin-bottom:16px">
+    <span style="font-size:30px;line-height:1;color:#fff">&#x2713;</span>
   </div>
-  <h1 style="margin:0 0 10px;font-size:27px;font-weight:700;color:#111;line-height:1.3">${d.titulo}</h1>
-  <p style="margin:0 0 28px;font-size:15px;color:#666;line-height:1.7">${d.introText}</p>
+  <h1 style="margin:0 0 8px;font-size:28px;font-weight:800;color:#1a0040;line-height:1.2">${d.titulo}</h1>
+  <p style="margin:0 0 18px;font-size:15px;color:#6b21a8;font-weight:500">${d.introText}</p>
+  <div style="display:inline-block;background:${d.accentColor};border-radius:50px;padding:8px 24px">
+    <span style="color:#ffffff;font-size:13px;font-weight:700;letter-spacing:1px">PEDIDO &#x23; {{orden_id}}</span>
+  </div>
 </td></tr>
 
-<tr><td style="background:#ffffff;padding:0 40px"><div style="height:1px;background:#eee"></div></td></tr>
-
-<tr><td style="background:#ffffff;padding:28px 40px 0">
-  <p style="margin:0 0 14px;font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.7px">Detalle del pedido</p>
+<tr><td style="background:#ffffff;padding:32px 40px 0">
+  <p style="margin:0 0 16px;font-size:11px;font-weight:800;color:${d.accentColor};text-transform:uppercase;letter-spacing:1.2px">&#x1F6D2; Lo que compraste</p>
   <table width="100%" cellpadding="0" cellspacing="0">
-    <thead><tr>
-      <th style="text-align:left;font-size:11px;color:#bbb;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:10px;border-bottom:1px solid #eee">Producto</th>
-      <th style="text-align:center;font-size:11px;color:#bbb;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:10px;border-bottom:1px solid #eee;width:55px">Cant.</th>
-      <th style="text-align:right;font-size:11px;color:#bbb;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:10px;border-bottom:1px solid #eee;width:120px">Importe</th>
+    <thead><tr style="border-bottom:2px solid #f3f0ff">
+      <th style="text-align:left;font-size:10px;color:#a78bfa;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;padding-bottom:10px">Producto</th>
+      <th style="text-align:center;font-size:10px;color:#a78bfa;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;padding-bottom:10px;width:50px">Cant.</th>
+      <th style="text-align:right;font-size:10px;color:#a78bfa;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;padding-bottom:10px;width:110px">Importe</th>
     </tr></thead>
     <tbody>{{productos_filas}}</tbody>
   </table>
 </td></tr>
 
-<tr><td style="background:#ffffff;padding:4px 40px 32px">
-  <table width="100%" cellpadding="0" cellspacing="0">
-    <tr>
-      <td style="font-size:14px;color:#888;padding:10px 0 4px">Subtotal</td>
-      <td style="font-size:14px;color:#333;text-align:right;padding:10px 0 4px">{{subtotal}}</td>
-    </tr>
-    {{fila_descuento}}
-    <tr>
-      <td style="font-size:14px;color:#888;padding:4px 0 0">Envio</td>
-      <td style="font-size:14px;color:#333;text-align:right;padding:4px 0 0">{{envio}}</td>
-    </tr>
-    <tr>
-      <td style="font-size:19px;font-weight:700;color:#111;padding:14px 0 0;border-top:2px solid #111">Total</td>
-      <td style="font-size:19px;font-weight:700;color:${d.accentColor};text-align:right;padding:14px 0 0;border-top:2px solid #111">{{total}}</td>
-    </tr>
-  </table>
+<tr><td style="background:#ffffff;padding:8px 40px 32px">
+  <div style="background:#faf8ff;border-radius:16px;border:1.5px solid #ede9f7;padding:20px 24px;margin-top:8px">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr><td style="font-size:14px;color:#6b7280;padding:6px 0">Subtotal</td><td style="font-size:14px;color:#374151;text-align:right;padding:6px 0;font-weight:500">{{subtotal}}</td></tr>
+      {{fila_descuento}}
+      <tr><td style="font-size:14px;color:#6b7280;padding:6px 0">Env&#xED;o</td><td style="font-size:14px;color:#374151;text-align:right;padding:6px 0;font-weight:500">{{envio}}</td></tr>
+      <tr><td colspan="2" style="padding:4px 0"><div style="height:1.5px;background:#e9d5ff"></div></td></tr>
+      <tr>
+        <td style="font-size:20px;font-weight:800;color:#1a0040;padding:10px 0 4px">Total</td>
+        <td style="font-size:20px;font-weight:800;color:${d.accentColor};text-align:right;padding:10px 0 4px">{{total}}</td>
+      </tr>
+      <tr><td colspan="2" style="padding:0 0 4px"><span style="font-size:12px;color:#9ca3af">&#x1F4B3; {{medio_pago}}</span></td></tr>
+    </table>
+  </div>
 </td></tr>
 
-<tr><td style="background:#ffffff;padding:0 40px"><div style="height:1px;background:#eee"></div></td></tr>
-
-<tr><td style="background:#ffffff;padding:28px 40px">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f8ff;border-radius:12px;border:1px solid #e8e3fa">
-    <tr><td style="padding:20px 24px">
-      <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#111">Que sigue ahora?</p>
-      <p style="margin:0;font-size:14px;color:#555;line-height:1.7">${closing}</p>
-    </td></tr>
-  </table>
+<tr><td style="background:#ffffff;padding:0 40px 32px">
+  <div style="background:linear-gradient(135deg,#5b21b6,${d.accentColor});border-radius:16px;padding:24px 28px">
+    <p style="margin:0 0 16px;font-size:12px;font-weight:700;color:#c4b5fd;text-transform:uppercase;letter-spacing:1px">&#xBF;Qu&#xE9; sigue?</p>
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="width:33%;text-align:center;padding:0 8px"><div style="font-size:28px;margin-bottom:6px">&#x1F4E6;</div><p style="margin:0;font-size:12px;font-weight:700;color:#fff">Preparando</p><p style="margin:2px 0 0;font-size:11px;color:#c4b5fd">Ya estamos armando tu pedido</p></td>
+        <td style="width:33%;text-align:center;padding:0 8px;border-left:1px solid rgba(255,255,255,0.15);border-right:1px solid rgba(255,255,255,0.15)"><div style="font-size:28px;margin-bottom:6px">&#x1F69A;</div><p style="margin:0;font-size:12px;font-weight:700;color:#fff">En camino</p><p style="margin:2px 0 0;font-size:11px;color:#c4b5fd">Te avisamos cuando sale</p></td>
+        <td style="width:33%;text-align:center;padding:0 8px"><div style="font-size:28px;margin-bottom:6px">&#x1F3E0;</div><p style="margin:0;font-size:12px;font-weight:700;color:#fff">Entregado</p><p style="margin:2px 0 0;font-size:11px;color:#c4b5fd">&#xA1;A disfrutarlo!</p></td>
+      </tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:13px;color:#ddd6fe;line-height:1.6;text-align:center">${closing}</p>
+  </div>
 </td></tr>
 
-<tr><td style="background:#f8f8fa;border-top:1px solid #eee;padding:22px 40px;text-align:center">
-  <p style="margin:0;font-size:12px;color:#bbb;line-height:1.9">
-    ${d.footerText} - <a href="https://flowthings.com.ar" style="color:${d.accentColor};text-decoration:none;font-weight:600">flowthings.com.ar</a><br/>
-    Fecha del pedido: {{fecha}}
-  </p>
+<tr><td style="background:#ffffff;padding:0 40px 32px">
+  <div style="border-radius:12px;border:1.5px solid #ede9f7;padding:18px 22px;text-align:center">
+    <p style="margin:0 0 4px;font-size:13px;color:#374151;font-weight:600">&#xBF;Ten&#xE9;s alguna pregunta?</p>
+    <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6">
+      &#x1F4E7; <a href="mailto:contacto@flowthings.com.ar" style="color:${d.accentColor};text-decoration:none;font-weight:600">contacto@flowthings.com.ar</a>
+      &nbsp;&#xB7;&nbsp;
+      &#x1F4AC; <a href="https://wa.me/5491156075633" style="color:${d.accentColor};text-decoration:none;font-weight:600">+54 9 11 5607-5633</a>
+    </p>
+  </div>
+</td></tr>
+
+<tr><td style="background:#1e0050;padding:28px 40px;text-align:center">
+  ${d.showLogo ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>` : `<p style="margin:0 0 12px;font-size:16px;font-weight:700;color:#a78bfa">${d.footerText}</p>`}
+  <p style="margin:0 0 8px"><a href="https://flowthings.com.ar" style="color:#a78bfa;text-decoration:none;font-size:13px;font-weight:600">flowthings.com.ar</a></p>
+  <p style="margin:0;font-size:11px;color:#6d28d9">Fecha del pedido: {{fecha}}</p>
 </td></tr>
 
 </table></td></tr></table>
@@ -181,57 +195,49 @@ function buildConfirmHTML(d: ConfirmDesign): string {
 
 function buildDespachoHTML(d: DespachoDesign): string {
   const logoBlock = d.showLogo
-    ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="44" alt="Flow Things" style="display:block;margin:0 auto"/>`
-    : `<span style="color:#ffffff;font-size:22px;font-weight:bold">Flow Things</span>`
+    ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>`
+    : `<span style="color:#ffffff;font-size:24px;font-weight:800">Flow Things</span>`
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background:#f1f0f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f0f5">
-<tr><td align="center" style="padding:40px 16px 48px">
-<table width="600" cellpadding="0" cellspacing="0" style="border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10)">
+<body style="margin:0;padding:0;background:#ede9f7;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ede9f7">
+<tr><td align="center" style="padding:36px 16px 48px">
+<table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(80,0,200,0.13)">
 
-<tr><td style="background:${d.headerColor};padding:32px 40px;text-align:center">${logoBlock}</td></tr>
+<tr><td style="background:linear-gradient(135deg,#5b21b6 0%,${d.headerColor} 60%,#9333ea 100%);padding:28px 40px 24px;text-align:center">${logoBlock}</td></tr>
 
-<tr><td style="background:#ffffff;padding:40px 40px 0;text-align:center">
-  <div style="font-size:52px;line-height:1;margin-bottom:16px">&#x1F69A;</div>
-  <h1 style="margin:0 0 10px;font-size:26px;font-weight:700;color:#111;line-height:1.3">${d.headline}</h1>
-  <p style="margin:0 0 28px;font-size:15px;color:#666;line-height:1.7">${d.subtitleText}</p>
+<tr><td style="background:#f5f0ff;padding:36px 40px 28px;text-align:center">
+  <div style="font-size:60px;line-height:1;margin-bottom:12px">&#x1F69A;</div>
+  <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#1a0040;line-height:1.2">${d.headline}</h1>
+  <p style="margin:0;font-size:15px;color:#6b21a8;font-weight:500">${d.subtitleText}</p>
 </td></tr>
 
-<tr><td style="background:#ffffff;padding:0 40px"><div style="height:1px;background:#eee"></div></td></tr>
-
 <tr><td style="background:#ffffff;padding:28px 40px">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f8ff;border-radius:14px;border:1px solid #e8e3fa">
-    <tr><td style="padding:24px 28px">
-      <table width="100%" cellpadding="0" cellspacing="0">
-        <tr><td style="padding-bottom:16px">
-          <p style="margin:0 0 3px;font-size:11px;color:#aaa;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Empresa de envio</p>
-          <p style="margin:0;font-size:17px;font-weight:700;color:#111">{{courier}}</p>
-        </td></tr>
-        <tr><td>
-          <p style="margin:0 0 3px;font-size:11px;color:#aaa;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Codigo de seguimiento</p>
-          <p style="margin:0;font-size:22px;font-weight:700;color:${d.accentColor};letter-spacing:2px;font-family:monospace">{{tracking_numero}}</p>
-        </td></tr>
-      </table>
-      {{tracking_boton}}
-    </td></tr>
-  </table>
+  <div style="background:linear-gradient(135deg,#5b21b6,${d.accentColor});border-radius:18px;padding:28px;text-align:center">
+    <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#c4b5fd;text-transform:uppercase;letter-spacing:1px">Empresa de env&#xED;o</p>
+    <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#ffffff">{{courier}}</p>
+    <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#c4b5fd;text-transform:uppercase;letter-spacing:1px">C&#xF3;digo de seguimiento</p>
+    <div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:12px 20px;margin-bottom:20px">
+      <span style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:3px;font-family:monospace">{{tracking_numero}}</span>
+    </div>
+    {{tracking_boton}}
+  </div>
 </td></tr>
 
 <tr><td style="background:#ffffff;padding:0 40px 28px;text-align:center">
-  <p style="margin:0;font-size:13px;color:#aaa">
-    Pedido <strong style="color:#555">#{{orden_id}}</strong> - Despachado el {{fecha}}
-  </p>
-  <p style="margin:8px 0 0;font-size:14px;color:#666;line-height:1.6">
-    ${d.contactText}
+  <p style="margin:0 0 8px;font-size:13px;color:#9ca3af">Pedido <strong style="color:#374151">#{{orden_id}}</strong> &middot; Despachado el {{fecha}}</p>
+  <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6">${d.contactText}</p>
+  <p style="margin:8px 0 0;font-size:13px;color:#6b7280;line-height:1.6">
+    &#x1F4E7; <a href="mailto:contacto@flowthings.com.ar" style="color:${d.accentColor};text-decoration:none;font-weight:600">contacto@flowthings.com.ar</a>
+    &nbsp;&#xB7;&nbsp;
+    &#x1F4AC; <a href="https://wa.me/5491156075633" style="color:${d.accentColor};text-decoration:none;font-weight:600">+54 9 11 5607-5633</a>
   </p>
 </td></tr>
 
-<tr><td style="background:#f8f8fa;border-top:1px solid #eee;padding:22px 40px;text-align:center">
-  <p style="margin:0;font-size:12px;color:#bbb;line-height:1.9">
-    ${d.footerText} - <a href="https://flowthings.com.ar" style="color:${d.accentColor};text-decoration:none;font-weight:600">flowthings.com.ar</a>
-  </p>
+<tr><td style="background:#1e0050;padding:28px 40px;text-align:center">
+  ${d.showLogo ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>` : `<p style="margin:0 0 12px;font-size:16px;font-weight:700;color:#a78bfa">${d.footerText}</p>`}
+  <p style="margin:0"><a href="https://flowthings.com.ar" style="color:#a78bfa;text-decoration:none;font-size:13px;font-weight:600">flowthings.com.ar</a></p>
 </td></tr>
 
 </table></td></tr></table>
