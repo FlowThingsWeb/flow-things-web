@@ -28,11 +28,12 @@ const estadoLabels: Record<string, string> = {
   refunded: '↩ Reembolsado',
 }
 
-export default async function OrdenDetailPage({ params }: { params: { id: string } }) {
+export default async function OrdenDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const { data: orden } = await supabaseAdmin
     .from('ordenes')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (!orden) notFound()
@@ -53,7 +54,7 @@ export default async function OrdenDetailPage({ params }: { params: { id: string
           ← Órdenes
         </a>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-white">Orden #{params.id.slice(0, 8)}</h1>
+          <h1 className="text-2xl font-bold text-white">Orden #{id.slice(0, 8)}</h1>
           <p className="text-brand-text-muted text-sm mt-0.5">{fmtFecha(orden.created_at)}</p>
         </div>
         <span className={`text-sm font-medium px-3 py-1.5 rounded-full border ${estadoColores[orden.estado] || 'bg-gray-100 text-gray-600'}`}>
@@ -159,7 +160,7 @@ export default async function OrdenDetailPage({ params }: { params: { id: string
       {/* Formulario de despacho */}
       {orden.estado === 'approved' && (
         <DespacharForm
-          ordenId={params.id}
+          ordenId={id}
           emailComprador={comprador.email}
           yaEnviado={yaFueEnviado}
         />
