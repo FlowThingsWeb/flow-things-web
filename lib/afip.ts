@@ -1,28 +1,10 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const AfipModule = require('@afipsdk/afip.js')
-const Afip = AfipModule.default ?? AfipModule
-
-let _afip: any = null
-
-function getAfip(): any {
-  if (_afip) return _afip
-
-  const cert = (process.env.AFIP_CERT || '').replace(/\\n/g, '\n')
-  const key = (process.env.AFIP_KEY || '').replace(/\\n/g, '\n')
-  const cuit = Number(process.env.AFIP_CUIT)
-
-  if (!cert || !key || !cuit) {
-    throw new Error('Faltan variables de entorno AFIP_CERT, AFIP_KEY o AFIP_CUIT')
-  }
-
-  _afip = new Afip({ CUIT: cuit, cert, key, production: true })
-  return _afip
-}
+import { getTokenAuth } from './afip-wsaa'
+import { getLastVoucher, solicitarCAE } from './afip-wsfe'
 
 export interface DatosFactura {
   nombre: string
   email: string
-  total: number // en pesos, con decimales
+  total: number
   items: { nombre: string; cantidad: number; precio: number }[]
 }
 
@@ -32,47 +14,25 @@ export async function emitirFacturaC(datos: DatosFactura): Promise<{
   nroComprobante: number
   fecha: string
 }> {
-  const afip = getAfip()
-  const fe = afip.ElectronicBilling
-
-  // Punto de venta
+  const cert = (process.env.AFIP_CERT || '').replace(/\\n/g, '\n')
+  const key = (process.env.AFIP_KEY || '').replace(/\\n/g, '\n')
+  const cuit = Number(process.env.AFIP_CUIT)
   const ptoVenta = Number(process.env.AFIP_PTO_VENTA || 5)
 
-  // Último comprobante emitido
-  const ultimoNro = await fe.getLastVoucher(ptoVenta, 11) // 11 = Factura C
-  const nroComprobante = ultimoNro + 1
-
-  const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-
-  const importeNeto = Math.round(datos.total * 100) / 100
-
-  const voucher = {
-    CantReg: 1,
-    PtoVta: ptoVenta,
-    CbteTipo: 11, // Factura C
-    Concepto: 1, // Productos
-    DocTipo: 99, // Consumidor final
-    DocNro: 0,
-    CbteDesde: nroComprobante,
-    CbteHasta: nroComprobante,
-    CbteFch: fecha,
-    ImpTotal: importeNeto,
-    ImpTotConc: 0,
-    ImpNeto: importeNeto,
-    ImpOpEx: 0,
-    ImpIVA: 0,
-    ImpTrib: 0,
-    MonId: 'PES',
-    MonCotiz: 1,
-    Iva: [],
+  if (!cert || !key || !cuit) {
+    throw new Error('Faltan variables AFIP_CERT, AFIP_KEY o AFIP_CUIT')
   }
 
-  const result = await fe.createNextVoucher(voucher)
+  const { token, sign } = await getTokenAuth('wsfe', cert, key)
+  const ultimoNro = await getLastVoucher(token, sign, cuit, ptoVenta, 11)
+  const nroComprobante = ultimoNro + 1
+
+  const result = await solicitarCAE(token, sign, cuit, ptoVenta, nroComprobante, datos.total)
 
   return {
-    cae: result.CAE,
-    caeFechaVto: result.CAEFchVto,
-    nroComprobante,
+    cae: result.cae,
+    caeFechaVto: result.caeFechaVto,
+    nroComprobante: result.nroComprobante,
     fecha: new Date().toLocaleDateString('es-AR'),
   }
 }

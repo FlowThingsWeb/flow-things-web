@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const AfipModule = require('@afipsdk/afip.js')
-const Afip = AfipModule.default ?? AfipModule
+import { getTokenAuth } from '@/lib/afip-wsaa'
+import { getLastVoucher, solicitarCAE } from '@/lib/afip-wsfe'
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get('admin_token')?.value
@@ -17,45 +16,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan variables AFIP_CERT, AFIP_KEY o AFIP_CUIT' }, { status: 500 })
     }
 
-    // Entorno de PRODUCCIÓN con importe mínimo ($1)
-    const afip = new Afip({ CUIT: cuit, cert, key, production: true })
-    const fe = afip.ElectronicBilling
-
-    const ultimoNro = await fe.getLastVoucher(ptoVenta, 11)
+    const { token: wsaaToken, sign } = await getTokenAuth('wsfe', cert, key)
+    const ultimoNro = await getLastVoucher(wsaaToken, sign, cuit, ptoVenta, 11)
     const nroComprobante = ultimoNro + 1
-    const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '')
 
-    const voucher = {
-      CantReg: 1,
-      PtoVta: ptoVenta,
-      CbteTipo: 11,
-      Concepto: 1,
-      DocTipo: 99,
-      DocNro: 0,
-      CbteDesde: nroComprobante,
-      CbteHasta: nroComprobante,
-      CbteFch: fecha,
-      ImpTotal: 1.00,
-      ImpTotConc: 0,
-      ImpNeto: 1.00,
-      ImpOpEx: 0,
-      ImpIVA: 0,
-      ImpTrib: 0,
-      MonId: 'PES',
-      MonCotiz: 1,
-      Iva: [],
-    }
-
-    const result = await fe.createNextVoucher(voucher)
+    const result = await solicitarCAE(wsaaToken, sign, cuit, ptoVenta, nroComprobante, 1.00)
 
     return NextResponse.json({
       ok: true,
-      cae: result.CAE,
-      caeFechaVto: result.CAEFchVto,
-      nroComprobante,
+      cae: result.cae,
+      caeFechaVto: result.caeFechaVto,
+      nroComprobante: result.nroComprobante,
       ptoVenta,
       fecha: new Date().toLocaleDateString('es-AR'),
-      importe: '$1,00 (factura de prueba — producción)',
+      importe: '$1,00 (factura de prueba)',
       ambiente: 'PRODUCCIÓN',
     })
   } catch (err: any) {
