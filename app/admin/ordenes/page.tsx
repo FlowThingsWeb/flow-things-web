@@ -1,5 +1,5 @@
-import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { ClickableRow } from './ClickableRow'
 
 async function getOrdenes() {
   const { data } = await supabaseAdmin
@@ -95,7 +95,7 @@ export default async function AdminOrdenesPage() {
               </thead>
               <tbody className="divide-y divide-brand-border">
                 {ordenes.map((orden) => (
-                  <tr key={orden.id} className="hover:bg-brand-bg-soft/50 transition-colors cursor-pointer" onClick={() => { window.location.href = `/admin/ordenes/${orden.id}` }}>
+                  <ClickableRow key={orden.id} href={`/admin/ordenes/${orden.id}`} className="hover:bg-brand-bg-soft/50 transition-colors">
                     <td className="px-5 py-4">
                       <p className="text-xs text-brand-text-muted whitespace-nowrap">
                         {formatFecha(orden.created_at)}
@@ -138,7 +138,7 @@ export default async function AdminOrdenesPage() {
                         {orden.mp_payment_id || '—'}
                       </span>
                     </td>
-                  </tr>
+                  </ClickableRow>
                 ))}
               </tbody>
             </table>
