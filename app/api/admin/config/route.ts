@@ -15,14 +15,30 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data })
 }
 
-// PUT — actualiza un campo de texto
+// PUT — actualiza uno o varios campos de configuración
+// Acepta { clave, valor } para un solo campo
+// o { updates: { clave1: valor1, clave2: valor2, ... } } para múltiples
 export async function PUT(req: NextRequest) {
   const token = req.cookies.get('admin_token')?.value
   if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const body = await req.json()
-  const { clave, valor } = body
 
+  // Batch update
+  if (body.updates && typeof body.updates === 'object') {
+    const rows = Object.entries(body.updates).map(([clave, valor]) => ({ clave, valor }))
+    if (rows.length === 0) return NextResponse.json({ ok: true })
+
+    const { error } = await supabaseAdmin
+      .from('configuracion')
+      .upsert(rows, { onConflict: 'clave' })
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+
+  // Single update (retrocompatible)
+  const { clave, valor } = body
   if (!clave) return NextResponse.json({ error: 'Falta clave' }, { status: 400 })
 
   const { error } = await supabaseAdmin

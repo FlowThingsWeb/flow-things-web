@@ -9,6 +9,7 @@ const navItems = [
   { href: '/admin/productos', label: 'Productos', icon: '📦', exact: false },
   { href: '/admin/ordenes', label: 'Órdenes', icon: '🛍️', exact: false },
   { href: '/admin/descuentos', label: 'Descuentos', icon: '🏷️', exact: false },
+  { href: '/admin/envios', label: 'Envíos', icon: '🚚', exact: false },
   { href: '/admin/editor', label: 'Editor de página', icon: '✏️', exact: false },
 ]
 
