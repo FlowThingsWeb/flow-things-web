@@ -108,7 +108,8 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   // Fetch logo & QR in parallel
   const [logoDataUrl, QRCode] = await Promise.all([
     fetchAsDataUrl('https://flow-things-web.vercel.app/logo.png'),
-    import('qrcode').then(m => m.default),
+    // qrcode es CommonJS — m.default puede ser undefined; usamos m directamente si es necesario
+    import('qrcode').then(m => (m.default ?? m) as { toDataURL: (text: string, opts?: object) => Promise<string> }),
   ])
 
   const qrObj = {

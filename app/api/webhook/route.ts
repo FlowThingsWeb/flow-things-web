@@ -80,9 +80,11 @@ export async function POST(request: NextRequest) {
         }
 
         // Factura electrónica AFIP
+        // Declarada fuera del try para que el bloque de notificaciones pueda leerla
+        let facturaEmitida: { cae: string; nroComprobante: number; fecha: string; caeFechaVto: string } | null = null
         try {
           const comprador = orden.datos_comprador ?? {}
-          const factura = await emitirFacturaC({
+          facturaEmitida = await emitirFacturaC({
             nombre: comprador.nombre || 'Consumidor Final',
             email: comprador.email || '',
             total: orden.total ?? 0,
@@ -99,10 +101,10 @@ export async function POST(request: NextRequest) {
             .update({
               datos_comprador: {
                 ...comprador,
-                factura_cae: factura.cae,
-                factura_nro: factura.nroComprobante,
-                factura_fecha: factura.fecha,
-                factura_vto: factura.caeFechaVto,
+                factura_cae: facturaEmitida.cae,
+                factura_nro: facturaEmitida.nroComprobante,
+                factura_fecha: facturaEmitida.fecha,
+                factura_vto: facturaEmitida.caeFechaVto,
               },
             })
             .eq('id', ordenId)
@@ -161,28 +163,25 @@ export async function POST(request: NextRequest) {
             const asunto = renderTemplate(cfg.notif_email_asunto || DEFAULT_EMAIL_ASUNTO, vars)
             const cuerpo = renderTemplate(cfg.notif_email_cuerpo || DEFAULT_EMAIL_CUERPO, vars)
 
-            // Adjuntar la factura PDF (la misma que fue generada por AFIP)
+            // Adjuntar la factura PDF — usar datos de la factura recién emitida
             let adjuntos: { filename: string; content: string; encoding: 'base64'; contentType: 'application/pdf' }[] | undefined
-            const facturaCAE  = compradorData.factura_cae
-            const facturaNro  = compradorData.factura_nro
-            const facturaFecha = compradorData.factura_fecha
-            const facturaVto  = compradorData.factura_vto
-            const ptoVenta    = Number(process.env.AFIP_PTO_VENTA || 5)
-            const cuit        = Number(process.env.AFIP_CUIT)
+            const ptoVenta = Number(process.env.AFIP_PTO_VENTA || 5)
+            const cuit     = Number(process.env.AFIP_CUIT)
 
-            if (facturaCAE && facturaNro) {
+            if (facturaEmitida) {
               try {
                 const pdfBase64 = await generateFacturaPDFBase64({
-                  nroComprobante: facturaNro,
+                  nroComprobante: facturaEmitida.nroComprobante,
                   ptoVenta,
                   cuit,
-                  fecha:         facturaFecha || fechaFmt,
-                  caeFechaVto:   facturaVto   || '',
-                  cae:           facturaCAE,
+                  fecha:         facturaEmitida.fecha || fechaFmt,
+                  fechaISO:      new Date().toISOString().slice(0, 10),
+                  caeFechaVto:   facturaEmitida.caeFechaVto || '',
+                  cae:           facturaEmitida.cae,
                   totalNumerico: orden.total ?? 0,
                   cliente: {
-                    nombre:     compradorData.nombre || 'Consumidor Final',
-                    cuitDni:    compradorData.dni    || '–',
+                    nombre:     compradorData.nombre    || 'Consumidor Final',
+                    cuitDni:    compradorData.dni        || '–',
                     direccion:  compradorData.envio?.direccion || '–',
                     ciudad:     compradorData.envio?.ciudad    || '–',
                   },
@@ -194,7 +193,7 @@ export async function POST(request: NextRequest) {
                   costoEnvio,
                 })
                 adjuntos = [{
-                  filename:    facturaFileName(facturaNro),
+                  filename:    facturaFileName(facturaEmitida.nroComprobante),
                   content:     pdfBase64,
                   encoding:    'base64',
                   contentType: 'application/pdf',
