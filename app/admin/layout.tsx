@@ -10,6 +10,7 @@ const navItems = [
   { href: '/admin/ordenes', label: 'Órdenes', icon: '🛍️', exact: false },
   { href: '/admin/descuentos', label: 'Descuentos', icon: '🏷️', exact: false },
   { href: '/admin/envios', label: 'Envíos', icon: '🚚', exact: false },
+  { href: '/admin/facturacion', label: 'Facturación', icon: '🧾', exact: false },
   { href: '/admin/editor', label: 'Editor de página', icon: '✏️', exact: false },
 ]
 
