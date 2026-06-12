@@ -322,30 +322,63 @@ export default function FacturacionAdminPage() {
       if (!res.ok) throw new Error(data.error || 'Error desconocido')
       setResultado(data)
 
-      // Generar el PDF UNA sola vez, inmediatamente después de obtener el CAE
+      // Generar el PDF UNA sola vez — mismo HTML que "Ver PDF", convertido a PDF real
       setGeneratingPdf(true)
       try {
-        const { generateFacturaPDFBase64 } = await import('@/lib/factura-pdf')
-        const items = data.items || [{ descripcion: 'Factura de prueba – Flow Things', cantidad: 1, precioUnitario: data.totalNumerico }]
-        const base64 = await generateFacturaPDFBase64({
-          nroComprobante: data.nroComprobante,
-          ptoVenta:       data.ptoVenta,
-          cuit:           data.cuit,
-          fecha:          data.fecha,
-          caeFechaVto:    data.caeFechaVto,
-          cae:            data.cae,
-          totalNumerico:  data.totalNumerico,
-          cliente:        data.cliente,
-          items,
-          costoEnvio:     data.costoEnvio,
+        // 1. Generar QR client-side para evitar CORS con api.qrserver.com
+        const QRCode = (await import('qrcode')).default
+        const qrObj = {
+          ver: 1, fecha: data.fechaISO, cuit: data.cuit, ptoVta: data.ptoVenta,
+          tipoCmp: 11, nroCmp: data.nroComprobante, importe: data.totalNumerico,
+          moneda: 'PES', ctz: 1, tipoDocRec: 99, nroDocRec: 0,
+          tipoCodAut: 'E', codAut: Number(data.cae),
+        }
+        const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${btoa(JSON.stringify(qrObj))}`
+        const qrDataUrl = await QRCode.toDataURL(qrUrl, { width: 130, margin: 1 })
+
+        // 2. Obtener el mismo HTML que usa "Ver PDF"
+        let html = generarHTMLFactura(data)
+        // Reemplazar QR externo con el generado localmente
+        html = html.replace(/src="https:\/\/api\.qrserver\.com\/[^"]*"/, `src="${qrDataUrl}"`)
+        // Quitar el script de auto-print
+        html = html.replace(/<script[\s\S]*?<\/script>/gi, '')
+
+        // 3. Extraer estilos y cuerpo para html2pdf
+        const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i)
+        const styles = styleMatch ? `<style>${styleMatch[1]}</style>` : ''
+        const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
+        const bodyContent = bodyMatch ? bodyMatch[1] : html
+
+        const wrapper = document.createElement('div')
+        wrapper.innerHTML = styles + bodyContent
+        wrapper.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:210mm;background:#fff'
+        document.body.appendChild(wrapper)
+
+        // 4. Convertir a PDF — misma salida visual que el navegador
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const html2pdf = (await import('html2pdf.js' as any)).default
+        const pdfBlob: Blob = await html2pdf()
+          .set({
+            margin:     [12, 15, 12, 15],   // simula los márgenes de impresión
+            filename:   `FACTURA #${data.nroComprobante}.pdf`,
+            image:      { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF:      { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          })
+          .from(wrapper)
+          .outputPdf('blob')
+
+        document.body.removeChild(wrapper)
+
+        // 5. Guardar base64 y blob URL — el mismo archivo para ver Y para mandar
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload  = () => resolve((reader.result as string).split(',')[1])
+          reader.onerror = reject
+          reader.readAsDataURL(pdfBlob)
         })
         setPdfBase64(base64)
-        // Crear blob URL para poder abrirlo en el navegador
-        const byteChars = atob(base64)
-        const byteArr = new Uint8Array(byteChars.length)
-        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i)
-        const blob = new Blob([byteArr], { type: 'application/pdf' })
-        setPdfBlobUrl(URL.createObjectURL(blob))
+        setPdfBlobUrl(URL.createObjectURL(pdfBlob))
       } catch (pdfErr) {
         console.warn('No se pudo generar PDF:', pdfErr)
       } finally {
