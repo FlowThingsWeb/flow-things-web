@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getTokenAuth } from '@/lib/afip-wsaa'
 import { getLastVoucher, solicitarCAE } from '@/lib/afip-wsfe'
 import { sendEmail, renderTemplate, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
+import { generateFacturaPDFBase64, facturaFileName } from '@/lib/factura-pdf'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -13,46 +14,59 @@ export async function POST(req: NextRequest) {
   const token = req.cookies.get('admin_token')?.value
   if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  let body: { email?: string; facturaData?: Record<string, unknown>; pdfBase64?: string } = {}
+  let body: { email?: string; facturaData?: Record<string, unknown> } = {}
   try { body = await req.json() } catch { /* no body */ }
 
-  const { email, facturaData, pdfBase64 } = body
+  const { email, facturaData } = body
 
-  // Si viene facturaData y email → solo enviar el email (sin emitir nueva factura)
+  // Si viene facturaData y email → generar PDF en el servidor y enviar email
   if (email && facturaData) {
     try {
       const { data: rows } = await supabase.from('configuracion').select('clave,valor')
       const cfg: Record<string, string> = {}
       ;(rows || []).forEach((r: { clave: string; valor: string }) => { cfg[r.clave] = r.valor })
 
-      const asunto = cfg.notif_email_asunto || DEFAULT_EMAIL_ASUNTO
       const template = cfg.notif_email_cuerpo || DEFAULT_EMAIL_CUERPO
+      const itemLabel = '<tr><td style="font-size:14px;color:#374151;padding:5px 0">Factura de prueba – Flow Things × 1</td><td style="font-size:14px;color:#374151;text-align:right;padding:5px 0;font-weight:500;white-space:nowrap">$ 1,00</td></tr>'
 
       const cuerpo = renderTemplate(template, {
-        nombre: 'Admin (prueba)',
-        orden_id: String(facturaData.nroComprobante ?? '–'),
-        total: facturaData.importe as string || '$1,00',
-        subtotal: facturaData.importe as string || '$1,00',
-        envio: 'Gratis',
-        descuento: '',
-        fila_descuento: '',
-        productos_filas: '<tr><td style="font-size:14px;color:#111;padding:12px 0">Factura de prueba – Flow Things</td><td style="text-align:center;padding:12px 0;color:#666">1</td><td style="text-align:right;padding:12px 0;color:#111">$1,00</td></tr>',
-        productos: 'Factura de prueba – Flow Things',
-        fecha: facturaData.fecha as string || new Date().toLocaleDateString('es-AR'),
-        medio_pago: 'Mercado Pago (prueba)',
+        nombre:          'Admin (prueba)',
+        orden_id:        String(facturaData.nroComprobante ?? '–'),
+        total:           '$ 1,00',
+        subtotal:        '$ 1,00',
+        desglose_items:  itemLabel,
+        envio:           'Gratis',
+        descuento:       '',
+        fila_descuento:  '',
+        productos_filas: '<tr><td style="font-size:14px;color:#111;padding:12px 0">Factura de prueba – Flow Things</td><td style="text-align:center;padding:12px 0;color:#666">1</td><td style="text-align:right;padding:12px 0;color:#111">$ 1,00</td></tr>',
+        productos:       'Factura de prueba – Flow Things',
+        fecha:           facturaData.fecha as string || new Date().toLocaleDateString('es-AR'),
+        medio_pago:      'Mercado Pago (prueba)',
       })
 
-      const adjuntos = pdfBase64
-        ? [{
-            filename: `FACTURA #${facturaData.nroComprobante ?? 'prueba'}.pdf`,
-            content: pdfBase64,
-            encoding: 'base64' as const,
-            contentType: 'application/pdf',
-          }]
-        : undefined
+      // Generar el PDF en el servidor con los datos de la factura emitida
+      let adjuntos: { filename: string; content: string; encoding: 'base64'; contentType: 'application/pdf' }[] | undefined
+      try {
+        const nro  = Number(facturaData.nroComprobante)
+        const pdfBase64 = await generateFacturaPDFBase64({
+          nroComprobante: nro,
+          ptoVenta:       Number(facturaData.ptoVenta),
+          cuit:           Number(facturaData.cuit),
+          fecha:          String(facturaData.fecha   || new Date().toLocaleDateString('es-AR')),
+          fechaISO:       String(facturaData.fechaISO || new Date().toISOString().slice(0, 10)),
+          caeFechaVto:    String(facturaData.caeFechaVto || ''),
+          cae:            String(facturaData.cae),
+          totalNumerico:  Number(facturaData.totalNumerico || 1),
+          items: (facturaData.items as { descripcion: string; cantidad: number; precioUnitario: number }[])
+            ?? [{ descripcion: 'Factura de prueba – Flow Things', cantidad: 1, precioUnitario: 1.00 }],
+        })
+        adjuntos = [{ filename: facturaFileName(nro), content: pdfBase64, encoding: 'base64', contentType: 'application/pdf' }]
+      } catch (pdfErr: any) {
+        console.error('[factura-prueba] PDF error:', pdfErr.message)
+      }
 
       await sendEmail({ to: email, asunto: 'Factura de prueba – Flow Things', cuerpo, adjuntos })
-      return NextResponse.json({ ok: true, emailEnviado: true })
+      return NextResponse.json({ ok: true, emailEnviado: true, tienePDF: !!adjuntos })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al enviar email'
       console.error('[factura-prueba] email error', err)

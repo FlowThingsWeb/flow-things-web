@@ -360,15 +360,15 @@ export default function FacturacionAdminPage() {
     setSendingEmail(true)
     setEmailMsg('Enviando...')
     try {
-      // Usa el mismo pdfBase64 generado al emitir — no se genera uno nuevo
+      // El servidor genera el PDF — solo mandamos los datos de la factura
       const res = await fetch('/api/admin/factura-prueba', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailTest, facturaData: resultado, pdfBase64: pdfBase64 ?? undefined }),
+        body: JSON.stringify({ email: emailTest, facturaData: resultado }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error desconocido')
-      setEmailMsg(pdfBase64 ? '✅ Email enviado con la factura adjunta' : '✅ Email enviado')
+      setEmailMsg(data.tienePDF ? '✅ Email enviado con la factura adjunta' : '✅ Email enviado (sin PDF)')
     } catch (e: any) {
       setEmailMsg('❌ ' + e.message)
     } finally {
