@@ -61,7 +61,10 @@ export default async function RootLayout({
         )}
       </head>
       <body>
-        <AnnouncementBar />
+        <AnnouncementBar
+          gratisAmba={Number(cfg.envio_gratis_gba_desde) || 40000}
+          gratisInterior={Number(cfg.envio_gratis_interior_desde) || 120000}
+        />
         <Header cfg={cfg} />
         <main className="min-h-screen">{children}</main>
         <CartDrawer />
