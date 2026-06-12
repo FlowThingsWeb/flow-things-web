@@ -1,26 +1,55 @@
-const WSFE_URL_PROD = 'https://servicios1.afip.gov.ar/wsfev1/service.asmx'
+import https from 'https'
+
+const WSFE_HOST = 'servicios1.afip.gov.ar'
+const WSFE_PATH = '/wsfev1/service.asmx'
 const WSFE_NS = 'http://ar.gov.afip.dif.FEV1/'
+
+// AFIP WSFE usa Diffie-Hellman de 512 bits — incompatible con OpenSSL 3 (Node 18+).
+// Usamos https.request con un agent que excluye cipher suites DHE para evitar ERR_SSL_DH_KEY_TOO_SMALL.
+const wsfeAgent = new https.Agent({
+  ciphers: 'HIGH:!DH:!aNULL',
+  keepAlive: false,
+})
 
 function extractXml(xml: string, tag: string): string {
   const match = xml.match(new RegExp(`<(?:[^:>]+:)?${tag}[^>]*>([\\s\\S]*?)<\\/(?:[^:>]+:)?${tag}>`, 'i'))
   return match ? match[1].trim() : ''
 }
 
-async function callWsfe(method: string, innerXml: string): Promise<string> {
+function callWsfe(method: string, innerXml: string): Promise<string> {
   const envelope = `<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ar="${WSFE_NS}"><soapenv:Header/><soapenv:Body>${innerXml}</soapenv:Body></soapenv:Envelope>`
+  const body = Buffer.from(envelope, 'utf8')
 
-  const response = await fetch(WSFE_URL_PROD, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/xml; charset=UTF-8',
-      'SOAPAction': `${WSFE_NS}${method}`,
-    },
-    body: envelope,
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: WSFE_HOST,
+        path: WSFE_PATH,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml; charset=UTF-8',
+          'SOAPAction': `${WSFE_NS}${method}`,
+          'Content-Length': body.length,
+        },
+        agent: wsfeAgent,
+      },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk) => chunks.push(chunk))
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8')
+          if (res.statusCode && res.statusCode >= 400 && res.statusCode !== 500) {
+            reject(new Error(`WSFE HTTP ${res.statusCode}: ${text.slice(0, 300)}`))
+          } else {
+            resolve(text)
+          }
+        })
+      }
+    )
+    req.on('error', (err) => reject(new Error(`WSFE conexión: ${err.message}`)))
+    req.write(body)
+    req.end()
   })
-
-  const text = await response.text()
-  if (!response.ok) throw new Error(`WSFE HTTP ${response.status}: ${text.slice(0, 300)}`)
-  return text
 }
 
 function authXml(token: string, sign: string, cuit: number): string {
