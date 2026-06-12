@@ -14,7 +14,7 @@ const nextConfig = {
       allowedOrigins: ['flowthings.com.ar', 'localhost:3000'],
     },
   },
-  serverExternalPackages: ['node-forge'],
+  serverExternalPackages: ['node-forge', 'nodemailer'],
 }
 
 module.exports = nextConfig
