@@ -78,6 +78,7 @@ interface DespachoDesign {
   showLogo: boolean
   headline: string
   subtitleText: string
+  contactText: string
   footerText: string
 }
 
@@ -97,6 +98,7 @@ const DEFAULT_DESPACHO_DESIGN: DespachoDesign = {
   showLogo: true,
   headline: 'Tu pedido esta en camino, {{nombre}}!',
   subtitleText: 'Ya salio de nuestro deposito y se dirige a vos.',
+  contactText: 'Ante cualquier inconveniente escribinos por mail a flowthings@gmail.com o por WhatsApp al +54 9 11 XXXX-XXXX',
   footerText: 'Flow Things',
 }
 
@@ -222,7 +224,7 @@ function buildDespachoHTML(d: DespachoDesign): string {
     Pedido <strong style="color:#555">#{{orden_id}}</strong> - Despachado el {{fecha}}
   </p>
   <p style="margin:8px 0 0;font-size:14px;color:#666;line-height:1.6">
-    Ante cualquier inconveniente escribinos por Instagram @flowthings__
+    ${d.contactText}
   </p>
 </td></tr>
 
@@ -311,6 +313,11 @@ function DespachoVisualEditor({
           <label className="block text-brand-text-muted text-xs mb-1.5">Subtítulo</label>
           <input value={d.subtitleText} onChange={e => onChange({ subtitleText: e.target.value })}
             className="w-full bg-brand-bg border border-brand-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-purple" />
+        </div>
+        <div>
+          <label className="block text-brand-text-muted text-xs mb-1.5">Texto de contacto</label>
+          <textarea value={d.contactText} onChange={e => onChange({ contactText: e.target.value })} rows={2}
+            className="w-full bg-brand-bg border border-brand-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-purple resize-none" />
         </div>
         <div>
           <label className="block text-brand-text-muted text-xs mb-1.5">Footer</label>
