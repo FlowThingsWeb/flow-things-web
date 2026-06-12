@@ -12,7 +12,10 @@ const PREVIEW_CONFIRMACION: Record<string, string> = {
   envio: '$ 1.200,00',
   fecha: '12/06/2026',
   medio_pago: 'Tarjeta de crédito Visa terminada en 1234 · 3 cuotas',
-  fila_descuento: `<tr><td style="font-size:14px;color:#16a34a;padding:6px 0">🏷️ Descuento (SUMMER10)</td><td style="font-size:14px;color:#16a34a;font-weight:600;text-align:right;padding:6px 0">- $ 800,00</td></tr>`,
+  fila_descuento: `<tr><td style="font-size:14px;color:#16a34a;padding:6px 0">&#x1F3F7; Descuento (SUMMER10)</td><td style="font-size:14px;color:#16a34a;font-weight:600;text-align:right;padding:6px 0">- $ 800,00</td></tr>`,
+  desglose_items: `
+    <tr><td style="font-size:14px;color:#374151;padding:5px 0">Muñeca articulada premium &times; 1</td><td style="font-size:14px;color:#374151;text-align:right;padding:5px 0;font-weight:500;white-space:nowrap">$ 4.500,00</td></tr>
+    <tr><td style="font-size:14px;color:#374151;padding:5px 0">LEGO City Set 60303 &times; 2</td><td style="font-size:14px;color:#374151;text-align:right;padding:5px 0;font-weight:500;white-space:nowrap">$ 3.500,00</td></tr>`,
   productos_filas: `
     <tr><td style="font-size:14px;color:#111;padding:12px 0;border-bottom:1px solid #f3f0ff;line-height:1.4">Muñeca articulada premium</td><td style="font-size:14px;color:#a78bfa;text-align:center;padding:12px 0;border-bottom:1px solid #f3f0ff">1</td><td style="font-size:14px;color:#111;text-align:right;padding:12px 0;border-bottom:1px solid #f3f0ff;white-space:nowrap;font-weight:500">$ 4.500,00</td></tr>
     <tr><td style="font-size:14px;color:#111;padding:12px 0;line-height:1.4">LEGO City Set 60303</td><td style="font-size:14px;color:#a78bfa;text-align:center;padding:12px 0">2</td><td style="font-size:14px;color:#111;text-align:right;padding:12px 0;white-space:nowrap;font-weight:500">$ 3.500,00</td></tr>`,
@@ -144,7 +147,8 @@ function buildConfirmHTML(d: ConfirmDesign): string {
 <tr><td style="background:#ffffff;padding:8px 40px 32px">
   <div style="background:#faf8ff;border-radius:16px;border:1.5px solid #ede9f7;padding:20px 24px;margin-top:8px">
     <table width="100%" cellpadding="0" cellspacing="0">
-      <tr><td style="font-size:14px;color:#6b7280;padding:6px 0">Subtotal</td><td style="font-size:14px;color:#374151;text-align:right;padding:6px 0;font-weight:500">{{subtotal}}</td></tr>
+      {{desglose_items}}
+      <tr><td colspan="2" style="padding:3px 0"><div style="height:1px;background:#e9d5ff"></div></td></tr>
       {{fila_descuento}}
       <tr><td style="font-size:14px;color:#6b7280;padding:6px 0">Env&#xED;o</td><td style="font-size:14px;color:#374151;text-align:right;padding:6px 0;font-weight:500">{{envio}}</td></tr>
       <tr><td colspan="2" style="padding:4px 0"><div style="height:1.5px;background:#e9d5ff"></div></td></tr>

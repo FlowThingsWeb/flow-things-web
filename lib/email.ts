@@ -65,6 +65,22 @@ export function buildProductosFilas(
     .join('')
 }
 
+export function buildDesgloseItems(
+  items: { nombre: string; cantidad: number; precio: number }[]
+): string {
+  const fmt = (n: number) =>
+    '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return items
+    .map(
+      (i) =>
+        `<tr>
+          <td style="font-size:14px;color:#374151;padding:5px 0">${i.nombre} &times; ${i.cantidad}</td>
+          <td style="font-size:14px;color:#374151;text-align:right;padding:5px 0;font-weight:500;white-space:nowrap">${fmt(i.precio * i.cantidad)}</td>
+        </tr>`
+    )
+    .join('')
+}
+
 export function buildFilaDescuento(codigo: string | null, monto: number): string {
   if (!monto || monto <= 0) return ''
   const fmt = (n: number) =>
@@ -169,10 +185,8 @@ export const DEFAULT_EMAIL_CUERPO = `<!DOCTYPE html>
 <tr><td style="background:#ffffff;padding:8px 40px 32px">
   <div style="background:#faf8ff;border-radius:16px;border:1.5px solid #ede9f7;padding:20px 24px;margin-top:8px">
     <table width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="font-size:14px;color:#6b7280;padding:6px 0">Subtotal</td>
-        <td style="font-size:14px;color:#374151;text-align:right;padding:6px 0;font-weight:500">{{subtotal}}</td>
-      </tr>
+      {{desglose_items}}
+      <tr><td colspan="2" style="padding:3px 0"><div style="height:1px;background:#e9d5ff"></div></td></tr>
       {{fila_descuento}}
       <tr>
         <td style="font-size:14px;color:#6b7280;padding:6px 0">Env&#xED;o</td>

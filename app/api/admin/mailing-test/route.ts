@@ -12,7 +12,8 @@ const SAMPLE_VARS: Record<string, string> = {
   descuento:       '$ 800,00',
   fecha:           new Date().toLocaleDateString('es-AR'),
   productos:       '• Muñeca articulada premium x1<br/>• LEGO City Set 60303 x2',
-  fila_descuento:  '<tr><td style="font-size:14px;color:#16a34a;padding:4px 0">Descuento (SUMMER10)</td><td style="font-size:14px;color:#16a34a;font-weight:600;text-align:right;padding:4px 0">- $ 800,00</td></tr>',
+  fila_descuento:  '<tr><td style="font-size:14px;color:#16a34a;padding:4px 0">&#x1F3F7; Descuento (SUMMER10)</td><td style="font-size:14px;color:#16a34a;font-weight:600;text-align:right;padding:4px 0">- $ 800,00</td></tr>',
+  desglose_items:  '<tr><td style="font-size:14px;color:#374151;padding:5px 0">Muñeca articulada premium &times; 1</td><td style="font-size:14px;color:#374151;text-align:right;padding:5px 0;font-weight:500;white-space:nowrap">$ 4.500,00</td></tr><tr><td style="font-size:14px;color:#374151;padding:5px 0">LEGO City Set 60303 &times; 2</td><td style="font-size:14px;color:#374151;text-align:right;padding:5px 0;font-weight:500;white-space:nowrap">$ 3.500,00</td></tr>',
   productos_filas: '<tr><td style="font-size:14px;color:#111;padding:12px 0;border-bottom:1px solid #f0f0f0">Muñeca articulada premium</td><td style="font-size:14px;color:#666;text-align:center;padding:12px 0;border-bottom:1px solid #f0f0f0">1</td><td style="font-size:14px;color:#111;text-align:right;padding:12px 0;border-bottom:1px solid #f0f0f0">$ 4.500,00</td></tr><tr><td style="font-size:14px;color:#111;padding:12px 0">LEGO City Set 60303</td><td style="font-size:14px;color:#666;text-align:center;padding:12px 0">2</td><td style="font-size:14px;color:#111;text-align:right;padding:12px 0">$ 3.500,00</td></tr>',
   // Despacho
   courier:         'OCA',

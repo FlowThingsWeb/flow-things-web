@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import MercadoPagoConfig, { Payment } from 'mercadopago'
 import { sendTelegram, formatVentaMsg } from '@/lib/telegram'
 import { emitirFacturaC } from '@/lib/afip'
-import { sendEmail, renderTemplate, buildProductosFilas, buildFilaDescuento, buildMedioPago, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
+import { sendEmail, renderTemplate, buildProductosFilas, buildDesgloseItems, buildFilaDescuento, buildMedioPago, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
 import { sendWhatsApp, DEFAULT_WPP_MENSAJE } from '@/lib/whatsapp'
 
 const client = new MercadoPagoConfig({
@@ -133,16 +133,17 @@ export async function POST(request: NextRequest) {
           const totalFmt = fmt(orden.total ?? 0)
           const fechaFmt = new Date().toLocaleDateString('es-AR')
 
-          const productosFilas = buildProductosFilas(
-            items.map((i: any) => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
-          )
-          const filaDescuento = buildFilaDescuento(codigoDescuento, descuentoMonto)
+          const mappedItems = items.map((i: any) => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
+          const productosFilas = buildProductosFilas(mappedItems)
+          const desgloseItems  = buildDesgloseItems(mappedItems)
+          const filaDescuento  = buildFilaDescuento(codigoDescuento, descuentoMonto)
 
           const vars: Record<string, string> = {
             nombre:          compradorData.nombre || 'cliente',
             orden_id:        String(ordenId),
             total:           totalFmt,
             subtotal:        fmt(subtotal),
+            desglose_items:  desgloseItems,
             envio:           costoEnvio > 0 ? fmt(costoEnvio) : 'Gratis',
             descuento:       descuentoMonto > 0 ? fmt(descuentoMonto) : '',
             fila_descuento:  filaDescuento,
