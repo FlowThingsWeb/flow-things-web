@@ -7,134 +7,293 @@ interface FacturaResultado {
   caeFechaVto: string
   nroComprobante: number
   ptoVenta: number
+  cuit: number
   fecha: string
+  fechaISO: string
   importe: string
+  totalNumerico: number
   ambiente: string
+  // datos de orden real (opcionales)
+  cliente?: { nombre?: string; cuitDni?: string; direccion?: string; ciudad?: string; cp?: string }
+  items?: { sku?: string; descripcion: string; cantidad: number; precioUnitario: number }[]
+  costoEnvio?: number
 }
 
-function generarHTMLFactura(r: FacturaResultado, cuit: string): string {
-  const vto = r.caeFechaVto
-    ? `${r.caeFechaVto.slice(0, 4)}-${r.caeFechaVto.slice(4, 6)}-${r.caeFechaVto.slice(6, 8)}`
-    : ''
+// Número a palabras en español
+function numeroALetras(n: number): string {
+  const unidades = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve',
+    'diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve',
+    'veinte', 'veintiún', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve']
+  const decenas = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa']
+  const centenas = ['', 'cien', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos']
+
+  function menorMil(num: number): string {
+    if (num === 0) return ''
+    if (num === 100) return 'cien'
+    if (num < 30) return unidades[num]
+    if (num < 100) {
+      const d = Math.floor(num / 10)
+      const u = num % 10
+      return u === 0 ? decenas[d] : `${decenas[d]} y ${unidades[u]}`
+    }
+    const c = Math.floor(num / 100)
+    const resto = num % 100
+    const base = c === 1 && resto > 0 ? 'ciento' : centenas[c]
+    return resto === 0 ? base : `${base} ${menorMil(resto)}`
+  }
+
+  const entero = Math.floor(n)
+  const centavos = Math.round((n - entero) * 100)
+
+  if (entero === 0) return 'cero pesos'
+
+  let resultado = ''
+  if (entero >= 1000000) {
+    const m = Math.floor(entero / 1000000)
+    resultado += m === 1 ? 'un millón ' : `${menorMil(m)} millones `
+  }
+  const miles = Math.floor((entero % 1000000) / 1000)
+  if (miles > 0) {
+    resultado += miles === 1 ? 'mil ' : `${menorMil(miles)} mil `
+  }
+  const resto = entero % 1000
+  if (resto > 0) resultado += menorMil(resto) + ' '
+
+  resultado = resultado.trim() + ' pesos'
+  if (centavos > 0) resultado += ` con ${centavos} centavos`
+  return resultado
+}
+
+function fmtFecha(yyyymmdd: string): string {
+  if (!yyyymmdd || yyyymmdd.length !== 8) return yyyymmdd
+  return `${yyyymmdd.slice(6, 8)}/${yyyymmdd.slice(4, 6)}/${yyyymmdd.slice(0, 4)}`
+}
+
+function fmtMoneda(n: number): string {
+  return '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function generarQRData(r: FacturaResultado): string {
+  const obj = {
+    ver: 1,
+    fecha: r.fechaISO,
+    cuit: r.cuit,
+    ptoVta: r.ptoVenta,
+    tipoCmp: 11,
+    nroCmp: r.nroComprobante,
+    importe: r.totalNumerico,
+    moneda: 'PES',
+    ctz: 1,
+    tipoDocRec: 99,
+    nroDocRec: 0,
+    tipoCodAut: 'E',
+    codAut: Number(r.cae),
+  }
+  return btoa(JSON.stringify(obj))
+}
+
+function generarHTMLFactura(r: FacturaResultado): string {
+  const nroCbte = `${String(r.ptoVenta).padStart(4, '0')}-${String(r.nroComprobante).padStart(8, '0')}`
+  const vtoCAE = fmtFecha(r.caeFechaVto)
+  const totalFmt = fmtMoneda(r.totalNumerico)
+  const letras = numeroALetras(r.totalNumerico)
+  const qrData = generarQRData(r)
+  const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${qrData}`
+  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrUrl)}`
+  const logoUrl = 'https://flow-things-web.vercel.app/logo.png'
+
+  const cliente = r.cliente
+  const items = r.items || [{ sku: '–', descripcion: 'Factura de prueba – Flow Things', cantidad: 1, precioUnitario: r.totalNumerico }]
+  const costoEnvio = r.costoEnvio ?? 0
+
+  const itemsHTML = items.map(it => `
+    <tr>
+      <td>${it.sku || '–'}</td>
+      <td>${it.descripcion}</td>
+      <td class="right">${it.cantidad}</td>
+      <td class="right">${fmtMoneda(it.precioUnitario)}</td>
+      <td class="right">${fmtMoneda(it.cantidad * it.precioUnitario)}</td>
+    </tr>`).join('')
 
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
-  <title>Factura C N° ${String(r.ptoVenta).padStart(4,'0')}-${String(r.nroComprobante).padStart(8,'0')}</title>
+  <title>Factura C ${nroCbte}</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; font-size: 11px; color: #111; padding: 20px; }
-    .header { display: flex; justify-content: space-between; border: 2px solid #111; margin-bottom: 0; }
-    .header-left { padding: 16px; flex: 1; border-right: 2px solid #111; }
-    .header-center { padding: 16px 24px; text-align: center; border-right: 2px solid #111; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .header-right { padding: 16px; flex: 1; }
-    .letra { font-size: 48px; font-weight: bold; border: 3px solid #111; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
-    .tipo-cbte { font-size: 13px; font-weight: bold; }
-    .empresa { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
-    .section { border: 1px solid #111; padding: 10px 14px; margin-bottom: 0; border-top: 0; }
-    .section:first-of-type { border-top: 2px solid #111; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; }
-    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 16px; }
-    .label { color: #555; font-size: 10px; }
-    .value { font-weight: bold; font-size: 11px; }
-    .cae-section { border: 2px solid #111; padding: 12px 14px; margin-top: 16px; display: flex; justify-content: space-between; align-items: center; }
-    .cae-label { font-size: 10px; color: #555; }
-    .cae-value { font-weight: bold; font-size: 13px; letter-spacing: 1px; }
-    .total-row { display: flex; justify-content: flex-end; border: 1px solid #111; border-top: 2px solid #111; padding: 10px 14px; }
-    .total-label { font-size: 12px; margin-right: 24px; }
-    .total-value { font-size: 16px; font-weight: bold; }
-    .footer { margin-top: 10px; font-size: 9px; color: #777; text-align: center; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size:11px; color:#111; background:#fff; }
+    .page { max-width:800px; margin:0 auto; padding:20px; }
+
+    /* HEADER */
+    .header { display:flex; border:1.5px solid #333; }
+    .h-left  { flex:1; padding:14px 16px; border-right:1.5px solid #333; }
+    .h-mid   { padding:12px 20px; text-align:center; border-right:1.5px solid #333; display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:110px; }
+    .h-right { flex:1; padding:14px 16px; }
+    .logo    { height:48px; width:auto; margin-bottom:4px; }
+    .empresa-nombre { font-size:18px; font-weight:bold; margin-bottom:2px; }
+    .empresa-sub    { font-size:11px; color:#444; margin-bottom:6px; }
+    .empresa-dir    { font-size:9.5px; color:#555; line-height:1.4; }
+    .letra-box { border:2.5px solid #333; width:60px; height:60px; display:flex; align-items:center; justify-content:center; font-size:44px; font-weight:bold; margin-bottom:4px; }
+    .original-tag { font-size:11px; margin-bottom:6px; color:#333; }
+    .cod-tag  { font-size:10px; color:#555; margin-top:2px; }
+    .h-right .row { margin-bottom:4px; font-size:11px; }
+    .h-right .row strong { font-weight:bold; }
+
+    /* CLIENTE */
+    .cliente { display:flex; border:1.5px solid #333; border-top:0; }
+    .cli-left  { flex:1; padding:12px 16px; border-right:1.5px solid #333; }
+    .cli-right { flex:1; padding:12px 16px; }
+    .cli-row   { margin-bottom:5px; font-size:11px; }
+    .cli-row strong { font-weight:bold; }
+
+    /* TABLA ITEMS */
+    .items-section { border:1.5px solid #333; border-top:0; }
+    table { width:100%; border-collapse:collapse; }
+    thead tr { border-bottom:1px solid #999; background:#f5f5f5; }
+    thead th { padding:6px 8px; font-size:9.5px; text-transform:uppercase; font-weight:bold; color:#333; text-align:left; }
+    thead th.right { text-align:right; }
+    tbody tr { border-bottom:1px solid #eee; }
+    tbody td { padding:7px 8px; font-size:11px; }
+    td.right { text-align:right; }
+    tbody tr:last-child { border-bottom:none; }
+
+    /* FOOTER */
+    .footer-row { display:flex; border:1.5px solid #333; border-top:0; min-height:160px; }
+    .qr-section { padding:14px 16px; border-right:1.5px solid #333; width:200px; }
+    .qr-section img { display:block; margin-bottom:8px; }
+    .cae-text { font-size:10px; margin-bottom:3px; }
+    .cae-text strong { font-weight:bold; }
+    .totales { flex:1; padding:14px 16px; }
+    .total-line { display:flex; justify-content:space-between; padding:5px 0; font-size:12px; }
+    .total-line.border-top { border-top:1px solid #ccc; }
+    .total-line.grande { font-weight:bold; font-size:13px; border-top:1.5px solid #333; padding-top:7px; margin-top:2px; }
+    .letras { font-size:10px; color:#333; margin-top:8px; }
+    .letras strong { font-weight:bold; }
+    .moneda-row { text-align:right; border:1.5px solid #333; border-top:0; padding:6px 16px; font-size:11px; }
+    .moneda-row strong { font-weight:bold; }
+
     @media print {
-      body { padding: 0; }
-      @page { margin: 15mm; }
+      body { padding:0; }
+      .page { padding:10px; }
+      @page { margin:10mm; size:A4; }
     }
   </style>
 </head>
 <body>
+<div class="page">
+
+  <!-- HEADER -->
   <div class="header">
-    <div class="header-left">
-      <div class="empresa">Flow Things</div>
-      <div>Librería y Juguetería</div>
-      <div style="margin-top:6px">Domicilio comercial: Argentina</div>
-      <div>CUIT: ${cuit}</div>
-      <div style="margin-top:4px"><strong>Condición frente al IVA:</strong> Monotributo</div>
+    <div class="h-left">
+      <img src="${logoUrl}" class="logo" alt="Flow Things" onerror="this.style.display='none'"/>
+      <div class="empresa-nombre">Flow Things</div>
+      <div class="empresa-sub">Monotributo</div>
+      <div class="empresa-dir">GALLARDO ANGEL AV. 160 Ciudad Autonoma Buenos Aires,<br>CP: 1405 CIUDAD AUTONOMA BUENOS AIRES AR</div>
     </div>
-    <div class="header-center">
-      <div class="letra">C</div>
-      <div class="tipo-cbte">FACTURA</div>
-      <div style="margin-top:8px;font-size:10px">Cod. 11</div>
+    <div class="h-mid">
+      <div class="original-tag">Original</div>
+      <div class="letra-box">C</div>
+      <div class="cod-tag">011</div>
     </div>
-    <div class="header-right">
-      <div class="label">N° de comprobante</div>
-      <div class="value" style="font-size:14px">${String(r.ptoVenta).padStart(4,'0')}-${String(r.nroComprobante).padStart(8,'0')}</div>
-      <div style="margin-top:8px" class="label">Fecha de emisión</div>
-      <div class="value">${r.fecha}</div>
-      <div style="margin-top:8px" class="label">Punto de venta</div>
-      <div class="value">${r.ptoVenta}</div>
-    </div>
-  </div>
-
-  <div class="section" style="border-top:2px solid #111">
-    <div class="grid2">
-      <div>
-        <div class="label">Razón social / Nombre</div>
-        <div class="value">Consumidor Final</div>
-      </div>
-      <div>
-        <div class="label">Condición IVA receptor</div>
-        <div class="value">Consumidor Final</div>
-      </div>
+    <div class="h-right">
+      <div class="row"><strong>FACTURA:</strong> ${nroCbte}</div>
+      <div class="row"><strong>Fecha de Emisión:</strong> ${r.fecha}</div>
+      <div class="row"><strong>Fecha de Vencimiento:</strong> ${r.fecha}</div>
+      <div class="row"><strong>CUIT:</strong> ${r.cuit}</div>
+      <div class="row"><strong>Ing. Brutos C.M:</strong> ${r.cuit}</div>
+      <div class="row"><strong>Inicio de Actividad:</strong> 01/04/2026</div>
+      <div class="row"><strong>Razón social:</strong> BARMAN LUCAS</div>
     </div>
   </div>
 
-  <div class="section" style="margin-top:16px;border-top:1px solid #111">
-    <table style="width:100%;border-collapse:collapse">
+  <!-- CLIENTE -->
+  <div class="cliente">
+    <div class="cli-left">
+      <div class="cli-row"><strong>Nombre:</strong> ${cliente?.nombre || 'Consumidor Final'}</div>
+      <div class="cli-row"><strong>CUIT/DNI/CUIL:</strong> ${cliente?.cuitDni || '–'}</div>
+      <div class="cli-row"><strong>Dirección:</strong> ${cliente?.direccion || '–'}</div>
+      <div class="cli-row"><strong>Ciudad:</strong> ${cliente?.ciudad || '–'}</div>
+      <div class="cli-row"><strong>Localidad:</strong></div>
+    </div>
+    <div class="cli-right">
+      <div class="cli-row"><strong>IVA:</strong> Consumidor Final</div>
+      <div class="cli-row"><strong>CP:</strong> ${cliente?.cp || '–'}</div>
+      <div class="cli-row"><strong>Tel:</strong></div>
+      <div class="cli-row"><strong>Condición de Venta:</strong> Contado</div>
+      <div class="cli-row"><strong>Método de pago:</strong> Mercado Pago</div>
+    </div>
+  </div>
+
+  <!-- ITEMS -->
+  <div class="items-section">
+    <table>
       <thead>
-        <tr style="border-bottom:1px solid #111">
-          <th style="text-align:left;padding:4px 0;font-size:10px;color:#555">Descripción</th>
-          <th style="text-align:right;padding:4px 0;font-size:10px;color:#555">Cant.</th>
-          <th style="text-align:right;padding:4px 0;font-size:10px;color:#555">Precio unit.</th>
-          <th style="text-align:right;padding:4px 0;font-size:10px;color:#555">Subtotal</th>
+        <tr>
+          <th style="width:60px">SKU</th>
+          <th>Descripción</th>
+          <th class="right" style="width:70px">Cantidad</th>
+          <th class="right" style="width:110px">Precio Unitario</th>
+          <th class="right" style="width:110px">Importe Subtotal</th>
         </tr>
       </thead>
       <tbody>
+        ${itemsHTML}
         <tr>
-          <td style="padding:6px 0">${r.importe.includes('prueba') ? 'Factura de prueba — Flow Things' : 'Productos Flow Things'}</td>
-          <td style="text-align:right;padding:6px 0">1</td>
-          <td style="text-align:right;padding:6px 0">${r.importe}</td>
-          <td style="text-align:right;padding:6px 0">${r.importe}</td>
+          <td>–</td>
+          <td>Costo Envío</td>
+          <td class="right">–</td>
+          <td class="right">–</td>
+          <td class="right">${costoEnvio > 0 ? fmtMoneda(costoEnvio) : '0.00'}</td>
         </tr>
+        <tr style="height:20px"><td colspan="5"></td></tr>
+        <tr style="height:20px"><td colspan="5"></td></tr>
       </tbody>
     </table>
   </div>
 
-  <div class="total-row">
-    <span class="total-label">TOTAL</span>
-    <span class="total-value">${r.importe}</span>
+  <!-- FOOTER -->
+  <div class="footer-row">
+    <div class="qr-section">
+      <img src="${qrImgUrl}" width="130" height="130" alt="QR AFIP"/>
+      <div class="cae-text"><strong>CAE:</strong> ${r.cae}</div>
+      <div class="cae-text"><strong>Vencimiento CAE:</strong> ${vtoCAE}</div>
+    </div>
+    <div class="totales">
+      <div class="total-line">
+        <span>Importe Subtotal</span>
+        <span>${totalFmt}</span>
+      </div>
+      <div class="total-line border-top">
+        <span>Importe Otros Impuestos</span>
+        <span>–</span>
+      </div>
+      <div class="total-line grande">
+        <span>Importe Total</span>
+        <span>${totalFmt}</span>
+      </div>
+      <div class="letras"><strong>Importe en Letras:</strong> ${letras}</div>
+    </div>
   </div>
 
-  <div class="cae-section">
-    <div>
-      <div class="cae-label">CAE</div>
-      <div class="cae-value">${r.cae}</div>
-    </div>
-    <div>
-      <div class="cae-label">Fecha de vencimiento del CAE</div>
-      <div class="value">${vto}</div>
-    </div>
-    <div>
-      <div class="cae-label">Comprobante autorizado por AFIP</div>
-      <div class="value" style="color:green">✔ VÁLIDO</div>
-    </div>
-  </div>
+  <div class="moneda-row"><strong>Moneda:</strong> Pesos Argentinos</div>
 
-  <div class="footer">
-    Comprobante generado electrónicamente. CAE otorgado por AFIP - ARCA.
-    Flow Things · flowthings.com.ar
-  </div>
-
-  <script>window.onload = () => { window.print() }</script>
+</div>
+<script>
+  // Esperar que el QR cargue antes de imprimir
+  window.onload = function() {
+    var imgs = document.querySelectorAll('img')
+    var loaded = 0
+    var total = imgs.length
+    if (total === 0) { window.print(); return; }
+    imgs.forEach(function(img) {
+      if (img.complete) { loaded++; if (loaded === total) window.print(); }
+      else {
+        img.onload = img.onerror = function() { loaded++; if (loaded === total) window.print(); }
+      }
+    })
+  }
+</script>
 </body>
 </html>`
 }
@@ -162,7 +321,7 @@ export default function FacturacionAdminPage() {
 
   const handleDescargarPDF = () => {
     if (!resultado) return
-    const html = generarHTMLFactura(resultado, '20462126701')
+    const html = generarHTMLFactura(resultado)
     const win = window.open('', '_blank')
     if (win) {
       win.document.write(html)
@@ -182,25 +341,19 @@ export default function FacturacionAdminPage() {
       <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6 mb-6">
         <h2 className="font-semibold text-white mb-4">Estado de la integración</h2>
         <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-green-400">✅</span>
-            <span className="text-brand-text">Certificado AFIP configurado</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-green-400">✅</span>
-            <span className="text-brand-text">Factura C automática al aprobar pago</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-green-400">✅</span>
-            <span className="text-brand-text">CAE guardado en cada orden</span>
-          </div>
+          {['Certificado AFIP configurado', 'Factura C automática al aprobar pago', 'CAE guardado en cada orden'].map(t => (
+            <div key={t} className="flex items-center gap-2">
+              <span className="text-green-400">✅</span>
+              <span className="text-brand-text">{t}</span>
+            </div>
+          ))}
         </div>
       </div>
 
       <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
         <h2 className="font-semibold text-white mb-2">Factura de prueba</h2>
         <p className="text-brand-text-muted text-sm mb-5">
-          Emite una Factura C de <span className="text-white font-medium">$1</span> real en AFIP para verificar que la integración funciona correctamente.
+          Emite una Factura C de <span className="text-white font-medium">$1</span> real en AFIP con tu CAE y genera el PDF con tu logo.
         </p>
 
         <button
@@ -209,13 +362,8 @@ export default function FacturacionAdminPage() {
           className="bg-brand-purple hover:bg-brand-purple-dark disabled:opacity-60 text-white font-semibold px-6 py-3 rounded-xl transition-colors flex items-center gap-2"
         >
           {testing ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Emitiendo...
-            </>
-          ) : (
-            '🧾 Emitir factura de prueba'
-          )}
+            <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Emitiendo...</>
+          ) : '🧾 Emitir factura de prueba'}
         </button>
 
         {error && (
@@ -229,26 +377,17 @@ export default function FacturacionAdminPage() {
           <div className="mt-4 bg-green-900/20 border border-green-700 rounded-xl p-4 space-y-3">
             <p className="text-green-400 font-semibold">✅ Factura emitida correctamente</p>
             <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-              <span className="text-brand-text-muted">Ambiente</span>
-              <span className="text-yellow-400 font-medium">{resultado.ambiente}</span>
-              <span className="text-brand-text-muted">Punto de venta</span>
-              <span className="text-white">{resultado.ptoVenta}</span>
-              <span className="text-brand-text-muted">Nro comprobante</span>
-              <span className="text-white">{resultado.nroComprobante}</span>
-              <span className="text-brand-text-muted">Importe</span>
-              <span className="text-white">{resultado.importe}</span>
-              <span className="text-brand-text-muted">Fecha</span>
-              <span className="text-white">{resultado.fecha}</span>
-              <span className="text-brand-text-muted">CAE</span>
-              <span className="text-brand-neon font-mono text-xs">{resultado.cae}</span>
-              <span className="text-brand-text-muted">Vto. CAE</span>
-              <span className="text-white">{resultado.caeFechaVto}</span>
+              <span className="text-brand-text-muted">Punto de venta</span><span className="text-white">{resultado.ptoVenta}</span>
+              <span className="text-brand-text-muted">Nro comprobante</span><span className="text-white">{resultado.nroComprobante}</span>
+              <span className="text-brand-text-muted">Fecha</span><span className="text-white">{resultado.fecha}</span>
+              <span className="text-brand-text-muted">CAE</span><span className="text-brand-neon font-mono text-xs">{resultado.cae}</span>
+              <span className="text-brand-text-muted">Vto. CAE</span><span className="text-white">{fmtFecha(resultado.caeFechaVto)}</span>
             </div>
             <button
               onClick={handleDescargarPDF}
-              className="mt-2 w-full bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
+              className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
             >
-              📄 Descargar PDF
+              📄 Ver / Descargar PDF
             </button>
           </div>
         )}

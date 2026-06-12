@@ -28,8 +28,11 @@ export async function POST(req: NextRequest) {
       caeFechaVto: result.caeFechaVto,
       nroComprobante: result.nroComprobante,
       ptoVenta,
+      cuit,
       fecha: new Date().toLocaleDateString('es-AR'),
+      fechaISO: new Date().toISOString().slice(0, 10),
       importe: '$1,00 (factura de prueba)',
+      totalNumerico: 1.00,
       ambiente: 'PRODUCCIÓN',
     })
   } catch (err: any) {
