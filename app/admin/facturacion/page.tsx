@@ -368,7 +368,9 @@ export default function FacturacionAdminPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error desconocido')
-      setEmailMsg(data.tienePDF ? '✅ Email enviado con la factura adjunta' : '✅ Email enviado (sin PDF)')
+      setEmailMsg(data.tienePDF
+        ? '✅ Email enviado con la factura adjunta'
+        : `⚠️ Email enviado sin PDF: ${data.pdfError || 'error desconocido'}`)
     } catch (e: any) {
       setEmailMsg('❌ ' + e.message)
     } finally {

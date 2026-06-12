@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
 
       // Generar el PDF en el servidor con los datos de la factura emitida
       let adjuntos: { filename: string; content: string; encoding: 'base64'; contentType: 'application/pdf' }[] | undefined
+      let pdfErrorMsg: string | undefined
       try {
         const nro  = Number(facturaData.nroComprobante)
         const pdfBase64 = await generateFacturaPDFBase64({
@@ -62,11 +63,12 @@ export async function POST(req: NextRequest) {
         })
         adjuntos = [{ filename: facturaFileName(nro), content: pdfBase64, encoding: 'base64', contentType: 'application/pdf' }]
       } catch (pdfErr: any) {
-        console.error('[factura-prueba] PDF error:', pdfErr.message)
+        console.error('[factura-prueba] PDF error:', pdfErr.message, pdfErr.stack?.split('\n').slice(0,3).join(' | '))
+        pdfErrorMsg = pdfErr.message
       }
 
       await sendEmail({ to: email, asunto: 'Factura de prueba – Flow Things', cuerpo, adjuntos })
-      return NextResponse.json({ ok: true, emailEnviado: true, tienePDF: !!adjuntos })
+      return NextResponse.json({ ok: true, emailEnviado: true, tienePDF: !!adjuntos, pdfError: pdfErrorMsg })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al enviar email'
       console.error('[factura-prueba] email error', err)
