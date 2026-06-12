@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+function requireAdmin(request: NextRequest) {
+  if (!request.cookies.get('admin_token')?.value)
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  return null
+}
+
 // GET — listar todos los códigos
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const unauth = requireAdmin(request)
+  if (unauth) return unauth
+
   const { data, error } = await supabaseAdmin
     .from('codigos_descuento')
     .select('*')
@@ -17,6 +26,9 @@ export async function GET() {
 
 // POST — crear nuevo código
 export async function POST(request: NextRequest) {
+  const unauth = requireAdmin(request)
+  if (unauth) return unauth
+
   try {
     const body = await request.json()
     const { codigo, descripcion, tipo, valor, usos_maximos, fecha_vencimiento } = body
@@ -47,13 +59,16 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(data, { status: 201 })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: 'Error al crear el código' }, { status: 500 })
   }
 }
 
 // PATCH — toggle activo/inactivo
 export async function PATCH(request: NextRequest) {
+  const unauth = requireAdmin(request)
+  if (unauth) return unauth
+
   const { id, activo } = await request.json()
 
   const { error } = await supabaseAdmin
@@ -70,6 +85,9 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE — eliminar código
 export async function DELETE(request: NextRequest) {
+  const unauth = requireAdmin(request)
+  if (unauth) return unauth
+
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
 

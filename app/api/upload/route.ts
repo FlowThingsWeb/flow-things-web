@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function POST(request: NextRequest) {
+  if (!request.cookies.get('admin_token')?.value)
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File

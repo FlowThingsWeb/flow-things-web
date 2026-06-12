@@ -27,6 +27,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'El carrito está vacío' }, { status: 400 })
     }
 
+    // Validar stock disponible para cada ítem antes de crear la orden
+    const ids = items.map((i) => i.id)
+    const { data: productosDB } = await supabaseAdmin
+      .from('productos')
+      .select('id, nombre, stock')
+      .in('id', ids)
+
+    for (const item of items) {
+      const prod = productosDB?.find((p: { id: string; stock: number }) => p.id === item.id)
+      if (!prod || prod.stock < item.cantidad) {
+        return NextResponse.json(
+          { error: `Sin stock suficiente para "${item.nombre}". Solo quedan ${prod?.stock ?? 0} unidades.` },
+          { status: 409 }
+        )
+      }
+    }
+
     const subtotal = items.reduce((acc, item) => acc + item.precio * item.cantidad, 0)
 
     // --- Validar código de descuento en el servidor (seguridad: no confiar sólo en el frontend) ---

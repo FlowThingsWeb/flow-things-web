@@ -269,7 +269,9 @@ export async function POST(request: NextRequest) {
             costo: comprador.envio_costo ?? 0,
           },
         })
-        await sendTelegram(msg)
+        await sendTelegram(msg).catch((e: any) =>
+          console.error('[telegram] Error enviando notificación:', e.message)
+        )
       }
     }
 

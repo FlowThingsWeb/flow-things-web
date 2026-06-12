@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SignJWT } from 'jose'
 
-const ADMIN_SECRET = new TextEncoder().encode(
-  process.env.ADMIN_SECRET || 'fallback-secret'
-)
+if (!process.env.ADMIN_SECRET) {
+  throw new Error('Falta la variable de entorno ADMIN_SECRET')
+}
+const ADMIN_SECRET = new TextEncoder().encode(process.env.ADMIN_SECRET)
 
 export async function POST(request: NextRequest) {
   try {

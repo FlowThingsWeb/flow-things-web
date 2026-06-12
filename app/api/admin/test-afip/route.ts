@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!request.cookies.get('admin_token')?.value)
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const results: Record<string, unknown> = {}
 
   // 1. ¿Node-forge carga?
