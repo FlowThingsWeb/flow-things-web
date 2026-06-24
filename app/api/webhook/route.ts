@@ -102,11 +102,11 @@ export async function POST(request: NextRequest) {
             .eq('codigo', orden.codigo_descuento)
             .single()
           if (codigoRow) {
-            await supabaseAdmin
+            const { error: errCodigo } = await supabaseAdmin
               .from('codigos_descuento')
               .update({ usos_actuales: (codigoRow.usos_actuales ?? 0) + 1 })
               .eq('codigo', orden.codigo_descuento)
-              .catch((e: any) => console.error('[webhook] Error incrementando uso de código:', e.message))
+            if (errCodigo) console.error('[webhook] Error incrementando uso de código:', errCodigo.message)
           }
         }
 
