@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminToken } from '@/lib/admin-auth'
 import { sendEmail, renderTemplate } from '@/lib/email'
 
 // Datos de ejemplo para el email de prueba (cubre confirmación y despacho)
@@ -23,8 +24,8 @@ const SAMPLE_VARS: Record<string, string> = {
 }
 
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get('admin_token')?.value
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(req)
+  if (unauth) return unauth
 
   let body: { email?: string; asunto?: string; cuerpo?: string } = {}
   try { body = await req.json() } catch { /* empty body */ }

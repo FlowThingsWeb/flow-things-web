@@ -1,5 +1,5 @@
 import { getTokenAuth } from './afip-wsaa'
-import { getLastVoucher, solicitarCAE } from './afip-wsfe'
+import { emitirFactura } from './afip-wsfe'
 
 export interface DatosFactura {
   nombre: string
@@ -24,10 +24,9 @@ export async function emitirFacturaC(datos: DatosFactura): Promise<{
   }
 
   const { token, sign } = await getTokenAuth('wsfe', cert, key)
-  const ultimoNro = await getLastVoucher(token, sign, cuit, ptoVenta, 11)
-  const nroComprobante = ultimoNro + 1
-
-  const result = await solicitarCAE(token, sign, cuit, ptoVenta, nroComprobante, datos.total)
+  // emitirFactura encapsula getLastVoucher + solicitarCAE con reintento automático
+  // para evitar race conditions en webhooks concurrentes.
+  const result = await emitirFactura(token, sign, cuit, ptoVenta, datos.total)
 
   return {
     cae: result.cae,

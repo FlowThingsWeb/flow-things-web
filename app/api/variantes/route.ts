@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { verifyAdminToken } from '@/lib/admin-auth'
 
 // GET /api/variantes?producto_id=xxx
 export async function GET(request: NextRequest) {
@@ -22,6 +23,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/variantes — crear
 export async function POST(request: NextRequest) {
+  const unauth = await verifyAdminToken(request)
+  if (unauth) return unauth
   const body = await request.json()
   const { producto_id, atributos, sku, stock, imagen_url } = body
 
@@ -48,6 +51,8 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/variantes — actualizar
 export async function PUT(request: NextRequest) {
+  const unauth = await verifyAdminToken(request)
+  if (unauth) return unauth
   const body = await request.json()
   const { id, ...updates } = body
 
@@ -66,6 +71,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE /api/variantes?id=xxx
 export async function DELETE(request: NextRequest) {
+  const unauth = await verifyAdminToken(request)
+  if (unauth) return unauth
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
 

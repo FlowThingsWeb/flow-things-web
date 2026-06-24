@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 
-const ADMIN_SECRET = new TextEncoder().encode(
-  process.env.ADMIN_SECRET || 'fallback-secret'
-)
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -16,8 +12,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/admin/login', request.url))
     }
 
+    // ADMIN_SECRET sin fallback — si no está definida el JWT siempre falla
+    const secret = new TextEncoder().encode(process.env.ADMIN_SECRET ?? '')
+
     try {
-      await jwtVerify(token, ADMIN_SECRET)
+      await jwtVerify(token, secret)
       return NextResponse.next()
     } catch {
       const response = NextResponse.redirect(new URL('/admin/login', request.url))

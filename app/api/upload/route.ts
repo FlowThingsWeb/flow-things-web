@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminToken } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function POST(request: NextRequest) {
-  if (!request.cookies.get('admin_token')?.value)
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(request)
+  if (unauth) return unauth
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File

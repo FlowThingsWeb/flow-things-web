@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminToken } from '@/lib/admin-auth'
 
 export async function GET(request: NextRequest) {
-  if (!request.cookies.get('admin_token')?.value)
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(request)
+  if (unauth) return unauth
   const results: Record<string, unknown> = {}
 
   // 1. ¿Node-forge carga?

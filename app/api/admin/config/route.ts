@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminToken } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 // GET — devuelve toda la configuración
 export async function GET(req: NextRequest) {
-  const token = req.cookies.get('admin_token')?.value
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(req)
+  if (unauth) return unauth
 
   const { data, error } = await supabaseAdmin
     .from('configuracion')
@@ -19,8 +20,8 @@ export async function GET(req: NextRequest) {
 // Acepta { clave, valor } para un solo campo
 // o { updates: { clave1: valor1, clave2: valor2, ... } } para múltiples
 export async function PUT(req: NextRequest) {
-  const token = req.cookies.get('admin_token')?.value
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(req)
+  if (unauth) return unauth
 
   const body = await req.json()
 
@@ -51,8 +52,8 @@ export async function PUT(req: NextRequest) {
 
 // POST — sube imagen y actualiza la clave
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get('admin_token')?.value
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(req)
+  if (unauth) return unauth
 
   const formData = await req.formData()
   const file = formData.get('file') as Blob | null
