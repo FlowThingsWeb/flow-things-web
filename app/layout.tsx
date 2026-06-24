@@ -7,6 +7,7 @@ import AnnouncementBar from '@/components/AnnouncementBar'
 import { getConfig } from '@/lib/config'
 import { AuthProvider } from '@/lib/auth-context'
 import CartSync from '@/components/CartSync'
+import RegistrationBanner from '@/components/RegistrationBanner'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,6 +80,7 @@ export default async function RootLayout({
       <body>
         <AuthProvider>
           <CartSync />
+          <RegistrationBanner />
           <AnnouncementBar
             gratisAmba={Number(cfg.envio_gratis_gba_desde) || 40000}
             gratisInterior={Number(cfg.envio_gratis_interior_desde) || 120000}

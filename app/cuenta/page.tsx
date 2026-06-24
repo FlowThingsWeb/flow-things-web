@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
+import DireccionesManager from '@/components/DireccionesManager'
 
 interface Perfil {
   nombre: string | null
@@ -283,6 +284,12 @@ export default function CuentaPage() {
               <p className="text-xs text-brand-text-muted">Seguir comprando</p>
             </div>
           </Link>
+        </div>
+
+        {/* Direcciones guardadas */}
+        <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
+          <h2 className="font-semibold text-brand-text mb-5">Mis direcciones</h2>
+          <DireccionesManager userId={user.id} />
         </div>
 
         {/* Historial de compras */}

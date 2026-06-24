@@ -28,6 +28,11 @@ function CumpleTooltip() {
   )
 }
 
+function validarDNI(dni: string): boolean {
+  const limpio = (dni || '').replace(/\./g, '').trim()
+  return /^\d{7,8}$/.test(limpio)
+}
+
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden>
@@ -51,6 +56,10 @@ export default function RegistroPage() {
     fecha_nacimiento: '',
     password: '',
     passwordConfirm: '',
+    direccion: '',
+    ciudad: '',
+    provincia: '',
+    codigo_postal: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -84,6 +93,11 @@ export default function RegistroPage() {
       return
     }
 
+    if (form.dni && !validarDNI(form.dni)) {
+      setError('El DNI debe tener 7 u 8 dígitos numéricos, sin puntos.')
+      return
+    }
+
     setLoading(true)
 
     const { data, error: signUpError } = await supabase.auth.signUp({
@@ -111,6 +125,19 @@ export default function RegistroPage() {
         dni: form.dni.trim() || null,
         fecha_nacimiento: form.fecha_nacimiento || null,
       })
+
+      // Guardar dirección si fue completada
+      if (form.direccion.trim() && form.ciudad.trim() && form.provincia) {
+        await supabase.from('direcciones_guardadas').insert({
+          user_id: data.user.id,
+          etiqueta: 'Casa',
+          direccion: form.direccion.trim(),
+          ciudad: form.ciudad.trim(),
+          provincia: form.provincia,
+          codigo_postal: form.codigo_postal.trim(),
+          es_principal: true,
+        })
+      }
     }
 
     if (data.session) {
@@ -264,6 +291,42 @@ export default function RegistroPage() {
                 value={form.fecha_nacimiento}
                 onChange={e => setForm(f => ({ ...f, fecha_nacimiento: e.target.value }))}
               />
+            </div>
+
+            {/* Dirección de entrega (opcional) */}
+            <div className="border-t border-brand-border pt-4 mt-2">
+              <p className="text-xs font-semibold text-brand-purple uppercase tracking-wide mb-3">
+                Dirección de entrega <span className="text-brand-text-light font-normal normal-case">(opcional — podés agregarla después)</span>
+              </p>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="block text-xs text-brand-text-muted mb-1">Calle y número</label>
+                  <input type="text" className="input-dark" placeholder="Av. Corrientes 1234" value={form.direccion}
+                    onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-brand-text-muted mb-1">Ciudad</label>
+                    <input type="text" className="input-dark" placeholder="Buenos Aires" value={form.ciudad}
+                      onChange={e => setForm(f => ({ ...f, ciudad: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-brand-text-muted mb-1">Código postal</label>
+                    <input type="text" className="input-dark" placeholder="C1414" value={form.codigo_postal}
+                      onChange={e => setForm(f => ({ ...f, codigo_postal: e.target.value }))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-brand-text-muted mb-1">Provincia</label>
+                  <select className="input-dark" value={form.provincia}
+                    onChange={e => setForm(f => ({ ...f, provincia: e.target.value }))}>
+                    <option value="">Seleccioná tu provincia</option>
+                    {['Buenos Aires','CABA','Catamarca','Chaco','Chubut','Córdoba','Corrientes','Entre Ríos','Formosa','Jujuy','La Pampa','La Rioja','Mendoza','Misiones','Neuquén','Río Negro','Salta','San Juan','San Luis','Santa Cruz','Santa Fe','Santiago del Estero','Tierra del Fuego','Tucumán'].map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             <div>
