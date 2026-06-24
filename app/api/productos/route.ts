@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminToken } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 // GET /api/productos — Lista todos los productos (público)
@@ -42,8 +43,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/productos — Crear nuevo producto (admin)
 export async function POST(request: NextRequest) {
-  if (!request.cookies.get('admin_token')?.value)
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(request)
+  if (unauth) return unauth
   try {
     const body = await request.json()
 
@@ -65,8 +66,8 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/productos — Actualizar producto (admin)
 export async function PUT(request: NextRequest) {
-  if (!request.cookies.get('admin_token')?.value)
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(request)
+  if (unauth) return unauth
   try {
     const body = await request.json()
     const { id, ...updates } = body
@@ -94,8 +95,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE /api/productos?id=xxx — Eliminar producto (admin)
 export async function DELETE(request: NextRequest) {
-  if (!request.cookies.get('admin_token')?.value)
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(request)
+  if (unauth) return unauth
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
 

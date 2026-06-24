@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminToken } from '@/lib/admin-auth'
 import { getTokenAuth } from '@/lib/afip-wsaa'
-import { getLastVoucher, solicitarCAE } from '@/lib/afip-wsfe'
+import { emitirFactura } from '@/lib/afip-wsfe'
 import { sendEmail, renderTemplate, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
 import { generateFacturaPDFBase64, facturaFileName } from '@/lib/factura-pdf'
 import { createClient } from '@supabase/supabase-js'
@@ -11,8 +12,8 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get('admin_token')?.value
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(req)
+  if (unauth) return unauth
 
   let body: { email?: string; facturaData?: Record<string, unknown> } = {}
   try { body = await req.json() } catch { /* no body */ }
@@ -88,10 +89,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { token: wsaaToken, sign } = await getTokenAuth('wsfe', cert, key)
-    const ultimoNro = await getLastVoucher(wsaaToken, sign, cuit, ptoVenta, 11)
-    const nroComprobante = ultimoNro + 1
-
-    const result = await solicitarCAE(wsaaToken, sign, cuit, ptoVenta, nroComprobante, 1.00)
+    const result = await emitirFactura(wsaaToken, sign, cuit, ptoVenta, 1.00)
 
     return NextResponse.json({
       ok: true,

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { verifyAdminToken } from '@/lib/admin-auth'
 
-function requireAdmin(request: NextRequest) {
-  if (!request.cookies.get('admin_token')?.value)
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  return null
+async function requireAdmin(request: NextRequest) {
+  return verifyAdminToken(request)
 }
 
 // GET — listar todos los códigos

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminToken } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import {
   sendEmail,
@@ -9,8 +10,8 @@ import {
 } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get('admin_token')?.value
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(req)
+  if (unauth) return unauth
 
   let body: {
     ordenId?: string

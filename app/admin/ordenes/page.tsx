@@ -1,11 +1,16 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { ClickableRow } from './ClickableRow'
 
+// Límite de 200 órdenes más recientes para evitar timeouts.
+// Si el volumen crece, agregar paginación con searchParams.
+const LIMIT = 200
+
 async function getOrdenes() {
   const { data } = await supabaseAdmin
     .from('ordenes')
     .select('*')
     .order('created_at', { ascending: false })
+    .limit(LIMIT)
 
   return data || []
 }

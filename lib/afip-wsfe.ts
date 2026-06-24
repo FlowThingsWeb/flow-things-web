@@ -91,3 +91,38 @@ export async function solicitarCAE(
 
   return { cae, caeFechaVto, nroComprobante }
 }
+
+/**
+ * Combina getLastVoucher + solicitarCAE con reintento automático.
+ *
+ * Problema (race condition en serverless): dos webhooks concurrentes pueden
+ * obtener el mismo "último comprobante = N" y ambos intentar emitir N+1.
+ * AFIP rechaza el segundo con un error de comprobante duplicado.
+ *
+ * Solución: si falla por duplicado, re-consultamos el último número y reintentamos
+ * una sola vez. En producción los webhooks de MP llegan muy raro en paralelo,
+ * así que un único reintento es suficiente.
+ */
+export async function emitirFactura(
+  token: string, sign: string, cuit: number,
+  ptoVenta: number, total: number,
+  intentos = 2
+): Promise<CAEResult> {
+  for (let intento = 1; intento <= intentos; intento++) {
+    const ultimoNro    = await getLastVoucher(token, sign, cuit, ptoVenta, 11)
+    const nroSiguiente = ultimoNro + 1
+    try {
+      return await solicitarCAE(token, sign, cuit, ptoVenta, nroSiguiente, total)
+    } catch (err: any) {
+      const isDuplicate = /ya existe|duplicad|duplicate|already/i.test(err.message ?? '')
+      if (isDuplicate && intento < intentos) {
+        // Pequeña pausa antes del reintento para dejar que el ganador escriba en AFIP
+        await new Promise(r => setTimeout(r, 500 * intento))
+        continue
+      }
+      throw err
+    }
+  }
+  // TypeScript requiere un return explícito aunque el loop siempre hace throw o return
+  throw new Error('emitirFactura: máximo de intentos alcanzado')
+}

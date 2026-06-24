@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminToken } from '@/lib/admin-auth'
 import * as XLSX from 'xlsx'
 
 // ----------------------------------------------------------------
@@ -156,8 +157,8 @@ function parseFilas(rows: FilaExcel[]): { filas: FilaParsed[]; errores: { fila: 
 
 export async function POST(req: NextRequest) {
   // Auth check
-  const token = req.cookies.get('admin_token')?.value
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const unauth = await verifyAdminToken(req)
+  if (unauth) return unauth
 
   // Verificar env vars (detecta si faltan en Vercel)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
