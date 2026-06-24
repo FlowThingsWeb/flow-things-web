@@ -71,10 +71,13 @@ export default function CartSync() {
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current)
 
     syncTimerRef.current = setTimeout(async () => {
-      await supabase
-        .from('carritos_guardados')
-        .upsert({ user_id: user.id, items, updated_at: new Date().toISOString() })
-        .catch(() => {}) // silenciar errores de red
+      try {
+        await supabase
+          .from('carritos_guardados')
+          .upsert({ user_id: user.id, items, updated_at: new Date().toISOString() })
+      } catch {
+        // silenciar errores de red
+      }
     }, 1500)
 
     return () => {
