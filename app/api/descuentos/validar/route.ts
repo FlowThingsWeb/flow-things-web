@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,20 +9,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ valido: false, mensaje: 'Código inválido' }, { status: 400 })
     }
 
-    // Validar inline para evitar problemas de inicialización
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json({ valido: false, mensaje: 'Error de configuración' }, { status: 500 })
-    }
-
-    const { createClient } = await import('@supabase/supabase-js')
-    const db = createClient(supabaseUrl, supabaseKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-
     // Búsqueda exacta (case-sensitive) por código
-    const { data, error } = await db
+    const { data, error } = await supabaseAdmin
       .from('codigos_descuento')
       .select('*')
       .eq('codigo', codigo.trim())

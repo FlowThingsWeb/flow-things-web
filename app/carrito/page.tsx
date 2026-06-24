@@ -157,6 +157,12 @@ export default function CarritoPage() {
 
     if (items.length === 0) return
 
+    // Validar que se haya calculado y seleccionado una opción de envío
+    if (!envioSeleccionado) {
+      setError('Por favor calculá y seleccioná una opción de envío antes de continuar.')
+      return
+    }
+
     setLoading(true)
 
     try {
