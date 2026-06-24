@@ -2,16 +2,24 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense } from 'react'
 import { useCartStore } from '@/lib/store'
 
 function ExitoContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const ordenId = searchParams.get('orden_id')
   const pending = searchParams.get('pending')
   const clearCart = useCartStore((s) => s.clearCart)
   const [verified, setVerified] = useState(false)
+
+  // Sin orden_id no hay nada que mostrar — redirigir al catálogo
+  useEffect(() => {
+    if (!ordenId && !pending) {
+      router.replace('/productos')
+    }
+  }, [ordenId, pending, router])
 
   // Verificar el estado real de la orden en DB antes de limpiar el carrito.
   // Evita que alguien navegue a /exito?orden_id=xxx manualmente y borre su carrito.
@@ -25,13 +33,23 @@ function ExitoContent() {
           clearCart()
           setVerified(true)
         }
+        // Si el estado no es 'approved' (ej: aún pending), no borrar el carrito
       })
       .catch(() => {
-        // Si falla la consulta, limpiar igual (MP ya redirigió con auto_return)
-        clearCart()
+        // No limpiar el carrito si la consulta falla — conservarlo por seguridad.
+        // MP redirige a /exito solo tras pago aprobado (auto_return: 'approved'),
+        // pero preferimos no borrar datos ante una falla de red transitoria.
         setVerified(true)
       })
   }, [ordenId, pending, clearCart])
+
+  if (!ordenId && !pending) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-20 flex justify-center">
+        <div className="w-8 h-8 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-lg mx-auto px-4 py-20 text-center">

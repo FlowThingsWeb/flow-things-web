@@ -26,6 +26,20 @@ export const metadata: Metadata = {
   },
 }
 
+/**
+ * Sanitizador mínimo para CSS inyectado vía design_overrides.
+ * No es un sanitizador completo, pero elimina los vectores de abuso más comunes:
+ * @import (carga de recursos externos), expression() (IE legacy JS en CSS),
+ * y url(javascript:...) (ejecución de JS en browsers antiguos).
+ * El riesgo es bajo porque design_overrides solo es editable por admins autenticados.
+ */
+function sanitizeCss(css: string): string {
+  return css
+    .replace(/@import\b[^;]*/gi, '/* @import bloqueado */')
+    .replace(/expression\s*\(/gi, '/* expression bloqueado */')
+    .replace(/url\s*\(\s*['"]?\s*javascript:/gi, 'url(/* js bloqueado */')
+}
+
 export default async function RootLayout({
   children,
 }: {
@@ -56,7 +70,7 @@ export default async function RootLayout({
         {cfg.design_overrides && (
           <style
             id="flow-design-override"
-            dangerouslySetInnerHTML={{ __html: cfg.design_overrides }}
+            dangerouslySetInnerHTML={{ __html: sanitizeCss(cfg.design_overrides) }}
           />
         )}
       </head>

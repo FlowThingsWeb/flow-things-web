@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useCartStore } from '@/lib/store'
 import { DatosComprador } from '@/types'
 
@@ -43,12 +43,23 @@ interface OpcionEnvio {
   tiempo_estimado: string | null
 }
 
-export default function CarritoPage() {
-  const router = useRouter()
+function CarritoContent() {
+  const searchParams = useSearchParams()
   const { items, removeItem, updateCantidad, total } = useCartStore()
   const [form, setForm] = useState<DatosComprador>(formInicial)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Mostrar error si el usuario volvió de un pago rechazado en MercadoPago
+  useEffect(() => {
+    if (searchParams.get('error') === 'pago_rechazado') {
+      setError('El pago fue rechazado. Revisá los datos de tu tarjeta o intentá con otro medio de pago.')
+      // Limpiar el param de la URL sin recargar
+      const url = new URL(window.location.href)
+      url.searchParams.delete('error')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [searchParams])
 
   // Descuento
   const [codigoInput, setCodigoInput] = useState('')
@@ -110,7 +121,16 @@ export default function CarritoPage() {
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+    setForm({ ...form, [name]: value })
+
+    // Si cambia la provincia, resetear el envío calculado porque el costo cambia
+    if (name === 'provincia') {
+      setEnvioSeleccionado(null)
+      setEnvioOpciones([])
+      setEnvioCalculado(false)
+      setEnvioError('')
+    }
   }
 
   const aplicarCodigo = async () => {
@@ -481,7 +501,9 @@ export default function CarritoPage() {
                 Procesando...
               </>
             ) : (
-              `Pagar ${formatPrecio(totalFinal)} con Mercado Pago${envioSeleccionado ? '' : ' (sin envío)'}`
+              envioSeleccionado
+                ? `Pagar ${formatPrecio(totalFinal)} con Mercado Pago`
+                : 'Seleccioná una opción de envío para continuar'
             )}
           </button>
 
@@ -490,13 +512,13 @@ export default function CarritoPage() {
           </p>
         </form>
 
-        {/* Resumen del pedido */}
+        {/* Resumen del pedido — solo visible en layout de dos columnas */}
         <div className="space-y-4">
           <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
             <h2 className="font-semibold text-white mb-4">Resumen del pedido</h2>
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {items.map(({ producto, cantidad }) => (
-                <div key={producto.id} className="flex gap-3 items-center">
+              {items.map(({ producto, cantidad, varianteId }) => (
+                <div key={`${producto.id}::${varianteId ?? ''}`} className="flex gap-3 items-center">
                   <div className="relative w-12 h-12 bg-brand-bg-soft rounded-lg overflow-hidden flex-shrink-0">
                     {producto.imagen_url ? (
                       <Image
@@ -519,7 +541,7 @@ export default function CarritoPage() {
                       {formatPrecio(producto.precio * cantidad)}
                     </span>
                     <button
-                      onClick={() => removeItem(producto.id)}
+                      onClick={() => removeItem(producto.id, varianteId)}
                       className="text-brand-text-light hover:text-red-400 transition-colors"
                     >
                       ×
@@ -574,5 +596,13 @@ export default function CarritoPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CarritoPage() {
+  return (
+    <Suspense fallback={<div className="max-w-7xl mx-auto px-4 py-20 flex justify-center"><div className="w-8 h-8 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" /></div>}>
+      <CarritoContent />
+    </Suspense>
   )
 }

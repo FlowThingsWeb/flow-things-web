@@ -40,6 +40,10 @@ export interface Variante {
 export interface ItemCarrito {
   producto: Producto
   cantidad: number
+  /** ID de la variante seleccionada. Cuando está presente, se usa junto con producto.id
+   *  para generar una clave única en el carrito, evitando que dos variantes del mismo
+   *  producto se solapen en el mismo slot. */
+  varianteId?: string
 }
 
 export type EstadoOrden = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'refunded'
