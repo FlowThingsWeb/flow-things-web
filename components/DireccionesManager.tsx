@@ -36,12 +36,13 @@ export default function DireccionesManager({ userId, onSelect, seleccionadaId, c
   }, [userId])
 
   async function cargarDirecciones() {
-    const { data } = await supabase
+    const { data, error: loadErr } = await supabase
       .from('direcciones_guardadas')
       .select('*')
       .eq('user_id', userId)
       .order('es_principal', { ascending: false })
       .order('created_at', { ascending: true })
+    if (loadErr) console.error('[direcciones] load error:', loadErr)
     if (data) setDirecciones(data)
   }
 
@@ -63,7 +64,7 @@ export default function DireccionesManager({ userId, onSelect, seleccionadaId, c
       codigo_postal: form.codigo_postal.trim(),
       es_principal: esPrimera,
     })
-    if (err) { setError('No se pudo guardar la dirección.'); setGuardando(false); return }
+    if (err) { console.error('[direcciones] insert error:', err); setError(`Error: ${err.message}`); setGuardando(false); return }
     await cargarDirecciones()
     setForm(formVacio)
     setAgregando(false)
