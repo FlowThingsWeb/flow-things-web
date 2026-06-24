@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Producto, Variante } from '@/types'
 import { useCartStore } from '@/lib/store'
+import FavoritoButton from '@/components/FavoritoButton'
 
 interface ProductCardProps {
   producto: Producto
@@ -67,6 +68,11 @@ export default function ProductCard({ producto, variante }: ProductCardProps) {
             <span className="text-4xl">📦</span>
           </div>
         )}
+
+        {/* Favorito */}
+        <div className="absolute top-2 right-2 z-10">
+          <FavoritoButton productoId={producto.id} />
+        </div>
 
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1">

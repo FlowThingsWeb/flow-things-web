@@ -267,25 +267,25 @@ export default function ProductoDetallePage() {
                   <>
                     <button
                       onClick={prevImg}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm z-10"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center opacity-80 hover:opacity-100 transition-all backdrop-blur-sm z-10 shadow-lg"
                       aria-label="Imagen anterior"
                     >
-                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current stroke-2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
                     <button
                       onClick={nextImg}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm z-10"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center opacity-80 hover:opacity-100 transition-all backdrop-blur-sm z-10 shadow-lg"
                       aria-label="Imagen siguiente"
                     >
-                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current stroke-2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
 
                     {/* Counter badge */}
-                    <span className="absolute bottom-3 right-3 bg-black/60 text-white text-xs font-medium px-2.5 py-1 rounded-full backdrop-blur-sm z-10">
+                    <span className="absolute bottom-3 right-3 bg-black/70 text-white text-xs font-semibold px-2.5 py-1.5 rounded-full backdrop-blur-sm z-10 shadow">
                       {imagenActiva + 1} / {todasLasImagenes.length}
                     </span>
                   </>

@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
     // ─── 2. Validar código de descuento en el servidor ───────────────────────
     let descuento_monto = 0
     let codigoValidado: string | null = null
+    let primerCompraMonto = 0
 
     if (codigo_descuento) {
       const { data: codigo } = await supabaseAdmin
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Descuento primera compra (validado server-side) ────────────────────
-    if (primer_compra && userId && !codigoValidado) {
+    if (primer_compra && userId) {
       const [perfilRes, ordenesRes] = await Promise.all([
         supabaseAdmin.from('perfiles').select('primer_compra_usada').eq('user_id', userId).single(),
         supabaseAdmin.from('ordenes').select('id').eq('user_id', userId).eq('estado', 'approved').limit(1),
@@ -100,8 +101,10 @@ export async function POST(request: NextRequest) {
       const yaUsada = perfilRes.data?.primer_compra_usada ?? false
       const tieneOrdenes = (ordenesRes.data?.length ?? 0) > 0
       if (!yaUsada && !tieneOrdenes) {
-        descuento_monto = Math.round(subtotal * 0.1)
-        codigoValidado = '__PRIMER_COMPRA__'
+        const montoPC = Math.round(subtotal * 0.1)
+        descuento_monto += montoPC
+        primerCompraMonto = montoPC
+        if (!codigoValidado) codigoValidado = '__PRIMER_COMPRA__'
       }
     }
 
@@ -145,6 +148,7 @@ export async function POST(request: NextRequest) {
             ...(envioTipoFinal
               ? { envio_tipo: envioTipoFinal, envio_nombre: envioNombreFinal, envio_costo: costoEnvio }
               : {}),
+            ...(primerCompraMonto > 0 ? { primer_compra_monto: primerCompraMonto } : {}),
           },
           descuento_monto,
           codigo_descuento: codigoValidado,

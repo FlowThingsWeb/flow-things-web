@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Marcar primer_compra_usada en el perfil del usuario
-        if (orden.codigo_descuento === '__PRIMER_COMPRA__' && orden.user_id) {
+        if ((orden.codigo_descuento === '__PRIMER_COMPRA__' || (orden.datos_comprador?.primer_compra_monto ?? 0) > 0) && orden.user_id) {
           try {
             await supabaseAdmin
               .from('perfiles')

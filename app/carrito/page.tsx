@@ -8,6 +8,12 @@ import { useCartStore } from '@/lib/store'
 import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import { DatosComprador } from '@/types'
+import DireccionesManager, { Direccion } from '@/components/DireccionesManager'
+
+function validarDNI(dni: string): boolean {
+  const limpio = (dni || '').replace(/\./g, '').trim()
+  return /^\d{7,8}$/.test(limpio)
+}
 
 function formatPrecio(precio: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -54,6 +60,9 @@ function CarritoContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [dniTooltip, setDniTooltip] = useState(false)
+
+  // Dirección seleccionada del selector
+  const [dirSeleccionadaId, setDirSeleccionadaId] = useState<string | undefined>()
 
   // Perfil cargado: cuando el usuario está logueado y trajimos sus datos
   const [perfilCargado, setPerfilCargado] = useState(false)
@@ -139,8 +148,24 @@ function CarritoContent() {
   const costoEnvio = envioSeleccionado?.precio ?? 0
   const descuentoCodigo = descuento?.descuento_monto ?? 0
   const descuentoPrimerCompra = primerCompraDescuento ? Math.round(subtotal * 0.1) : 0
-  const descuentoTotal = descuento ? descuentoCodigo : descuentoPrimerCompra
+  const descuentoTotal = descuentoCodigo + descuentoPrimerCompra
   const totalFinal = Math.max(0, subtotal - descuentoTotal) + costoEnvio
+
+  function aplicarDireccion(dir: Direccion) {
+    setDirSeleccionadaId(dir.id)
+    setForm(f => ({
+      ...f,
+      direccion: dir.direccion,
+      ciudad: dir.ciudad,
+      provincia: dir.provincia,
+      codigo_postal: dir.codigo_postal,
+    }))
+    // Resetear envío calculado porque cambió la provincia
+    setEnvioSeleccionado(null)
+    setEnvioOpciones([])
+    setEnvioCalculado(false)
+    setEnvioError('')
+  }
 
   const puedeCalcularEnvio = !!form.provincia.trim()
 
@@ -239,6 +264,11 @@ function CarritoContent() {
 
     if (items.length === 0) return
 
+    if (form.dni && !validarDNI(form.dni)) {
+      setError('El DNI debe tener 7 u 8 dígitos numéricos, sin puntos ni espacios.')
+      return
+    }
+
     if (!envioSeleccionado) {
       setError('Por favor calculá y seleccioná una opción de envío antes de continuar.')
       return
@@ -267,7 +297,7 @@ function CarritoContent() {
           items: orderItems,
           comprador: form,
           codigo_descuento: descuento?.codigo ?? null,
-          primer_compra: primerCompraDescuento && !descuento,
+          primer_compra: primerCompraDescuento,
           envio_tipo: envioSeleccionado?.modalidad ?? null,
           envio_nombre: envioSeleccionado?.nombre ?? null,
           envio_costo: envioSeleccionado?.precio ?? 0,
@@ -332,12 +362,12 @@ function CarritoContent() {
       <h1 className="text-3xl font-bold text-brand-text mb-8">Finalizar compra</h1>
 
       {/* Banner primera compra */}
-      {primerCompraDescuento && !descuento && (
+      {primerCompraDescuento && (
         <div className="mb-6 flex items-center gap-3 bg-brand-purple/10 border border-brand-purple/30 rounded-2xl px-5 py-4">
           <span className="text-2xl">🎁</span>
           <div>
             <p className="text-sm font-semibold text-brand-text">¡Descuento de primera compra aplicado!</p>
-            <p className="text-xs text-brand-text-muted">10% off sobre el subtotal — beneficio exclusivo por ser nuevo usuario.</p>
+            <p className="text-xs text-brand-text-muted">10% off sobre el subtotal — acumulable con códigos de descuento.</p>
           </div>
           <span className="ml-auto font-bold text-green-400 text-sm whitespace-nowrap">− {formatPrecio(descuentoPrimerCompra)}</span>
         </div>
@@ -454,8 +484,8 @@ function CarritoContent() {
                     placeholder="12345678"
                     maxLength={10}
                     inputMode="numeric"
-                    pattern="[0-9]{7,10}"
-                    title="Ingresá tu DNI (solo números, sin puntos)"
+                    pattern="[0-9]{7,8}"
+                    title="Ingresá tu DNI (7 u 8 dígitos, sin puntos)"
                   />
                 </div>
               </div>
@@ -480,6 +510,22 @@ function CarritoContent() {
           {/* Dirección de envío — siempre visible */}
           <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6 space-y-4">
             <h2 className="font-semibold text-brand-text">Dirección de envío</h2>
+            {user && (
+              <div className="mb-2">
+                <p className="text-xs text-brand-text-muted mb-2">Tus direcciones guardadas:</p>
+                <DireccionesManager
+                  userId={user.id}
+                  compact
+                  onSelect={aplicarDireccion}
+                  seleccionadaId={dirSeleccionadaId}
+                />
+                <div className="flex items-center gap-3 my-3">
+                  <div className="flex-1 h-px bg-brand-border" />
+                  <span className="text-xs text-brand-text-muted">o ingresá una dirección nueva</span>
+                  <div className="flex-1 h-px bg-brand-border" />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
@@ -752,7 +798,7 @@ function CarritoContent() {
                 </div>
               )}
 
-              {primerCompraDescuento && !descuento && (
+              {primerCompraDescuento && (
                 <div className="flex justify-between items-center text-sm text-green-400">
                   <span className="flex items-center gap-1">
                     🎁 Primera compra (10%)
