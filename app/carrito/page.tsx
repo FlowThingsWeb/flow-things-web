@@ -50,6 +50,7 @@ function CarritoContent() {
   const [form, setForm] = useState<DatosComprador>(formInicial)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [dniTooltip, setDniTooltip] = useState(false)
 
   // Mostrar error si el usuario volvió de un pago rechazado en MercadoPago
   useEffect(() => {
@@ -293,23 +294,28 @@ function CarritoContent() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-brand-text-muted mb-1 flex items-center gap-1.5">
-                  DNI *
-                  <span className="relative group">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <label htmlFor="dni" className="text-sm font-medium text-brand-text-muted">DNI *</label>
+                  <div className="relative">
                     <button
                       type="button"
-                      className="w-4 h-4 rounded-full bg-brand-border text-brand-text-muted text-[10px] font-bold flex items-center justify-center hover:bg-brand-purple hover:text-white transition-colors cursor-pointer"
+                      onMouseEnter={() => setDniTooltip(true)}
+                      onMouseLeave={() => setDniTooltip(false)}
+                      onClick={() => setDniTooltip(v => !v)}
+                      className="w-4 h-4 rounded-full bg-brand-border text-brand-text-muted text-[10px] font-bold flex items-center justify-center hover:bg-brand-purple hover:text-white transition-colors"
                       aria-label="¿Por qué necesitamos tu DNI?"
                     >
                       ?
                     </button>
-                    {/* Tooltip */}
-                    <span className="pointer-events-none absolute left-6 top-1/2 -translate-y-1/2 z-20 w-64 bg-brand-bg-card border border-brand-border text-brand-text-muted text-xs rounded-xl px-3 py-2.5 shadow-soft opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity leading-relaxed">
-                      Necesitamos tu DNI para emitir la factura electrónica correspondiente a tu compra, tal como lo exige AFIP.
-                    </span>
-                  </span>
-                </label>
+                    {dniTooltip && (
+                      <div className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-64 bg-brand-bg-card border border-brand-border text-brand-text-muted text-xs rounded-xl px-3 py-2.5 shadow-lg leading-relaxed">
+                        Necesitamos tu DNI para emitir la factura electrónica de tu compra, tal como lo exige AFIP.
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <input
+                  id="dni"
                   type="text"
                   name="dni"
                   required
