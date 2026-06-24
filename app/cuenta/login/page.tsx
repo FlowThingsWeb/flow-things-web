@@ -16,19 +16,12 @@ function GoogleIcon() {
   )
 }
 
-function AppleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" aria-hidden>
-      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-    </svg>
-  )
-}
 
 export default function LoginPage() {
   const router = useRouter()
   const [form, setForm] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null)
+  const [oauthLoading, setOauthLoading] = useState<'google' | null>(null)
   const [error, setError] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
@@ -51,22 +44,21 @@ export default function LoginPage() {
     router.refresh()
   }
 
-  async function handleOAuth(provider: 'google' | 'apple') {
-    setOauthLoading(provider)
+  async function handleGoogle() {
+    setOauthLoading('google')
     setError('')
 
     const { error } = await supabase.auth.signInWithOAuth({
-      provider,
+      provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=/cuenta`,
       },
     })
 
     if (error) {
-      setError('No se pudo conectar con ' + (provider === 'google' ? 'Google' : 'Apple') + '. Intentá de nuevo.')
+      setError('No se pudo conectar con Google. Intentá de nuevo.')
       setOauthLoading(null)
     }
-    // Si no hay error, el browser redirige → no limpiamos el estado
   }
 
   return (
@@ -82,10 +74,10 @@ export default function LoginPage() {
 
         <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-8">
           {/* OAuth buttons */}
-          <div className="flex flex-col gap-3 mb-6">
+          <div className="mb-6">
             <button
               type="button"
-              onClick={() => handleOAuth('google')}
+              onClick={handleGoogle}
               disabled={!!oauthLoading || loading}
               className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-800 font-semibold py-3 rounded-xl transition-colors border border-gray-200"
             >
@@ -95,20 +87,6 @@ export default function LoginPage() {
                 <GoogleIcon />
               )}
               Continuar con Google
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleOAuth('apple')}
-              disabled={!!oauthLoading || loading}
-              className="w-full flex items-center justify-center gap-3 bg-black hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors border border-gray-700"
-            >
-              {oauthLoading === 'apple' ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <AppleIcon />
-              )}
-              Continuar con Apple
             </button>
           </div>
 
