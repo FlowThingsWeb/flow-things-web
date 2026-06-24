@@ -25,6 +25,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'El carrito está vacío' }, { status: 400 })
     }
 
+    // Envío obligatorio — debe venir envio_tipo para que el servidor lo valide y calcule
+    if (!envio_tipo) {
+      return NextResponse.json({ error: 'Debe seleccionar una opción de envío' }, { status: 400 })
+    }
+
     // ─── 1. Validar stock Y precios desde la DB ─────────────────────────────
     // No confiamos en el precio enviado por el frontend.
     const ids = itemsFrontend.map((i) => i.id)
@@ -84,6 +89,8 @@ export async function POST(request: NextRequest) {
 
     if (envio_tipo && comprador.provincia) {
       if (envio_tipo === 'retiro') {
+        // Retiro en tienda — el carrito debería mandar envio_tipo='retiro' cuando se implemente esa opción.
+        // Por ahora el cotizador solo genera 'standard', por lo que este branch no se activa en producción.
         costoEnvio       = 0
         envioNombreFinal = 'Retiro en tienda'
         envioTipoFinal   = 'retiro'

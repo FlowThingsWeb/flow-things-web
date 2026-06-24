@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHmac } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import MercadoPagoConfig, { Payment } from 'mercadopago'
 import { sendTelegram, formatVentaMsg } from '@/lib/telegram'
@@ -13,6 +14,36 @@ const client = new MercadoPagoConfig({
 
 const paymentClient = new Payment(client)
 
+/**
+ * Verifica la firma HMAC-SHA256 que MercadoPago envía en el header x-signature.
+ * Si MP_WEBHOOK_SECRET no está configurado, se omite la verificación (dev/legacy).
+ * Docs: https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks
+ */
+function verifyMPSignature(request: NextRequest, paymentId: string | number): boolean {
+  const secret = process.env.MP_WEBHOOK_SECRET
+  if (!secret) return true // omitir en desarrollo si no está configurado
+
+  const xSignature = request.headers.get('x-signature') || ''
+  const xRequestId = request.headers.get('x-request-id') || ''
+
+  // Parsear ts y v1 del header "ts=...,v1=..."
+  let ts = ''
+  let v1 = ''
+  for (const part of xSignature.split(',')) {
+    const [key, val] = part.split('=')
+    if (key === 'ts') ts = val?.trim() ?? ''
+    if (key === 'v1') v1 = val?.trim() ?? ''
+  }
+
+  if (!ts || !v1) return false
+
+  // Manifest según la doc de MP
+  const manifest = `id:${paymentId};request-date:${ts};`
+  const hmac = createHmac('sha256', secret).update(manifest).digest('hex')
+
+  return hmac === v1
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -25,6 +56,12 @@ export async function POST(request: NextRequest) {
     const paymentId = body.data?.id
     if (!paymentId) {
       return NextResponse.json({ error: 'Payment ID missing' }, { status: 400 })
+    }
+
+    // Verificar firma HMAC de MercadoPago
+    if (!verifyMPSignature(request, paymentId)) {
+      console.warn('[webhook] Firma inválida — request rechazado')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
     // Obtener datos del pago desde MP
@@ -282,7 +319,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// MP también hace GET para verificar el endpoint
+// MP hace GET para verificar que el endpoint responde
 export async function GET() {
-  return NextResponse.json({ status: 'ok' })
+  return new NextResponse(null, { status: 200 })
 }

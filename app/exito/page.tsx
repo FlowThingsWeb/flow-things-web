@@ -11,12 +11,27 @@ function ExitoContent() {
   const ordenId = searchParams.get('orden_id')
   const pending = searchParams.get('pending')
   const clearCart = useCartStore((s) => s.clearCart)
+  const [verified, setVerified] = useState(false)
 
-  // Limpiar el carrito solo si el pago fue aprobado.
-  // Si está pendiente no lo limpiamos: si el pago termina rechazado, el usuario recupera su carrito.
+  // Verificar el estado real de la orden en DB antes de limpiar el carrito.
+  // Evita que alguien navegue a /exito?orden_id=xxx manualmente y borre su carrito.
   useEffect(() => {
-    if (!pending) clearCart()
-  }, [pending, clearCart])
+    if (pending || !ordenId) return
+
+    fetch(`/api/ordenes/estado?id=${ordenId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.estado === 'approved') {
+          clearCart()
+          setVerified(true)
+        }
+      })
+      .catch(() => {
+        // Si falla la consulta, limpiar igual (MP ya redirigió con auto_return)
+        clearCart()
+        setVerified(true)
+      })
+  }, [ordenId, pending, clearCart])
 
   return (
     <div className="max-w-lg mx-auto px-4 py-20 text-center">
