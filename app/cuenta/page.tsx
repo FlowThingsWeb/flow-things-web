@@ -10,6 +10,8 @@ interface Perfil {
   nombre: string | null
   telefono: string | null
   primer_compra_usada: boolean
+  dni: string | null
+  fecha_nacimiento: string | null
 }
 
 interface Orden {
@@ -37,7 +39,12 @@ export default function CuentaPage() {
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [ordenes, setOrdenes] = useState<Orden[]>([])
   const [editando, setEditando] = useState(false)
-  const [formPerfil, setFormPerfil] = useState({ nombre: '', telefono: '' })
+  const [formPerfil, setFormPerfil] = useState({
+    nombre: '',
+    telefono: '',
+    dni: '',
+    fecha_nacimiento: '',
+  })
   const [guardando, setGuardando] = useState(false)
   const [guardadoOk, setGuardadoOk] = useState(false)
 
@@ -50,20 +57,23 @@ export default function CuentaPage() {
   useEffect(() => {
     if (!user) return
 
-    // Cargar perfil
     supabase
       .from('perfiles')
-      .select('nombre, telefono, primer_compra_usada')
+      .select('nombre, telefono, primer_compra_usada, dni, fecha_nacimiento')
       .eq('user_id', user.id)
       .single()
       .then(({ data }) => {
         if (data) {
           setPerfil(data)
-          setFormPerfil({ nombre: data.nombre || '', telefono: data.telefono || '' })
+          setFormPerfil({
+            nombre: data.nombre || '',
+            telefono: data.telefono || '',
+            dni: data.dni || '',
+            fecha_nacimiento: data.fecha_nacimiento || '',
+          })
         }
       })
 
-    // Cargar últimas órdenes
     supabase
       .from('ordenes')
       .select('id, total, estado, created_at, items')
@@ -84,9 +94,17 @@ export default function CuentaPage() {
       user_id: user.id,
       nombre: formPerfil.nombre.trim(),
       telefono: formPerfil.telefono.trim() || null,
+      dni: formPerfil.dni.trim() || null,
+      fecha_nacimiento: formPerfil.fecha_nacimiento || null,
     })
 
-    setPerfil(p => p ? { ...p, nombre: formPerfil.nombre, telefono: formPerfil.telefono } : p)
+    setPerfil(p => p ? {
+      ...p,
+      nombre: formPerfil.nombre,
+      telefono: formPerfil.telefono,
+      dni: formPerfil.dni,
+      fecha_nacimiento: formPerfil.fecha_nacimiento,
+    } : p)
     setEditando(false)
     setGuardando(false)
     setGuardadoOk(true)
@@ -111,6 +129,12 @@ export default function CuentaPage() {
 
   const nombre = perfil?.nombre || user.user_metadata?.nombre || user.email?.split('@')[0] || 'Usuario'
   const inicial = nombre.charAt(0).toUpperCase()
+
+  const formatFecha = (iso: string | null) => {
+    if (!iso) return '—'
+    const [y, m, d] = iso.split('-')
+    return `${d}/${m}/${y}`
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
@@ -185,6 +209,29 @@ export default function CuentaPage() {
                   onChange={e => setFormPerfil(f => ({ ...f, telefono: e.target.value }))}
                 />
               </div>
+              <div>
+                <label className="block text-xs text-brand-text-muted mb-1">DNI</label>
+                <input
+                  type="text"
+                  className="input-dark"
+                  placeholder="12345678"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={formPerfil.dni}
+                  onChange={e => setFormPerfil(f => ({ ...f, dni: e.target.value.replace(/\D/g, '') }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-brand-text-muted mb-1">
+                  Fecha de nacimiento <span className="text-brand-text-light">(para descuentos de cumpleaños 🎂)</span>
+                </label>
+                <input
+                  type="date"
+                  className="input-dark"
+                  value={formPerfil.fecha_nacimiento}
+                  onChange={e => setFormPerfil(f => ({ ...f, fecha_nacimiento: e.target.value }))}
+                />
+              </div>
               <div className="flex gap-3 mt-1">
                 <button
                   type="submit"
@@ -205,16 +252,24 @@ export default function CuentaPage() {
           ) : (
             <div className="flex flex-col gap-2 text-sm">
               <div className="flex gap-3">
-                <span className="text-brand-text-muted w-20 flex-shrink-0">Nombre</span>
+                <span className="text-brand-text-muted w-28 flex-shrink-0">Nombre</span>
                 <span className="text-brand-text">{perfil?.nombre || '—'}</span>
               </div>
               <div className="flex gap-3">
-                <span className="text-brand-text-muted w-20 flex-shrink-0">Email</span>
+                <span className="text-brand-text-muted w-28 flex-shrink-0">Email</span>
                 <span className="text-brand-text">{user.email}</span>
               </div>
               <div className="flex gap-3">
-                <span className="text-brand-text-muted w-20 flex-shrink-0">Teléfono</span>
+                <span className="text-brand-text-muted w-28 flex-shrink-0">Teléfono</span>
                 <span className="text-brand-text">{perfil?.telefono || '—'}</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-brand-text-muted w-28 flex-shrink-0">DNI</span>
+                <span className="text-brand-text">{perfil?.dni || '—'}</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-brand-text-muted w-28 flex-shrink-0">Nacimiento</span>
+                <span className="text-brand-text">{formatFecha(perfil?.fecha_nacimiento ?? null)}</span>
               </div>
             </div>
           )}
