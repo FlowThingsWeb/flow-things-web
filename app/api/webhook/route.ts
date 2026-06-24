@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     if (nuevoEstado === 'approved') {
       const { data: orden } = await supabaseAdmin
         .from('ordenes')
-        .select('items, total, datos_comprador, descuento_monto, codigo_descuento')
+        .select('items, total, datos_comprador, descuento_monto, codigo_descuento, user_id')
         .eq('id', ordenId)
         .single()
 
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 
         // Incrementar uso del código de descuento (se hace aquí, no en checkout,
         // para no quemar el código si el usuario abandona el pago)
-        if (orden.codigo_descuento) {
+        if (orden.codigo_descuento && orden.codigo_descuento !== '__PRIMER_COMPRA__') {
           const { data: codigoRow } = await supabaseAdmin
             .from('codigos_descuento')
             .select('usos_actuales')
@@ -145,6 +145,14 @@ export async function POST(request: NextRequest) {
               .eq('codigo', orden.codigo_descuento)
             if (errCodigo) console.error('[webhook] Error incrementando uso de código:', errCodigo.message)
           }
+        }
+
+        // Marcar primer_compra_usada en el perfil del usuario
+        if (orden.codigo_descuento === '__PRIMER_COMPRA__' && orden.user_id) {
+          await supabaseAdmin
+            .from('perfiles')
+            .upsert({ user_id: orden.user_id, primer_compra_usada: true })
+            .catch((e: any) => console.error('[webhook] Error marcando primer_compra_usada:', e.message))
         }
 
         // Factura electrónica AFIP

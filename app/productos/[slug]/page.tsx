@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import { useCartStore } from '@/lib/store'
 import { Producto, Variante } from '@/types'
+import FavoritoButton from '@/components/FavoritoButton'
 
 function formatPrecio(precio: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -586,6 +587,12 @@ export default function ProductoDetallePage() {
               >
                 {agregado ? '✓ Agregado al carrito' : sinStockMsg ? 'Contactanos para coordinar' : 'Agregar al carrito'}
               </button>
+              {producto && (
+                <FavoritoButton
+                  productoId={producto.id}
+                  className="w-full h-10 rounded-2xl border border-brand-border bg-brand-bg-soft hover:border-red-400"
+                />
+              )}
             </div>
           )}
 

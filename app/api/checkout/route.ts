@@ -6,16 +6,27 @@ import { ItemOrden, DatosComprador } from '@/types'
 
 export async function POST(request: NextRequest) {
   try {
+    // Extraer user_id del token JWT si viene en el header Authorization
+    let userId: string | null = null
+    const authHeader = request.headers.get('Authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7)
+      const { data: { user } } = await supabaseAdmin.auth.getUser(token)
+      if (user) userId = user.id
+    }
+
     const {
       items: itemsFrontend,
       comprador,
       codigo_descuento,
+      primer_compra,
       envio_tipo,
       envio_nombre,
     }: {
       items: ItemOrden[]
       comprador: DatosComprador
       codigo_descuento?: string | null
+      primer_compra?: boolean
       envio_tipo?: string | null
       envio_nombre?: string | null
       // Nota: envio_costo ya no se acepta del frontend — se recalcula en el servidor
@@ -80,6 +91,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ─── Descuento primera compra (validado server-side) ────────────────────
+    if (primer_compra && userId && !codigoValidado) {
+      const [perfilRes, ordenesRes] = await Promise.all([
+        supabaseAdmin.from('perfiles').select('primer_compra_usada').eq('user_id', userId).single(),
+        supabaseAdmin.from('ordenes').select('id').eq('user_id', userId).eq('estado', 'approved').limit(1),
+      ])
+      const yaUsada = perfilRes.data?.primer_compra_usada ?? false
+      const tieneOrdenes = (ordenesRes.data?.length ?? 0) > 0
+      if (!yaUsada && !tieneOrdenes) {
+        descuento_monto = Math.round(subtotal * 0.1)
+        codigoValidado = '__PRIMER_COMPRA__'
+      }
+    }
+
     // ─── 3. Calcular envío en el servidor ───────────────────────────────────
     // No confiamos en envio_costo del frontend. Lo recalculamos desde la DB de config.
     const subtotalConDescuento = Math.max(0, subtotal - descuento_monto)
@@ -114,6 +139,7 @@ export async function POST(request: NextRequest) {
           estado: 'pending',
           total,
           items,
+          user_id: userId,
           datos_comprador: {
             ...comprador,
             ...(envioTipoFinal

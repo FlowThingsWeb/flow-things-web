@@ -5,6 +5,8 @@ import Footer from '@/components/Footer'
 import CartDrawer from '@/components/CartDrawer'
 import AnnouncementBar from '@/components/AnnouncementBar'
 import { getConfig } from '@/lib/config'
+import { AuthProvider } from '@/lib/auth-context'
+import CartSync from '@/components/CartSync'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,14 +77,17 @@ export default async function RootLayout({
         )}
       </head>
       <body>
-        <AnnouncementBar
-          gratisAmba={Number(cfg.envio_gratis_gba_desde) || 40000}
-          gratisInterior={Number(cfg.envio_gratis_interior_desde) || 120000}
-        />
-        <Header cfg={cfg} />
-        <main className="min-h-screen">{children}</main>
-        <CartDrawer />
-        <Footer cfg={cfg} />
+        <AuthProvider>
+          <CartSync />
+          <AnnouncementBar
+            gratisAmba={Number(cfg.envio_gratis_gba_desde) || 40000}
+            gratisInterior={Number(cfg.envio_gratis_interior_desde) || 120000}
+          />
+          <Header cfg={cfg} />
+          <main className="min-h-screen">{children}</main>
+          <CartDrawer />
+          <Footer cfg={cfg} />
+        </AuthProvider>
       </body>
     </html>
   )
