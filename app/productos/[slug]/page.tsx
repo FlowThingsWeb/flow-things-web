@@ -195,11 +195,15 @@ export default function ProductoDetallePage() {
       ? Object.values(varianteSeleccionada.atributos).join(' / ')
       : null
 
+    // El nombre modificado se usa solo para visualización en el carrito.
+    // varianteId se pasa como clave separada para que dos variantes del mismo
+    // producto ocupen slots distintos en el store (evita solapamiento).
+    const productoParaCarrito = varLabel
+      ? { ...producto, nombre: `${producto.nombre} — ${varLabel}` }
+      : producto
+
     for (let i = 0; i < cantidad; i++) {
-      addItem(varLabel
-        ? { ...producto, nombre: `${producto.nombre} — ${varLabel}` }
-        : producto
-      )
+      addItem(productoParaCarrito, varianteSeleccionada?.id ?? undefined)
     }
     setAgregado(true)
     setTimeout(() => setAgregado(false), 2000)

@@ -9,6 +9,7 @@ async function getProductos() {
     .from('productos')
     .select('*, categorias(nombre)')
     .order('created_at', { ascending: false })
+    .limit(500) // evitar fetch sin límite con catálogos grandes
 
   if (error) console.error('[admin/productos] error:', error.message, error.code)
   return data || []

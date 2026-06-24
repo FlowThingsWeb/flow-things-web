@@ -4,12 +4,7 @@ import { getTokenAuth } from '@/lib/afip-wsaa'
 import { emitirFactura } from '@/lib/afip-wsfe'
 import { sendEmail, renderTemplate, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
 import { generateFacturaPDFBase64, facturaFileName } from '@/lib/factura-pdf'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function POST(req: NextRequest) {
   const unauth = await verifyAdminToken(req)
@@ -23,7 +18,7 @@ export async function POST(req: NextRequest) {
   // Si viene facturaData y email → generar PDF en el servidor y enviar email
   if (email && facturaData) {
     try {
-      const { data: rows } = await supabase.from('configuracion').select('clave,valor')
+      const { data: rows } = await supabaseAdmin.from('configuracion').select('clave,valor')
       const cfg: Record<string, string> = {}
       ;(rows || []).forEach((r: { clave: string; valor: string }) => { cfg[r.clave] = r.valor })
 

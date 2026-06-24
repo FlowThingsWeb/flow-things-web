@@ -77,8 +77,8 @@ export default function CartDrawer() {
               </button>
             </div>
           ) : (
-            items.map(({ producto, cantidad }) => (
-              <div key={producto.id} className="flex gap-3 bg-brand-bg-soft border border-brand-border rounded-xl p-3">
+            items.map(({ producto, cantidad, varianteId }) => (
+              <div key={`${producto.id}::${varianteId ?? ''}`} className="flex gap-3 bg-brand-bg-soft border border-brand-border rounded-xl p-3">
                 {/* Imagen */}
                 <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-brand-bg flex-shrink-0">
                   {producto.imagen_url ? (
@@ -106,20 +106,20 @@ export default function CartDrawer() {
                   {/* Controles cantidad */}
                   <div className="flex items-center gap-2 mt-2">
                     <button
-                      onClick={() => updateCantidad(producto.id, cantidad - 1)}
+                      onClick={() => updateCantidad(producto.id, cantidad - 1, varianteId)}
                       className="w-6 h-6 rounded-full bg-brand-border hover:bg-brand-purple hover:text-white flex items-center justify-center text-xs font-bold transition-colors"
                     >
                       −
                     </button>
                     <span className="text-sm font-medium w-4 text-center">{cantidad}</span>
                     <button
-                      onClick={() => updateCantidad(producto.id, cantidad + 1)}
+                      onClick={() => updateCantidad(producto.id, cantidad + 1, varianteId)}
                       className="w-6 h-6 rounded-full bg-brand-border hover:bg-brand-purple hover:text-white flex items-center justify-center text-xs font-bold transition-colors"
                     >
                       +
                     </button>
                     <button
-                      onClick={() => removeItem(producto.id)}
+                      onClick={() => removeItem(producto.id, varianteId)}
                       className="ml-auto text-brand-text-light hover:text-red-400 transition-colors"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
