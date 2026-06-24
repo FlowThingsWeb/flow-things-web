@@ -2,13 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminToken } from '@/lib/admin-auth'
 
-async function requireAdmin(request: NextRequest) {
-  return verifyAdminToken(request)
-}
-
 // GET — listar todos los códigos
 export async function GET(request: NextRequest) {
-  const unauth = requireAdmin(request)
+  const unauth = await verifyAdminToken(request)
   if (unauth) return unauth
 
   const { data, error } = await supabaseAdmin
@@ -25,7 +21,7 @@ export async function GET(request: NextRequest) {
 
 // POST — crear nuevo código
 export async function POST(request: NextRequest) {
-  const unauth = requireAdmin(request)
+  const unauth = await verifyAdminToken(request)
   if (unauth) return unauth
 
   try {
@@ -65,7 +61,7 @@ export async function POST(request: NextRequest) {
 
 // PATCH — toggle activo/inactivo
 export async function PATCH(request: NextRequest) {
-  const unauth = requireAdmin(request)
+  const unauth = await verifyAdminToken(request)
   if (unauth) return unauth
 
   const { id, activo } = await request.json()
@@ -84,7 +80,7 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE — eliminar código
 export async function DELETE(request: NextRequest) {
-  const unauth = requireAdmin(request)
+  const unauth = await verifyAdminToken(request)
   if (unauth) return unauth
 
   const { searchParams } = new URL(request.url)
