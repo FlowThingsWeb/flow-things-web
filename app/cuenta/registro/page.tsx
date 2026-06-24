@@ -249,11 +249,12 @@ export default function RegistroPage() {
 
             <div>
               <label htmlFor="telefono" className="block text-sm font-medium text-brand-text-muted mb-1.5">
-                Teléfono <span className="text-brand-text-light text-xs">(opcional)</span>
+                Teléfono *
               </label>
               <input
                 id="telefono"
                 type="tel"
+                required
                 className="input-dark"
                 placeholder="+54 9 11 1234-5678"
                 value={form.telefono}
@@ -263,11 +264,12 @@ export default function RegistroPage() {
 
             <div>
               <label htmlFor="dni" className="block text-sm font-medium text-brand-text-muted mb-1.5">
-                DNI <span className="text-brand-text-light text-xs">(opcional)</span>
+                DNI *
               </label>
               <input
                 id="dni"
                 type="text"
+                required
                 className="input-dark"
                 placeholder="12345678"
                 inputMode="numeric"
