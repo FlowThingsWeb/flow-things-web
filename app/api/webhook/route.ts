@@ -149,10 +149,13 @@ export async function POST(request: NextRequest) {
 
         // Marcar primer_compra_usada en el perfil del usuario
         if (orden.codigo_descuento === '__PRIMER_COMPRA__' && orden.user_id) {
-          await supabaseAdmin
-            .from('perfiles')
-            .upsert({ user_id: orden.user_id, primer_compra_usada: true })
-            .catch((e: any) => console.error('[webhook] Error marcando primer_compra_usada:', e.message))
+          try {
+            await supabaseAdmin
+              .from('perfiles')
+              .upsert({ user_id: orden.user_id, primer_compra_usada: true })
+          } catch (e: any) {
+            console.error('[webhook] Error marcando primer_compra_usada:', e.message)
+          }
         }
 
         // Factura electrónica AFIP
