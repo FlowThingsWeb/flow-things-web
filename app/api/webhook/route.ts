@@ -156,6 +156,7 @@ export async function POST(request: NextRequest) {
             nombre: comprador.nombre || 'Consumidor Final',
             email: comprador.email || '',
             total: orden.total ?? 0,
+            dni: comprador.dni || undefined,
             items: orden.items.map((i: any) => ({
               nombre: i.nombre,
               cantidad: i.cantidad,

@@ -23,6 +23,7 @@ const formInicial: DatosComprador = {
   ciudad: '',
   provincia: '',
   codigo_postal: '',
+  dni: '',
 }
 
 interface DescuentoAplicado {
@@ -288,6 +289,38 @@ function CarritoContent() {
                   onChange={handleChange}
                   className="input-dark"
                   placeholder="11 1234-5678"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-brand-text-muted mb-1 flex items-center gap-1.5">
+                  DNI *
+                  <span className="relative group">
+                    <button
+                      type="button"
+                      className="w-4 h-4 rounded-full bg-brand-border text-brand-text-muted text-[10px] font-bold flex items-center justify-center hover:bg-brand-purple hover:text-white transition-colors cursor-pointer"
+                      aria-label="¿Por qué necesitamos tu DNI?"
+                    >
+                      ?
+                    </button>
+                    {/* Tooltip */}
+                    <span className="pointer-events-none absolute left-6 top-1/2 -translate-y-1/2 z-20 w-64 bg-brand-bg-card border border-brand-border text-brand-text-muted text-xs rounded-xl px-3 py-2.5 shadow-soft opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity leading-relaxed">
+                      Necesitamos tu DNI para emitir la factura electrónica correspondiente a tu compra, tal como lo exige AFIP.
+                    </span>
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  name="dni"
+                  required
+                  value={form.dni ?? ''}
+                  onChange={handleChange}
+                  className="input-dark"
+                  placeholder="12345678"
+                  maxLength={10}
+                  inputMode="numeric"
+                  pattern="[0-9]{7,10}"
+                  title="Ingresá tu DNI (solo números, sin puntos)"
                 />
               </div>
             </div>

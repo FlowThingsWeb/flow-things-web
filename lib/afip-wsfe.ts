@@ -73,11 +73,18 @@ export interface CAEResult {
 
 export async function solicitarCAE(
   token: string, sign: string, cuit: number,
-  ptoVenta: number, nroComprobante: number, total: number
+  ptoVenta: number, nroComprobante: number, total: number,
+  dni?: string
 ): Promise<CAEResult> {
   const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '')
 
-  const xml = `<ar:FECAESolicitar>${authXml(token, sign, cuit)}<ar:FeCAEReq><ar:FeCabReq><ar:CantReg>1</ar:CantReg><ar:PtoVta>${ptoVenta}</ar:PtoVta><ar:CbteTipo>11</ar:CbteTipo></ar:FeCabReq><ar:FeDetReq><ar:FECAEDetRequest><ar:Concepto>1</ar:Concepto><ar:DocTipo>99</ar:DocTipo><ar:DocNro>0</ar:DocNro><ar:CbteDesde>${nroComprobante}</ar:CbteDesde><ar:CbteHasta>${nroComprobante}</ar:CbteHasta><ar:CbteFch>${fecha}</ar:CbteFch><ar:ImpTotal>${total.toFixed(2)}</ar:ImpTotal><ar:ImpTotConc>0.00</ar:ImpTotConc><ar:ImpNeto>${total.toFixed(2)}</ar:ImpNeto><ar:ImpOpEx>0.00</ar:ImpOpEx><ar:ImpIVA>0.00</ar:ImpIVA><ar:ImpTrib>0.00</ar:ImpTrib><ar:MonId>PES</ar:MonId><ar:MonCotiz>1</ar:MonCotiz></ar:FECAEDetRequest></ar:FeDetReq></ar:FeCAEReq></ar:FECAESolicitar>`
+  // DocTipo 96 = DNI (cuando el comprador lo proveyó)
+  // DocTipo 99 = Sin identificar / Consumidor Final (fallback)
+  const dniNumero = dni ? dni.replace(/\D/g, '') : ''
+  const docTipo   = dniNumero ? '96' : '99'
+  const docNro    = dniNumero || '0'
+
+  const xml = `<ar:FECAESolicitar>${authXml(token, sign, cuit)}<ar:FeCAEReq><ar:FeCabReq><ar:CantReg>1</ar:CantReg><ar:PtoVta>${ptoVenta}</ar:PtoVta><ar:CbteTipo>11</ar:CbteTipo></ar:FeCabReq><ar:FeDetReq><ar:FECAEDetRequest><ar:Concepto>1</ar:Concepto><ar:DocTipo>${docTipo}</ar:DocTipo><ar:DocNro>${docNro}</ar:DocNro><ar:CbteDesde>${nroComprobante}</ar:CbteDesde><ar:CbteHasta>${nroComprobante}</ar:CbteHasta><ar:CbteFch>${fecha}</ar:CbteFch><ar:ImpTotal>${total.toFixed(2)}</ar:ImpTotal><ar:ImpTotConc>0.00</ar:ImpTotConc><ar:ImpNeto>${total.toFixed(2)}</ar:ImpNeto><ar:ImpOpEx>0.00</ar:ImpOpEx><ar:ImpIVA>0.00</ar:ImpIVA><ar:ImpTrib>0.00</ar:ImpTrib><ar:MonId>PES</ar:MonId><ar:MonCotiz>1</ar:MonCotiz></ar:FECAEDetRequest></ar:FeDetReq></ar:FeCAEReq></ar:FECAESolicitar>`
 
   const response = await callWsfe('FECAESolicitar', xml)
 
@@ -106,13 +113,14 @@ export async function solicitarCAE(
 export async function emitirFactura(
   token: string, sign: string, cuit: number,
   ptoVenta: number, total: number,
+  dni?: string,
   intentos = 2
 ): Promise<CAEResult> {
   for (let intento = 1; intento <= intentos; intento++) {
     const ultimoNro    = await getLastVoucher(token, sign, cuit, ptoVenta, 11)
     const nroSiguiente = ultimoNro + 1
     try {
-      return await solicitarCAE(token, sign, cuit, ptoVenta, nroSiguiente, total)
+      return await solicitarCAE(token, sign, cuit, ptoVenta, nroSiguiente, total, dni)
     } catch (err: any) {
       const isDuplicate = /ya existe|duplicad|duplicate|already/i.test(err.message ?? '')
       if (isDuplicate && intento < intentos) {
