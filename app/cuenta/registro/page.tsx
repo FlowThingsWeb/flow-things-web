@@ -5,6 +5,29 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
+function CumpleTooltip() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative inline-flex items-center">
+      <button
+        type="button"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onClick={() => setOpen(v => !v)}
+        className="w-4 h-4 rounded-full bg-brand-border text-brand-text-muted text-[10px] font-bold flex items-center justify-center hover:bg-brand-purple hover:text-white transition-colors"
+        aria-label="¿Para qué usamos tu fecha de nacimiento?"
+      >
+        ?
+      </button>
+      {open && (
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-64 bg-brand-bg-card border border-brand-border text-brand-text-muted text-xs rounded-xl px-3 py-2.5 shadow-lg leading-relaxed">
+          🎂 ¡Te mandamos promociones especiales durante tu mes de cumpleaños!
+        </div>
+      )}
+    </div>
+  )
+}
+
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden>
@@ -24,6 +47,8 @@ export default function RegistroPage() {
     nombre: '',
     email: '',
     telefono: '',
+    dni: '',
+    fecha_nacimiento: '',
     password: '',
     passwordConfirm: '',
   })
@@ -83,15 +108,15 @@ export default function RegistroPage() {
         user_id: data.user.id,
         nombre: form.nombre.trim(),
         telefono: form.telefono.trim() || null,
+        dni: form.dni.trim() || null,
+        fecha_nacimiento: form.fecha_nacimiento || null,
       })
     }
 
-    // Si Supabase no requiere confirmación de email, el usuario queda logueado
     if (data.session) {
       router.push('/cuenta')
       router.refresh()
     } else {
-      // Si requiere confirmación, mostramos mensaje
       setSuccess(true)
     }
 
@@ -206,6 +231,38 @@ export default function RegistroPage() {
                 placeholder="+54 9 11 1234-5678"
                 value={form.telefono}
                 onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="dni" className="block text-sm font-medium text-brand-text-muted mb-1.5">
+                DNI <span className="text-brand-text-light text-xs">(opcional)</span>
+              </label>
+              <input
+                id="dni"
+                type="text"
+                className="input-dark"
+                placeholder="12345678"
+                inputMode="numeric"
+                maxLength={10}
+                value={form.dni}
+                onChange={e => setForm(f => ({ ...f, dni: e.target.value.replace(/\D/g, '') }))}
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <label htmlFor="fecha_nacimiento" className="text-sm font-medium text-brand-text-muted">
+                  Fecha de nacimiento <span className="text-brand-text-light text-xs">(opcional)</span>
+                </label>
+                <CumpleTooltip />
+              </div>
+              <input
+                id="fecha_nacimiento"
+                type="date"
+                className="input-dark"
+                value={form.fecha_nacimiento}
+                onChange={e => setForm(f => ({ ...f, fecha_nacimiento: e.target.value }))}
               />
             </div>
 

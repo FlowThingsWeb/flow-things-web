@@ -48,38 +48,74 @@ interface OpcionEnvio {
 
 function CarritoContent() {
   const searchParams = useSearchParams()
-  const { items, removeItem, updateCantidad, total } = useCartStore()
+  const { items, removeItem, total } = useCartStore()
   const { user, session } = useAuth()
   const [form, setForm] = useState<DatosComprador>(formInicial)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [dniTooltip, setDniTooltip] = useState(false)
 
-  // Descuento primera compra (10% para usuarios registrados sin compras previas)
+  // Perfil cargado: cuando el usuario está logueado y trajimos sus datos
+  const [perfilCargado, setPerfilCargado] = useState(false)
+  // Permite editar datos de contacto aunque estén pre-completados
+  const [editandoDatos, setEditandoDatos] = useState(false)
+
+  // Descuento primera compra
   const [primerCompraDescuento, setPrimerCompraDescuento] = useState(false)
 
+  // Cargar perfil del usuario logueado y pre-completar formulario
   useEffect(() => {
     if (!user) {
+      setPerfilCargado(false)
+      setEditandoDatos(false)
+      setForm(formInicial)
       setPrimerCompraDescuento(false)
       return
     }
-    async function checkPrimerCompra() {
-      const [perfilRes, ordenesRes] = await Promise.all([
-        supabase.from('perfiles').select('primer_compra_usada').eq('user_id', user!.id).single(),
-        supabase.from('ordenes').select('id').eq('user_id', user!.id).eq('estado', 'approved').limit(1),
-      ])
-      const yaUsada = perfilRes.data?.primer_compra_usada ?? false
-      const tieneOrdenes = (ordenesRes.data?.length ?? 0) > 0
-      setPrimerCompraDescuento(!yaUsada && !tieneOrdenes)
+
+    async function cargarPerfil() {
+      try {
+        const [perfilRes, ordenesRes] = await Promise.all([
+          supabase
+            .from('perfiles')
+            .select('nombre, telefono, dni, primer_compra_usada')
+            .eq('user_id', user!.id)
+            .single(),
+          supabase
+            .from('ordenes')
+            .select('id')
+            .eq('user_id', user!.id)
+            .eq('estado', 'approved')
+            .limit(1),
+        ])
+
+        const p = perfilRes.data
+        if (p) {
+          setForm(f => ({
+            ...f,
+            nombre: p.nombre || f.nombre,
+            email: user!.email || f.email,
+            telefono: p.telefono || f.telefono,
+            dni: p.dni || f.dni,
+          }))
+          setPerfilCargado(true)
+
+          const yaUsada = p.primer_compra_usada ?? false
+          const tieneOrdenes = (ordenesRes.data?.length ?? 0) > 0
+          setPrimerCompraDescuento(!yaUsada && !tieneOrdenes)
+        }
+      } catch {
+        // silencioso
+      }
     }
-    checkPrimerCompra()
+
+    cargarPerfil()
   }, [user])
 
-  // Mostrar error si el usuario volvió de un pago rechazado en MercadoPago
+  // Mostrar error si el usuario volvió de un pago rechazado
   useEffect(() => {
     if (searchParams.get('error') === 'pago_rechazado') {
       setError('El pago fue rechazado. Revisá los datos de tu tarjeta o intentá con otro medio de pago.')
-      // Limpiar el param de la URL sin recargar
       const url = new URL(window.location.href)
       url.searchParams.delete('error')
       window.history.replaceState({}, '', url.toString())
@@ -101,7 +137,6 @@ function CarritoContent() {
 
   const subtotal = total()
   const costoEnvio = envioSeleccionado?.precio ?? 0
-  // Descuento código + descuento primera compra (no acumulables: se usa el mayor)
   const descuentoCodigo = descuento?.descuento_monto ?? 0
   const descuentoPrimerCompra = primerCompraDescuento ? Math.round(subtotal * 0.1) : 0
   const descuentoTotal = descuento ? descuentoCodigo : descuentoPrimerCompra
@@ -138,7 +173,6 @@ function CarritoContent() {
       setEnvioOpciones(data.opciones ?? [])
       setEnvioCalculado(true)
 
-      // Auto-seleccionar la primera opción si hay una sola
       if (data.opciones?.length === 1) {
         setEnvioSeleccionado(data.opciones[0])
       }
@@ -153,7 +187,6 @@ function CarritoContent() {
     const { name, value } = e.target
     setForm({ ...form, [name]: value })
 
-    // Si cambia la provincia, resetear el envío calculado porque el costo cambia
     if (name === 'provincia') {
       setEnvioSeleccionado(null)
       setEnvioOpciones([])
@@ -206,7 +239,6 @@ function CarritoContent() {
 
     if (items.length === 0) return
 
-    // Validar que se haya calculado y seleccionado una opción de envío
     if (!envioSeleccionado) {
       setError('Por favor calculá y seleccioná una opción de envío antes de continuar.')
       return
@@ -249,8 +281,6 @@ function CarritoContent() {
         return
       }
 
-      // El carrito se limpia en la página de éxito (/exito),
-      // así no se pierde si el redirect falla.
       window.location.href = data.initPoint
     } catch {
       setError('Error de conexión. Intentá de nuevo.')
@@ -274,6 +304,28 @@ function CarritoContent() {
       </div>
     )
   }
+
+  // Card con resumen de datos del usuario logueado
+  const DatosGuardadosCard = () => (
+    <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-white">Datos de contacto</h2>
+        <button
+          type="button"
+          onClick={() => setEditandoDatos(true)}
+          className="text-xs text-brand-purple hover:text-brand-purple-light transition-colors"
+        >
+          Editar
+        </button>
+      </div>
+      <div className="flex flex-col gap-1.5 text-sm">
+        <p className="text-brand-text font-medium">{form.nombre}</p>
+        <p className="text-brand-text-muted">{form.email}</p>
+        {form.telefono && <p className="text-brand-text-muted">{form.telefono}</p>}
+        {form.dni && <p className="text-brand-text-muted">DNI {form.dni}</p>}
+      </div>
+    </div>
+  )
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -311,88 +363,118 @@ function CarritoContent() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6 space-y-4">
-            <h2 className="font-semibold text-white mb-4">Datos de contacto</h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-brand-text-muted mb-1">Nombre completo *</label>
-                <input
-                  type="text"
-                  name="nombre"
-                  required
-                  value={form.nombre}
-                  onChange={handleChange}
-                  className="input-dark"
-                  placeholder="Juan García"
-                />
+          {/* Datos de contacto: resumen (logueado) o formulario completo */}
+          {perfilCargado && !editandoDatos ? (
+            <DatosGuardadosCard />
+          ) : (
+            <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-white">Datos de contacto</h2>
+                {perfilCargado && (
+                  <button
+                    type="button"
+                    onClick={() => setEditandoDatos(false)}
+                    className="text-xs text-brand-text-muted hover:text-brand-text transition-colors"
+                  >
+                    ✕ Cancelar
+                  </button>
+                )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-brand-text-muted mb-1">Email *</label>
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  value={form.email}
-                  onChange={handleChange}
-                  className="input-dark"
-                  placeholder="juan@email.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-brand-text-muted mb-1">Teléfono *</label>
-                <input
-                  type="tel"
-                  name="telefono"
-                  required
-                  value={form.telefono}
-                  onChange={handleChange}
-                  className="input-dark"
-                  placeholder="11 1234-5678"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <label htmlFor="dni" className="text-sm font-medium text-brand-text-muted">DNI *</label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onMouseEnter={() => setDniTooltip(true)}
-                      onMouseLeave={() => setDniTooltip(false)}
-                      onClick={() => setDniTooltip(v => !v)}
-                      className="w-4 h-4 rounded-full bg-brand-border text-brand-text-muted text-[10px] font-bold flex items-center justify-center hover:bg-brand-purple hover:text-white transition-colors"
-                      aria-label="¿Por qué necesitamos tu DNI?"
-                    >
-                      ?
-                    </button>
-                    {dniTooltip && (
-                      <div className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-64 bg-brand-bg-card border border-brand-border text-brand-text-muted text-xs rounded-xl px-3 py-2.5 shadow-lg leading-relaxed">
-                        Necesitamos tu DNI para emitir la factura electrónica de tu compra, tal como lo exige ARCA.
-                      </div>
-                    )}
-                  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-brand-text-muted mb-1">Nombre completo *</label>
+                  <input
+                    type="text"
+                    name="nombre"
+                    required
+                    value={form.nombre}
+                    onChange={handleChange}
+                    className="input-dark"
+                    placeholder="Juan García"
+                  />
                 </div>
-                <input
-                  id="dni"
-                  type="text"
-                  name="dni"
-                  required
-                  value={form.dni ?? ''}
-                  onChange={handleChange}
-                  className="input-dark"
-                  placeholder="12345678"
-                  maxLength={10}
-                  inputMode="numeric"
-                  pattern="[0-9]{7,10}"
-                  title="Ingresá tu DNI (solo números, sin puntos)"
-                />
-              </div>
-            </div>
 
-            <h2 className="font-semibold text-brand-text pt-2">Dirección de envío</h2>
+                <div>
+                  <label className="block text-sm font-medium text-brand-text-muted mb-1">Email *</label>
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    value={form.email}
+                    onChange={handleChange}
+                    className="input-dark"
+                    placeholder="juan@email.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-brand-text-muted mb-1">Teléfono *</label>
+                  <input
+                    type="tel"
+                    name="telefono"
+                    required
+                    value={form.telefono}
+                    onChange={handleChange}
+                    className="input-dark"
+                    placeholder="11 1234-5678"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <label htmlFor="dni" className="text-sm font-medium text-brand-text-muted">DNI *</label>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onMouseEnter={() => setDniTooltip(true)}
+                        onMouseLeave={() => setDniTooltip(false)}
+                        onClick={() => setDniTooltip(v => !v)}
+                        className="w-4 h-4 rounded-full bg-brand-border text-brand-text-muted text-[10px] font-bold flex items-center justify-center hover:bg-brand-purple hover:text-white transition-colors"
+                        aria-label="¿Por qué necesitamos tu DNI?"
+                      >
+                        ?
+                      </button>
+                      {dniTooltip && (
+                        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-64 bg-brand-bg-card border border-brand-border text-brand-text-muted text-xs rounded-xl px-3 py-2.5 shadow-lg leading-relaxed">
+                          Necesitamos tu DNI para emitir la factura electrónica de tu compra, tal como lo exige ARCA.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    id="dni"
+                    type="text"
+                    name="dni"
+                    required
+                    value={form.dni ?? ''}
+                    onChange={handleChange}
+                    className="input-dark"
+                    placeholder="12345678"
+                    maxLength={10}
+                    inputMode="numeric"
+                    pattern="[0-9]{7,10}"
+                    title="Ingresá tu DNI (solo números, sin puntos)"
+                  />
+                </div>
+              </div>
+
+              {perfilCargado && (
+                <button
+                  type="button"
+                  onClick={() => setEditandoDatos(false)}
+                  className="w-full text-sm text-brand-purple border border-brand-purple/30 hover:bg-brand-purple/10 py-2 rounded-xl transition-colors"
+                >
+                  Usar datos guardados
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Dirección de envío — siempre visible */}
+          <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6 space-y-4">
+            <h2 className="font-semibold text-brand-text">Dirección de envío</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
@@ -533,7 +615,6 @@ function CarritoContent() {
             <h2 className="font-semibold text-white mb-4">¿Tenés un código de descuento?</h2>
 
             {descuento ? (
-              /* Descuento aplicado */
               <div className="flex items-center justify-between bg-green-900/25 border border-green-500/40 rounded-xl px-4 py-3">
                 <div>
                   <p className="text-green-300 font-semibold text-sm">✅ {descuento.mensaje}</p>
@@ -548,7 +629,6 @@ function CarritoContent() {
                 </button>
               </div>
             ) : (
-              /* Input para ingresar código */
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -612,7 +692,7 @@ function CarritoContent() {
           </p>
         </form>
 
-        {/* Resumen del pedido — solo visible en layout de dos columnas */}
+        {/* Resumen del pedido */}
         <div className="space-y-4">
           <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
             <h2 className="font-semibold text-white mb-4">Resumen del pedido</h2>
@@ -652,13 +732,11 @@ function CarritoContent() {
             </div>
 
             <div className="border-t border-brand-border mt-4 pt-4 space-y-2">
-              {/* Subtotal */}
               <div className="flex justify-between items-center text-sm text-brand-text-muted">
                 <span>Subtotal</span>
                 <span>{formatPrecio(subtotal)}</span>
               </div>
 
-              {/* Descuento código */}
               {descuento && (
                 <div className="flex justify-between items-center text-sm text-green-400">
                   <span className="flex items-center gap-1">
@@ -669,7 +747,6 @@ function CarritoContent() {
                 </div>
               )}
 
-              {/* Descuento primera compra */}
               {primerCompraDescuento && !descuento && (
                 <div className="flex justify-between items-center text-sm text-green-400">
                   <span className="flex items-center gap-1">
@@ -679,7 +756,6 @@ function CarritoContent() {
                 </div>
               )}
 
-              {/* Envío */}
               {envioSeleccionado && (
                 <div className="flex justify-between items-center text-sm text-brand-text-muted">
                   <span className="flex items-center gap-1">
@@ -694,7 +770,6 @@ function CarritoContent() {
                 </div>
               )}
 
-              {/* Total final */}
               <div className="flex justify-between items-center pt-2 border-t border-brand-border">
                 <span className="font-semibold text-brand-text">Total</span>
                 <span className="font-bold text-xl text-brand-text">
