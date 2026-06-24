@@ -43,7 +43,6 @@ export default function CuentaPage() {
     nombre: '',
     telefono: '',
     dni: '',
-    fecha_nacimiento: '',
   })
   const [guardando, setGuardando] = useState(false)
   const [guardadoOk, setGuardadoOk] = useState(false)
@@ -69,7 +68,6 @@ export default function CuentaPage() {
             nombre: data.nombre || '',
             telefono: data.telefono || '',
             dni: data.dni || '',
-            fecha_nacimiento: data.fecha_nacimiento || '',
           })
         }
       })
@@ -95,7 +93,6 @@ export default function CuentaPage() {
       nombre: formPerfil.nombre.trim(),
       telefono: formPerfil.telefono.trim() || null,
       dni: formPerfil.dni.trim() || null,
-      fecha_nacimiento: formPerfil.fecha_nacimiento || null,
     })
 
     setPerfil(p => p ? {
@@ -103,7 +100,6 @@ export default function CuentaPage() {
       nombre: formPerfil.nombre,
       telefono: formPerfil.telefono,
       dni: formPerfil.dni,
-      fecha_nacimiento: formPerfil.fecha_nacimiento,
     } : p)
     setEditando(false)
     setGuardando(false)
@@ -221,17 +217,7 @@ export default function CuentaPage() {
                   onChange={e => setFormPerfil(f => ({ ...f, dni: e.target.value.replace(/\D/g, '') }))}
                 />
               </div>
-              <div>
-                <label className="block text-xs text-brand-text-muted mb-1">
-                  Fecha de nacimiento <span className="text-brand-text-light">(para descuentos de cumpleaños 🎂)</span>
-                </label>
-                <input
-                  type="date"
-                  className="input-dark"
-                  value={formPerfil.fecha_nacimiento}
-                  onChange={e => setFormPerfil(f => ({ ...f, fecha_nacimiento: e.target.value }))}
-                />
-              </div>
+
               <div className="flex gap-3 mt-1">
                 <button
                   type="submit"

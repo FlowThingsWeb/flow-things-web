@@ -365,7 +365,7 @@ function CarritoContent() {
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* Datos de contacto: resumen (logueado) o formulario completo */}
-          {perfilCargado && !editandoDatos ? (
+          {perfilCargado && !editandoDatos && !!form.dni ? (
             <DatosGuardadosCard />
           ) : (
             <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6 space-y-4">
@@ -460,7 +460,7 @@ function CarritoContent() {
                 </div>
               </div>
 
-              {perfilCargado && (
+              {perfilCargado && form.dni && (
                 <button
                   type="button"
                   onClick={() => setEditandoDatos(false)}
@@ -468,6 +468,11 @@ function CarritoContent() {
                 >
                   Usar datos guardados
                 </button>
+              )}
+              {perfilCargado && !form.dni && (
+                <p className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/30 rounded-xl px-4 py-2.5">
+                  ⚠ Necesitamos tu DNI para emitir la factura electrónica de tu compra.
+                </p>
               )}
             </div>
           )}
