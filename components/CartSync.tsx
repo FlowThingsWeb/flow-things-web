@@ -31,12 +31,14 @@ export default function CartSync() {
     // Nuevo login: cargar carrito de DB
     didLoadFromDb.current = false
 
-    supabase
-      .from('carritos_guardados')
-      .select('items')
-      .eq('user_id', user.id)
-      .single()
-      .then(({ data }) => {
+    async function loadCart() {
+      try {
+        const { data } = await supabase
+          .from('carritos_guardados')
+          .select('items')
+          .eq('user_id', user!.id)
+          .single()
+
         if (data?.items && Array.isArray(data.items) && data.items.length > 0) {
           // Mergear con el carrito local (el local tiene prioridad para cantidades)
           const localItems = useCartStore.getState().items
@@ -52,11 +54,14 @@ export default function CartSync() {
             }
           }
         }
+      } catch {
+        // silenciar errores de red
+      } finally {
         didLoadFromDb.current = true
-      })
-      .catch(() => {
-        didLoadFromDb.current = true
-      })
+      }
+    }
+
+    loadCart()
   }, [user, addItem])
 
   // Al cambiar items, guardar en DB (debounced)
