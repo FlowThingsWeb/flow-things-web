@@ -5,6 +5,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useCartStore } from '@/lib/store'
+import { useAuth } from '@/lib/auth-context'
+import { supabase } from '@/lib/supabase'
 import { DatosComprador } from '@/types'
 
 function formatPrecio(precio: number) {
@@ -47,10 +49,31 @@ interface OpcionEnvio {
 function CarritoContent() {
   const searchParams = useSearchParams()
   const { items, removeItem, updateCantidad, total } = useCartStore()
+  const { user, session } = useAuth()
   const [form, setForm] = useState<DatosComprador>(formInicial)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [dniTooltip, setDniTooltip] = useState(false)
+
+  // Descuento primera compra (10% para usuarios registrados sin compras previas)
+  const [primerCompraDescuento, setPrimerCompraDescuento] = useState(false)
+
+  useEffect(() => {
+    if (!user) {
+      setPrimerCompraDescuento(false)
+      return
+    }
+    async function checkPrimerCompra() {
+      const [perfilRes, ordenesRes] = await Promise.all([
+        supabase.from('perfiles').select('primer_compra_usada').eq('user_id', user!.id).single(),
+        supabase.from('ordenes').select('id').eq('user_id', user!.id).eq('estado', 'approved').limit(1),
+      ])
+      const yaUsada = perfilRes.data?.primer_compra_usada ?? false
+      const tieneOrdenes = (ordenesRes.data?.length ?? 0) > 0
+      setPrimerCompraDescuento(!yaUsada && !tieneOrdenes)
+    }
+    checkPrimerCompra()
+  }, [user])
 
   // Mostrar error si el usuario volvió de un pago rechazado en MercadoPago
   useEffect(() => {
@@ -78,7 +101,11 @@ function CarritoContent() {
 
   const subtotal = total()
   const costoEnvio = envioSeleccionado?.precio ?? 0
-  const totalFinal = Math.max(0, subtotal - (descuento?.descuento_monto ?? 0)) + costoEnvio
+  // Descuento código + descuento primera compra (no acumulables: se usa el mayor)
+  const descuentoCodigo = descuento?.descuento_monto ?? 0
+  const descuentoPrimerCompra = primerCompraDescuento ? Math.round(subtotal * 0.1) : 0
+  const descuentoTotal = descuento ? descuentoCodigo : descuentoPrimerCompra
+  const totalFinal = Math.max(0, subtotal - descuentoTotal) + costoEnvio
 
   const puedeCalcularEnvio = !!form.provincia.trim()
 
@@ -196,14 +223,19 @@ function CarritoContent() {
         imagen_url: producto.imagen_url,
       }))
 
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       const res = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           items: orderItems,
           comprador: form,
           codigo_descuento: descuento?.codigo ?? null,
-          descuento_monto: descuento?.descuento_monto ?? 0,
+          primer_compra: primerCompraDescuento && !descuento,
           envio_tipo: envioSeleccionado?.modalidad ?? null,
           envio_nombre: envioSeleccionado?.nombre ?? null,
           envio_costo: envioSeleccionado?.precio ?? 0,
@@ -246,6 +278,35 @@ function CarritoContent() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <h1 className="text-3xl font-bold text-brand-text mb-8">Finalizar compra</h1>
+
+      {/* Banner primera compra */}
+      {primerCompraDescuento && !descuento && (
+        <div className="mb-6 flex items-center gap-3 bg-brand-purple/10 border border-brand-purple/30 rounded-2xl px-5 py-4">
+          <span className="text-2xl">🎁</span>
+          <div>
+            <p className="text-sm font-semibold text-brand-text">¡Descuento de primera compra aplicado!</p>
+            <p className="text-xs text-brand-text-muted">10% off sobre el subtotal — beneficio exclusivo por ser nuevo usuario.</p>
+          </div>
+          <span className="ml-auto font-bold text-green-400 text-sm whitespace-nowrap">− {formatPrecio(descuentoPrimerCompra)}</span>
+        </div>
+      )}
+
+      {/* Banner registro (para usuarios sin cuenta) */}
+      {!user && (
+        <div className="mb-6 flex items-center gap-3 bg-brand-bg-soft border border-brand-border rounded-2xl px-5 py-4">
+          <span className="text-2xl">🎁</span>
+          <div>
+            <p className="text-sm font-semibold text-brand-text">¿Sabías que podés registrarte y obtener 10% off?</p>
+            <p className="text-xs text-brand-text-muted">Creá tu cuenta y el descuento se aplica automáticamente.</p>
+          </div>
+          <Link
+            href="/cuenta/registro"
+            className="ml-auto text-xs bg-brand-purple hover:bg-brand-purple-light text-white font-semibold px-4 py-2 rounded-xl transition-colors whitespace-nowrap"
+          >
+            Registrarme
+          </Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Formulario */}
@@ -309,7 +370,7 @@ function CarritoContent() {
                     </button>
                     {dniTooltip && (
                       <div className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-64 bg-brand-bg-card border border-brand-border text-brand-text-muted text-xs rounded-xl px-3 py-2.5 shadow-lg leading-relaxed">
-                        Necesitamos tu DNI para emitir la factura electrónica de tu compra, tal como lo exige AFIP.
+                        Necesitamos tu DNI para emitir la factura electrónica de tu compra, tal como lo exige ARCA.
                       </div>
                     )}
                   </div>
@@ -597,7 +658,7 @@ function CarritoContent() {
                 <span>{formatPrecio(subtotal)}</span>
               </div>
 
-              {/* Descuento */}
+              {/* Descuento código */}
               {descuento && (
                 <div className="flex justify-between items-center text-sm text-green-400">
                   <span className="flex items-center gap-1">
@@ -605,6 +666,16 @@ function CarritoContent() {
                     <span className="text-xs font-mono text-green-500/70 ml-1">({descuento.codigo})</span>
                   </span>
                   <span className="font-semibold">− {formatPrecio(descuento.descuento_monto)}</span>
+                </div>
+              )}
+
+              {/* Descuento primera compra */}
+              {primerCompraDescuento && !descuento && (
+                <div className="flex justify-between items-center text-sm text-green-400">
+                  <span className="flex items-center gap-1">
+                    🎁 Primera compra (10%)
+                  </span>
+                  <span className="font-semibold">− {formatPrecio(descuentoPrimerCompra)}</span>
                 </div>
               )}
 

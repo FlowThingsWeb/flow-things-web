@@ -7,6 +7,7 @@ import { useCartStore } from '@/lib/store'
 import { useEditMode } from '@/lib/useEditMode'
 import EditableText from '@/components/EditableText'
 import EditableImage from '@/components/EditableImage'
+import UserMenu from '@/components/UserMenu'
 import type { ConfigMap } from '@/lib/config'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 
@@ -110,6 +111,11 @@ export default function Header({ cfg }: HeaderProps) {
               )}
             </button>
 
+            {/* User menu (desktop) */}
+            <div className="hidden md:block">
+              <UserMenu />
+            </div>
+
             {/* Hamburger mobile */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -140,6 +146,13 @@ export default function Header({ cfg }: HeaderProps) {
                 <ET k={link.key} />
               </Link>
             ))}
+            <Link
+              href="/cuenta"
+              onClick={() => setMenuOpen(false)}
+              className="text-brand-text-muted hover:text-brand-neon py-2 px-3 rounded-lg hover:bg-brand-bg-soft transition-colors text-sm font-medium uppercase tracking-wide"
+            >
+              Mi cuenta
+            </Link>
           </nav>
         </div>
       )}
