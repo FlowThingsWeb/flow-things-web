@@ -6,6 +6,9 @@ export interface DatosFactura {
   email: string
   total: number
   items: { nombre: string; cantidad: number; precio: number }[]
+  /** DNI del comprador. Si se provee, AFIP lo registra con DocTipo 96 (DNI).
+   *  Sin DNI usa DocTipo 99 (Consumidor Final). */
+  dni?: string
 }
 
 export async function emitirFacturaC(datos: DatosFactura): Promise<{
@@ -26,7 +29,7 @@ export async function emitirFacturaC(datos: DatosFactura): Promise<{
   const { token, sign } = await getTokenAuth('wsfe', cert, key)
   // emitirFactura encapsula getLastVoucher + solicitarCAE con reintento automático
   // para evitar race conditions en webhooks concurrentes.
-  const result = await emitirFactura(token, sign, cuit, ptoVenta, datos.total)
+  const result = await emitirFactura(token, sign, cuit, ptoVenta, datos.total, datos.dni)
 
   return {
     cae: result.cae,
