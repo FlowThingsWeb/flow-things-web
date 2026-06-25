@@ -51,6 +51,13 @@ export async function POST(request: NextRequest) {
 
     const items: ItemOrden[] = []
     for (const item of itemsFrontend) {
+      // Rechazar cantidades inválidas
+      if (!Number.isInteger(item.cantidad) || item.cantidad < 1) {
+        return NextResponse.json(
+          { error: `Cantidad inválida para "${item.nombre}".` },
+          { status: 400 }
+        )
+      }
       const prod = productosDB?.find((p: { id: string; precio: number; stock: number }) => p.id === item.id)
       if (!prod || prod.stock < item.cantidad) {
         return NextResponse.json(

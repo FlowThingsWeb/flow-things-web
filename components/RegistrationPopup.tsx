@@ -13,14 +13,14 @@ export default function RegistrationPopup() {
   useEffect(() => {
     if (loading) return
     if (user) return
-    if (sessionStorage.getItem(STORAGE_KEY)) return
+    if (localStorage.getItem(STORAGE_KEY)) return
 
     const timer = setTimeout(() => setVisible(true), 2000)
     return () => clearTimeout(timer)
   }, [loading, user])
 
   function dismiss() {
-    sessionStorage.setItem(STORAGE_KEY, '1')
+    localStorage.setItem(STORAGE_KEY, '1')
     setVisible(false)
   }
 

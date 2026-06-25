@@ -15,10 +15,19 @@ const PC_OPTS = {
  * Callback de OAuth (Google, Apple, etc.)
  * Supabase redirige aquí con un `code` que se intercambia por una sesión.
  */
+/** Rutas internas permitidas como destino post-login (evita open redirect) */
+function sanitizeNext(next: string | null): string {
+  if (!next) return '/cuenta'
+  // Solo se permiten rutas relativas que comiencen con /
+  // y no sean URLs absolutas (http://, https://, //)
+  if (/^\/(?!\/)/.test(next)) return next
+  return '/cuenta'
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/cuenta'
+  const next = sanitizeNext(searchParams.get('next'))
 
   if (code) {
     const cookieStore = await cookies()

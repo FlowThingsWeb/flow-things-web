@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { sendEmail } from '@/lib/email'
-
-function checkAuth(request: NextRequest) {
-  const secret = process.env.ADMIN_SECRET
-  if (!secret) return true
-  const auth = request.headers.get('x-admin-secret')
-  return auth === secret
-}
+import { verifyAdminToken } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
+  const unauth = await verifyAdminToken(request)
+  if (unauth) return unauth
 
   try {
     const { asunto, cuerpo, filtro } = await request.json()

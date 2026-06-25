@@ -28,10 +28,16 @@ function formatPrecio(n: number) {
 }
 
 const ESTADO_LABEL: Record<string, { label: string; color: string }> = {
-  approved: { label: 'Pagado', color: 'text-green-400' },
-  pending: { label: 'Pendiente', color: 'text-yellow-400' },
-  rejected: { label: 'Rechazado', color: 'text-red-400' },
-  cancelled: { label: 'Cancelado', color: 'text-gray-400' },
+  approved:   { label: 'Pagado',     color: 'text-green-400'  },
+  pending:    { label: 'Pendiente',  color: 'text-yellow-400' },
+  rejected:   { label: 'Rechazado', color: 'text-red-400'    },
+  cancelled:  { label: 'Cancelado', color: 'text-gray-400'   },
+  refunded:   { label: 'Reembolsado', color: 'text-blue-400' },
+  dispatched: { label: 'Despachado', color: 'text-brand-purple' },
+}
+
+function validarDNI(dni: string): boolean {
+  return /^\d{7,8}$/.test(dni.replace(/\./g, '').trim())
 }
 
 export default function CuentaPage() {
@@ -91,13 +97,21 @@ export default function CuentaPage() {
   async function handleGuardarPerfil(e: React.FormEvent) {
     e.preventDefault()
     if (!user) return
+
+    // Validar DNI si se ingresó
+    const dniLimpio = formPerfil.dni.trim()
+    if (dniLimpio && !validarDNI(dniLimpio)) {
+      alert('El DNI debe tener 7 u 8 dígitos numéricos.')
+      return
+    }
+
     setGuardando(true)
 
     await supabase.from('perfiles').upsert({
       user_id: user.id,
       nombre: formPerfil.nombre.trim(),
       telefono: formPerfil.telefono.trim() || null,
-      dni: formPerfil.dni.trim() || null,
+      dni: dniLimpio || null,
     })
 
     setPerfil(p => p ? {
