@@ -70,6 +70,10 @@ export default function CuentaPage() {
             telefono: data.telefono || '',
             dni: data.dni || '',
           })
+          // Redirigir a completar perfil si faltan datos obligatorios
+          if (!data.telefono || !data.dni) {
+            router.replace('/cuenta/completar-perfil')
+          }
         }
       })
 

@@ -58,6 +58,18 @@ export async function GET(request: NextRequest) {
         .from('perfiles')
         .upsert({ user_id: data.user.id, nombre }, { onConflict: 'user_id', ignoreDuplicates: true })
 
+      // Verificar si faltan datos obligatorios (teléfono y DNI)
+      const { data: perfil } = await admin
+        .from('perfiles')
+        .select('telefono, dni')
+        .eq('user_id', data.user.id)
+        .single()
+
+      const faltanDatos = !perfil?.telefono || !perfil?.dni
+      if (faltanDatos) {
+        return NextResponse.redirect(`${origin}/cuenta/completar-perfil?next=${next}`)
+      }
+
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
