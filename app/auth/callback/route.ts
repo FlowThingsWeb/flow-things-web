@@ -23,6 +23,10 @@ export async function GET(request: NextRequest) {
   if (code) {
     const cookieStore = await cookies()
 
+    // Colectamos las cookies que Supabase quiere setear para aplicarlas
+    // directamente sobre el NextResponse (no via cookieStore, que no se propaga).
+    const pendingCookies: { name: string; value: string; options?: Record<string, unknown> }[] = []
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -32,13 +36,8 @@ export async function GET(request: NextRequest) {
             return cookieStore.getAll()
           },
           setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options as Parameters<typeof cookieStore.set>[2])
-              )
-            } catch {
-              // En Server Components no se puede mutar cookies — ignorar
-            }
+            // Solo colectamos — las seteamos en el response final
+            pendingCookies.push(...cookiesToSet)
           },
         },
       }
@@ -71,16 +70,22 @@ export async function GET(request: NextRequest) {
 
       const perfilCompleto = !!(perfil?.telefono && perfil?.dni)
 
-      if (!perfilCompleto) {
-        // Redirigir a completar perfil (sin cookie ft_pc — el middleware bloqueará todo lo demás)
-        return NextResponse.redirect(
-          `${origin}/cuenta/completar-perfil?next=${encodeURIComponent(next)}`
-        )
+      const redirectUrl = perfilCompleto
+        ? `${origin}${next}`
+        : `${origin}/cuenta/completar-perfil?next=${encodeURIComponent(next)}`
+
+      const res = NextResponse.redirect(redirectUrl)
+
+      // Aplicar cookies de sesión de Supabase directamente en el response
+      pendingCookies.forEach(({ name, value, options }) => {
+        res.cookies.set(name, value, options as Parameters<typeof res.cookies.set>[2])
+      })
+
+      // Si el perfil ya está completo, marcar ft_pc
+      if (perfilCompleto) {
+        res.cookies.set(PC_COOKIE, '1', PC_OPTS)
       }
 
-      // Perfil completo: setear cookie ft_pc en la respuesta de redirect
-      const res = NextResponse.redirect(`${origin}${next}`)
-      res.cookies.set(PC_COOKIE, '1', PC_OPTS)
       return res
     }
   }
