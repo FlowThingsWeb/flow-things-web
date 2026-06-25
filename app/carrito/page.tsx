@@ -230,7 +230,7 @@ function CarritoContent() {
       const res = await fetch('/api/descuentos/validar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codigo: codigoInput.trim(), subtotal }),
+        body: JSON.stringify({ codigo: codigoInput.trim(), subtotal, user_id: user?.id ?? null }),
       })
       const data = await res.json()
 

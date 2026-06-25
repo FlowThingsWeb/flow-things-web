@@ -11,6 +11,7 @@ interface CodigoDescuento {
   activo: boolean
   usos_maximos: number | null
   usos_actuales: number
+  un_uso_por_usuario: boolean
   fecha_vencimiento: string | null
   created_at: string
 }
@@ -26,6 +27,7 @@ const formInicial = {
   tipo: 'porcentaje' as 'porcentaje' | 'monto_fijo',
   valor: '',
   usos_maximos: '',
+  un_uso_por_usuario: false,
   fecha_vencimiento: '',
 }
 
@@ -61,6 +63,7 @@ export default function DescuentosPage() {
         tipo: form.tipo,
         valor: parseFloat(form.valor),
         usos_maximos: form.usos_maximos ? parseInt(form.usos_maximos) : null,
+        un_uso_por_usuario: form.un_uso_por_usuario,
         fecha_vencimiento: form.fecha_vencimiento || null,
       }),
     })
@@ -193,6 +196,24 @@ export default function DescuentosPage() {
             </div>
           </div>
 
+          {/* 1 uso por usuario */}
+          <label className="flex items-center gap-3 cursor-pointer group w-fit">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={form.un_uso_por_usuario}
+                onChange={e => setForm({ ...form, un_uso_por_usuario: e.target.checked })}
+                className="sr-only"
+              />
+              <div className={`w-10 h-5 rounded-full transition-colors ${form.un_uso_por_usuario ? 'bg-brand-purple' : 'bg-brand-border'}`} />
+              <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.un_uso_por_usuario ? 'translate-x-5' : ''}`} />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-brand-text">1 uso por usuario</span>
+              <p className="text-xs text-brand-text-muted">Cada usuario solo puede usar este código una vez. Requiere iniciar sesión.</p>
+            </div>
+          </label>
+
           {error && (
             <div className="bg-red-900/30 border border-red-500/50 text-red-300 rounded-xl px-4 py-3 text-sm">
               {error}
@@ -246,6 +267,7 @@ export default function DescuentosPage() {
                   <th className="text-left px-5 py-3 text-brand-text-muted font-medium">Tipo</th>
                   <th className="text-left px-5 py-3 text-brand-text-muted font-medium">Valor</th>
                   <th className="text-left px-5 py-3 text-brand-text-muted font-medium">Usos</th>
+                  <th className="text-left px-5 py-3 text-brand-text-muted font-medium">Restricción</th>
                   <th className="text-left px-5 py-3 text-brand-text-muted font-medium">Vence</th>
                   <th className="text-left px-5 py-3 text-brand-text-muted font-medium">Estado</th>
                   <th className="px-5 py-3" />
@@ -278,6 +300,15 @@ export default function DescuentosPage() {
                         {c.usos_actuales}
                         {c.usos_maximos !== null && ` / ${c.usos_maximos}`}
                         {agotado && <span className="ml-1 text-red-400 text-xs">agotado</span>}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {c.un_uso_por_usuario ? (
+                          <span className="text-xs bg-brand-purple/20 text-brand-purple border border-brand-purple/30 px-2 py-0.5 rounded-full">
+                            1 por usuario
+                          </span>
+                        ) : (
+                          <span className="text-xs text-brand-text-muted">—</span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-brand-text-muted">
                         <span className={vencido ? 'text-red-400' : ''}>

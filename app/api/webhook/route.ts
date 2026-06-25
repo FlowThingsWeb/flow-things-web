@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         if (orden.codigo_descuento && orden.codigo_descuento !== '__PRIMER_COMPRA__') {
           const { data: codigoRow } = await supabaseAdmin
             .from('codigos_descuento')
-            .select('usos_actuales')
+            .select('id, usos_actuales, un_uso_por_usuario')
             .eq('codigo', orden.codigo_descuento)
             .single()
           if (codigoRow) {
@@ -144,6 +144,13 @@ export async function POST(request: NextRequest) {
               .update({ usos_actuales: (codigoRow.usos_actuales ?? 0) + 1 })
               .eq('codigo', orden.codigo_descuento)
             if (errCodigo) console.error('[webhook] Error incrementando uso de código:', errCodigo.message)
+
+            // Registrar uso por usuario si aplica
+            if (codigoRow.un_uso_por_usuario && orden.user_id) {
+              await supabaseAdmin
+                .from('descuentos_usos_usuario')
+                .upsert({ codigo_id: codigoRow.id, user_id: orden.user_id }, { onConflict: 'codigo_id,user_id' })
+            }
           }
         }
 
