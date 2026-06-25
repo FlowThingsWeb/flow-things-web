@@ -65,10 +65,17 @@ export async function GET(request: NextRequest) {
         .eq('user_id', data.user.id)
         .single()
 
-      const faltanDatos = !perfil?.telefono || !perfil?.dni
-      if (faltanDatos) {
-        return NextResponse.redirect(`${origin}/cuenta/completar-perfil?next=${next}`)
+      const perfilCompleto = !!(perfil?.telefono && perfil?.dni)
+
+      if (!perfilCompleto) {
+        // Redirigir a completar perfil — el flag se setea al guardar
+        return NextResponse.redirect(`${origin}/cuenta/completar-perfil?next=${encodeURIComponent(next)}`)
       }
+
+      // Perfil completo: marcar flag en user_metadata para que middleware lo detecte sin DB call
+      await admin.auth.admin.updateUserById(data.user.id, {
+        user_metadata: { profile_complete: true },
+      })
 
       return NextResponse.redirect(`${origin}${next}`)
     }
