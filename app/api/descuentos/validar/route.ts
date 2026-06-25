@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function POST(request: NextRequest) {
   try {
-    const { codigo, subtotal } = await request.json()
+    const { codigo, subtotal, user_id } = await request.json()
 
     if (!codigo || typeof codigo !== 'string') {
       return NextResponse.json({ valido: false, mensaje: 'Código inválido' }, { status: 400 })
@@ -37,6 +37,29 @@ export async function POST(request: NextRequest) {
         valido: false,
         mensaje: 'Este código ya alcanzó su límite de usos.',
       })
+    }
+
+    // Verificar 1 uso por usuario
+    if (data.un_uso_por_usuario) {
+      if (!user_id) {
+        return NextResponse.json({
+          valido: false,
+          mensaje: 'Tenés que iniciar sesión para usar este código.',
+        })
+      }
+      const { data: usoExistente } = await supabaseAdmin
+        .from('descuentos_usos_usuario')
+        .select('id')
+        .eq('codigo_id', data.id)
+        .eq('user_id', user_id)
+        .maybeSingle()
+
+      if (usoExistente) {
+        return NextResponse.json({
+          valido: false,
+          mensaje: 'Ya usaste este código anteriormente.',
+        })
+      }
     }
 
     // Verificar vencimiento

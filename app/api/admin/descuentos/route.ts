@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { codigo, descripcion, tipo, valor, usos_maximos, fecha_vencimiento } = body
+    const { codigo, descripcion, tipo, valor, usos_maximos, un_uso_por_usuario, fecha_vencimiento } = body
 
     if (!codigo || !tipo || !valor) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
         tipo,
         valor: parseFloat(valor),
         usos_maximos: usos_maximos ? parseInt(usos_maximos) : null,
+        un_uso_por_usuario: !!un_uso_por_usuario,
         fecha_vencimiento: fecha_vencimiento || null,
         activo: true,
       }])
