@@ -141,8 +141,6 @@ export default function RegistroPage() {
     }
 
     if (data.session) {
-      // Setear cookie ft_pc=1 (registro con email siempre tiene todos los datos)
-      await fetch('/api/auth/profile-ok', { method: 'POST' })
       router.push('/cuenta')
       router.refresh()
     } else {
