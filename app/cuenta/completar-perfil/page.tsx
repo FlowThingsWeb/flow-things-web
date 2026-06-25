@@ -11,7 +11,7 @@ function validarDNI(valor: string): boolean {
 }
 
 function CompletarPerfilForm() {
-  const { user, loading, markPerfilCompleto } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = searchParams.get('next') || '/cuenta'
@@ -94,9 +94,6 @@ function CompletarPerfilForm() {
       setGuardando(false)
       return
     }
-
-    // Marcar perfil como completo en el contexto (evita redirect loop del ProfileGuard)
-    markPerfilCompleto()
 
     router.push(next)
   }
