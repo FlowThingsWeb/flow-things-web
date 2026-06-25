@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+const PC_COOKIE = 'ft_pc'
+const PC_OPTS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: 60 * 60 * 24 * 365,
+}
+
 /**
  * Callback de OAuth (Google, Apple, etc.)
  * Supabase redirige aquí con un `code` que se intercambia por una sesión.
- *
- * URL a configurar en Supabase Dashboard → Authentication → URL Configuration:
- *   Site URL: https://tu-dominio.com
- *   Redirect URLs: https://tu-dominio.com/auth/callback
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -42,7 +47,6 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data.user) {
-      // Crear perfil si no existe (primer login con OAuth)
       const { createClient } = await import('@supabase/supabase-js')
       const admin = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -68,19 +72,18 @@ export async function GET(request: NextRequest) {
       const perfilCompleto = !!(perfil?.telefono && perfil?.dni)
 
       if (!perfilCompleto) {
-        // Redirigir a completar perfil — el flag se setea al guardar
-        return NextResponse.redirect(`${origin}/cuenta/completar-perfil?next=${encodeURIComponent(next)}`)
+        // Redirigir a completar perfil (sin cookie ft_pc — el middleware bloqueará todo lo demás)
+        return NextResponse.redirect(
+          `${origin}/cuenta/completar-perfil?next=${encodeURIComponent(next)}`
+        )
       }
 
-      // Perfil completo: marcar flag en user_metadata para que middleware lo detecte sin DB call
-      await admin.auth.admin.updateUserById(data.user.id, {
-        user_metadata: { profile_complete: true },
-      })
-
-      return NextResponse.redirect(`${origin}${next}`)
+      // Perfil completo: setear cookie ft_pc en la respuesta de redirect
+      const res = NextResponse.redirect(`${origin}${next}`)
+      res.cookies.set(PC_COOKIE, '1', PC_OPTS)
+      return res
     }
   }
 
-  // Error → volver al login con mensaje
   return NextResponse.redirect(`${origin}/cuenta/login?error=oauth`)
 }

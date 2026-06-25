@@ -141,8 +141,8 @@ export default function RegistroPage() {
     }
 
     if (data.session) {
-      // Marcar perfil como completo (registro con email siempre tiene todos los datos)
-      await supabase.auth.updateUser({ data: { profile_complete: true } })
+      // Setear cookie ft_pc=1 (registro con email siempre tiene todos los datos)
+      await fetch('/api/auth/profile-ok', { method: 'POST' })
       router.push('/cuenta')
       router.refresh()
     } else {
