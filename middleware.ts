@@ -4,23 +4,36 @@ import { jwtVerify } from 'jose'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Proteger todas las rutas /admin excepto /admin/login
-  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
-    const token = request.cookies.get('admin_token')?.value
+  if (pathname.startsWith('/admin')) {
+    // Detectar si hay una sesión de usuario normal activa
+    const hasUserSession = request.cookies.getAll().some(
+      c => c.name.startsWith('sb-') && c.name.includes('-auth-token')
+    )
 
-    if (!token) {
-      return NextResponse.redirect(new URL('/admin/login', request.url))
+    // Si hay sesión de usuario → bloquear admin completamente
+    // Redirigir a admin/login con flag de conflicto para mostrar aviso
+    if (hasUserSession && !pathname.startsWith('/admin/login')) {
+      return NextResponse.redirect(new URL('/admin/login?conflict=1', request.url))
     }
 
-    const secret = new TextEncoder().encode(process.env.ADMIN_SECRET ?? '')
+    // Proteger rutas admin (excepto login) con admin_token
+    if (!pathname.startsWith('/admin/login')) {
+      const token = request.cookies.get('admin_token')?.value
 
-    try {
-      await jwtVerify(token, secret)
-      return NextResponse.next()
-    } catch {
-      const response = NextResponse.redirect(new URL('/admin/login', request.url))
-      response.cookies.delete('admin_token')
-      return response
+      if (!token) {
+        return NextResponse.redirect(new URL('/admin/login', request.url))
+      }
+
+      const secret = new TextEncoder().encode(process.env.ADMIN_SECRET ?? '')
+
+      try {
+        await jwtVerify(token, secret)
+        return NextResponse.next()
+      } catch {
+        const response = NextResponse.redirect(new URL('/admin/login', request.url))
+        response.cookies.delete('admin_token')
+        return response
+      }
     }
   }
 
