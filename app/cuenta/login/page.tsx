@@ -23,6 +23,23 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState<'google' | null>(null)
   const [error, setError] = useState('')
+  const [resetSent, setResetSent] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
+
+  async function handleForgotPassword() {
+    if (!form.email.trim()) {
+      setError('Escribí tu email arriba y luego hacé clic en "Olvidé mi contraseña".')
+      return
+    }
+    setResetLoading(true)
+    setError('')
+    await supabase.auth.resetPasswordForEmail(form.email.trim(), {
+      redirectTo: `${window.location.origin}/cuenta/reset-password`,
+    })
+    // Siempre mostrar éxito para no revelar si el email existe
+    setResetSent(true)
+    setResetLoading(false)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,7 +52,16 @@ export default function LoginPage() {
     })
 
     if (error) {
-      setError('Email o contraseña incorrectos.')
+      const msg = error.message.toLowerCase()
+      if (msg.includes('email not confirmed')) {
+        setError('Confirmá tu email antes de ingresar. Revisá tu bandeja de entrada.')
+      } else if (msg.includes('invalid login') || msg.includes('invalid credentials') || msg.includes('wrong password')) {
+        setError('Email o contraseña incorrectos.')
+      } else if (msg.includes('too many requests')) {
+        setError('Demasiados intentos. Esperá unos minutos antes de volver a intentar.')
+      } else {
+        setError('No se pudo iniciar sesión. Intentá de nuevo.')
+      }
       setLoading(false)
       return
     }
@@ -135,12 +161,27 @@ export default function LoginPage() {
               <p className="text-red-400 text-sm text-center">{error}</p>
             )}
 
+            {resetSent && (
+              <p className="text-green-400 text-sm text-center bg-green-900/20 border border-green-500/30 rounded-xl px-3 py-2">
+                📧 Si ese email existe, te enviamos el link para restablecer tu contraseña.
+              </p>
+            )}
+
             <button
               type="submit"
               disabled={loading || !!oauthLoading}
               className="w-full bg-brand-purple hover:bg-brand-purple-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors"
             >
               {loading ? 'Ingresando...' : 'Iniciar sesión'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={resetLoading || loading}
+              className="w-full text-brand-text-muted hover:text-brand-text text-sm transition-colors disabled:opacity-50"
+            >
+              {resetLoading ? 'Enviando...' : '¿Olvidaste tu contraseña?'}
             </button>
           </form>
 

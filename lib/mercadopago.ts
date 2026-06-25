@@ -22,7 +22,9 @@ export async function crearPreferencia({
   ordenId,
   totalConDescuento,
 }: CreatePreferenceParams) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL!
+  // Garantizar que la URL tenga esquema https:// (requerido por MercadoPago)
+  const rawUrl = process.env.NEXT_PUBLIC_APP_URL!
+  const baseUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
 
   // Si hay descuento, colapsar a un único ítem para evitar precios negativos
   const mpItems = totalConDescuento != null

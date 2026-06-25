@@ -21,7 +21,14 @@ const paymentClient = new Payment(client)
  */
 function verifyMPSignature(request: NextRequest, paymentId: string | number): boolean {
   const secret = process.env.MP_WEBHOOK_SECRET
-  if (!secret) return true // omitir en desarrollo si no está configurado
+  if (!secret) {
+    // En producción la firma es obligatoria. En desarrollo local se puede omitir.
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[webhook] MP_WEBHOOK_SECRET no configurado en producción — rechazando request')
+      return false
+    }
+    return true
+  }
 
   const xSignature = request.headers.get('x-signature') || ''
   const xRequestId = request.headers.get('x-request-id') || ''
@@ -124,26 +131,38 @@ export async function POST(request: NextRequest) {
 
       if (orden?.items) {
         for (const item of orden.items) {
-          await supabaseAdmin.rpc('decrementar_stock', {
+          const { error: stockErr } = await supabaseAdmin.rpc('decrementar_stock', {
             p_producto_id: item.id,
             p_cantidad: item.cantidad,
           })
+          if (stockErr) {
+            console.error(`[webhook] Error decrementando stock para producto ${item.id}:`, stockErr.message)
+          }
         }
 
         // Incrementar uso del código de descuento (se hace aquí, no en checkout,
         // para no quemar el código si el usuario abandona el pago)
         if (orden.codigo_descuento && orden.codigo_descuento !== '__PRIMER_COMPRA__') {
-          const { data: codigoRow } = await supabaseAdmin
-            .from('codigos_descuento')
-            .select('id, usos_actuales, un_uso_por_usuario')
-            .eq('codigo', orden.codigo_descuento)
+          // Incremento atómico via RPC para evitar race conditions
+          const { data: codigoRow, error: errCodigo } = await supabaseAdmin
+            .rpc('incrementar_uso_codigo', { p_codigo: orden.codigo_descuento })
+            .select('id, un_uso_por_usuario')
             .single()
-          if (codigoRow) {
-            const { error: errCodigo } = await supabaseAdmin
+          if (errCodigo) {
+            // Fallback: incremento no atómico si la RPC no existe aún
+            const { data: fallbackRow } = await supabaseAdmin
               .from('codigos_descuento')
-              .update({ usos_actuales: (codigoRow.usos_actuales ?? 0) + 1 })
+              .select('id, usos_actuales, un_uso_por_usuario')
               .eq('codigo', orden.codigo_descuento)
-            if (errCodigo) console.error('[webhook] Error incrementando uso de código:', errCodigo.message)
+              .single()
+            if (fallbackRow) {
+              await supabaseAdmin
+                .from('codigos_descuento')
+                .update({ usos_actuales: (fallbackRow.usos_actuales ?? 0) + 1 })
+                .eq('codigo', orden.codigo_descuento)
+            }
+          }
+          if (codigoRow) {
 
             // Registrar uso por usuario si aplica
             if (codigoRow.un_uso_por_usuario && orden.user_id) {
