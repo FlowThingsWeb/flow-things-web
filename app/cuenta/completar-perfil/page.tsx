@@ -4,10 +4,45 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
+import PhoneInput from '@/components/PhoneInput'
 
 function validarDNI(valor: string): boolean {
   const limpio = valor.replace(/\./g, '').trim()
   return /^\d{7,8}$/.test(limpio)
+}
+
+function validarFecha(fecha: string): string | null {
+  if (!fecha) return null
+  const d = new Date(fecha)
+  if (isNaN(d.getTime())) return 'Fecha inválida.'
+  if (d > new Date()) return 'La fecha de nacimiento no puede ser en el futuro.'
+  const hace120 = new Date()
+  hace120.setFullYear(hace120.getFullYear() - 120)
+  if (d < hace120) return 'Ingresá una fecha válida.'
+  return null
+}
+
+function CumpleTooltip() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative inline-flex items-center">
+      <button
+        type="button"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onClick={() => setOpen(v => !v)}
+        className="w-4 h-4 rounded-full bg-brand-border text-brand-text-muted text-[10px] font-bold flex items-center justify-center hover:bg-brand-purple hover:text-white transition-colors"
+        aria-label="¿Para qué usamos tu fecha de nacimiento?"
+      >
+        ?
+      </button>
+      {open && (
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-64 bg-brand-bg-card border border-brand-border text-brand-text-muted text-xs rounded-xl px-3 py-2.5 shadow-lg leading-relaxed">
+          🎂 ¡Te mandamos promociones especiales durante tu mes de cumpleaños!
+        </div>
+      )}
+    </div>
+  )
 }
 
 function CompletarPerfilForm() {
@@ -33,14 +68,12 @@ function CompletarPerfilForm() {
 
   useEffect(() => {
     if (!user) return
-    // Pre-cargar nombre desde metadata de Google
     const nombreGoogle =
       user.user_metadata?.full_name ||
       user.user_metadata?.name ||
       ''
     setForm(f => ({ ...f, nombre: nombreGoogle }))
 
-    // Cargar perfil existente por si tiene algún dato parcial
     supabase
       .from('perfiles')
       .select('nombre, telefono, dni, fecha_nacimiento')
@@ -62,21 +95,18 @@ function CompletarPerfilForm() {
     e.preventDefault()
     setError('')
 
-    if (!form.nombre.trim()) {
-      setError('El nombre es obligatorio.')
-      return
-    }
-    if (!form.telefono.trim()) {
-      setError('El teléfono es obligatorio.')
-      return
-    }
-    if (!form.dni.trim()) {
-      setError('El DNI es obligatorio.')
-      return
-    }
-    if (!validarDNI(form.dni)) {
-      setError('El DNI debe tener 7 u 8 dígitos numéricos.')
-      return
+    if (!form.nombre.trim()) { setError('El nombre es obligatorio.'); return }
+
+    // Validar que teléfono tenga al menos área + número
+    const telPartes = form.telefono.trim().split(' ').filter(Boolean)
+    if (telPartes.length < 3) { setError('Ingresá el código de área y el número de teléfono.'); return }
+
+    if (!form.dni.trim()) { setError('El DNI es obligatorio.'); return }
+    if (!validarDNI(form.dni)) { setError('El DNI debe tener 7 u 8 dígitos numéricos.'); return }
+
+    if (form.fecha_nacimiento) {
+      const err = validarFecha(form.fecha_nacimiento)
+      if (err) { setError(err); return }
     }
 
     setGuardando(true)
@@ -121,6 +151,7 @@ function CompletarPerfilForm() {
 
         <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {/* Nombre */}
             <div>
               <label className="block text-xs text-brand-text-muted mb-1">
                 Nombre completo <span className="text-red-400">*</span>
@@ -136,20 +167,22 @@ function CompletarPerfilForm() {
               />
             </div>
 
+            {/* Teléfono dividido */}
             <div>
               <label className="block text-xs text-brand-text-muted mb-1">
                 Teléfono <span className="text-red-400">*</span>
               </label>
-              <input
-                type="tel"
-                className="input-dark"
-                placeholder="+54 9 11 1234-5678"
+              <PhoneInput
                 value={form.telefono}
-                onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))}
+                onChange={v => setForm(f => ({ ...f, telefono: v }))}
                 required
               />
+              <p className="text-[11px] text-brand-text-muted mt-1">
+                Código de área sin el 0 (ej: 11 para CABA) · Número sin el 15
+              </p>
             </div>
 
+            {/* DNI */}
             <div>
               <label className="block text-xs text-brand-text-muted mb-1 flex items-center gap-1">
                 DNI <span className="text-red-400">*</span>
@@ -172,13 +205,18 @@ function CompletarPerfilForm() {
               />
             </div>
 
+            {/* Fecha de nacimiento */}
             <div>
-              <label className="block text-xs text-brand-text-muted mb-1">
-                Fecha de nacimiento <span className="text-brand-text-muted">(opcional)</span>
-              </label>
+              <div className="flex items-center gap-1.5 mb-1">
+                <label className="text-xs text-brand-text-muted">
+                  Fecha de nacimiento <span className="text-brand-text-muted">(opcional)</span>
+                </label>
+                <CumpleTooltip />
+              </div>
               <input
                 type="date"
                 className="input-dark"
+                max={new Date().toISOString().split('T')[0]}
                 value={form.fecha_nacimiento}
                 onChange={e => setForm(f => ({ ...f, fecha_nacimiento: e.target.value }))}
               />

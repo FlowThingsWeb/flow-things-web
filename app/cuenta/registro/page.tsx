@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import PhoneInput from '@/components/PhoneInput'
 
 function CumpleTooltip() {
   const [open, setOpen] = useState(false)
@@ -96,6 +97,14 @@ export default function RegistroPage() {
     if (form.dni && !validarDNI(form.dni)) {
       setError('El DNI debe tener 7 u 8 dígitos numéricos, sin puntos.')
       return
+    }
+
+    if (form.fecha_nacimiento) {
+      const d = new Date(form.fecha_nacimiento)
+      if (isNaN(d.getTime()) || d > new Date()) {
+        setError('La fecha de nacimiento no puede ser en el futuro.')
+        return
+      }
     }
 
     setLoading(true)
@@ -248,18 +257,17 @@ export default function RegistroPage() {
             </div>
 
             <div>
-              <label htmlFor="telefono" className="block text-sm font-medium text-brand-text-muted mb-1.5">
+              <label className="block text-sm font-medium text-brand-text-muted mb-1.5">
                 Teléfono *
               </label>
-              <input
-                id="telefono"
-                type="tel"
-                required
-                className="input-dark"
-                placeholder="+54 9 11 1234-5678"
+              <PhoneInput
                 value={form.telefono}
-                onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))}
+                onChange={v => setForm(f => ({ ...f, telefono: v }))}
+                required
               />
+              <p className="text-[11px] text-brand-text-muted mt-1">
+                Código de área sin el 0 (ej: 11 para CABA) · Número sin el 15
+              </p>
             </div>
 
             <div>
@@ -290,6 +298,7 @@ export default function RegistroPage() {
                 id="fecha_nacimiento"
                 type="date"
                 className="input-dark"
+                max={new Date().toISOString().split('T')[0]}
                 value={form.fecha_nacimiento}
                 onChange={e => setForm(f => ({ ...f, fecha_nacimiento: e.target.value }))}
               />
