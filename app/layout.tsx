@@ -8,6 +8,7 @@ import { getConfig } from '@/lib/config'
 import { AuthProvider } from '@/lib/auth-context'
 import CartSync from '@/components/CartSync'
 import RegistrationBanner from '@/components/RegistrationBanner'
+import ProfileGuard from '@/components/ProfileGuard'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,6 +80,7 @@ export default async function RootLayout({
       </head>
       <body>
         <AuthProvider>
+          <ProfileGuard />
           <CartSync />
           <RegistrationBanner />
           <AnnouncementBar
