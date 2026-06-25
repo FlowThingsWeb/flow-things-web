@@ -95,9 +95,8 @@ function CompletarPerfilForm() {
       return
     }
 
-    // Marcar perfil como completo en los metadatos del usuario
-    // Esto permite que el middleware lo detecte sin hacer consultas a la DB
-    await supabase.auth.updateUser({ data: { profile_complete: true } })
+    // Setear cookie ft_pc=1 via API route (httpOnly, server-side)
+    await fetch('/api/auth/profile-ok', { method: 'POST' })
 
     router.push(next)
   }

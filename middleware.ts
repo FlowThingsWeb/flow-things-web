@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
-import { createServerClient } from '@supabase/ssr'
 
-// Rutas que NO requieren perfil completo (se pueden visitar sin datos)
+// Rutas que no requieren perfil completo
 const BYPASS_PREFIXES = [
   '/cuenta/completar-perfil',
   '/cuenta/login',
@@ -16,7 +15,6 @@ const BYPASS_PREFIXES = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  let response = NextResponse.next()
 
   // ── Admin protection ──────────────────────────────────────────────────────
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
@@ -32,52 +30,30 @@ export async function middleware(request: NextRequest) {
       res.cookies.delete('admin_token')
       return res
     }
-    return response
+    return NextResponse.next()
   }
 
-  // ── Perfil completo obligatorio para usuarios logueados ───────────────────
-  // Saltear rutas de bypass (auth, api, archivos estáticos, etc.)
+  // ── Perfil completo obligatorio ───────────────────────────────────────────
   const isBypass = BYPASS_PREFIXES.some(p => pathname.startsWith(p))
-  if (isBypass) return response
+  if (isBypass) return NextResponse.next()
 
-  // Leer sesión desde cookie (sin network call — lee el JWT local)
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          response = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2])
-          )
-        },
-      },
-    }
+  // Detectar si el usuario está logueado: Supabase guarda cookies con nombre
+  // "sb-<project-ref>-auth-token" (puede estar chunked: .0, .1, …)
+  const isLoggedIn = request.cookies.getAll().some(
+    c => c.name.startsWith('sb-') && c.name.includes('-auth-token')
   )
 
-  // getSession() lee el JWT de la cookie sin verificar contra el servidor —
-  // es rápido y suficiente para este chequeo de UI.
-  const { data: { session } } = await supabase.auth.getSession()
-  const user = session?.user
-
-  if (user && user.user_metadata?.profile_complete !== true) {
+  // Si está logueado pero no tiene la cookie ft_pc=1, redirigir a completar perfil
+  if (isLoggedIn && request.cookies.get('ft_pc')?.value !== '1') {
     const dest = new URL('/cuenta/completar-perfil', request.url)
     dest.searchParams.set('next', pathname)
     return NextResponse.redirect(dest)
   }
 
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
-  // Aplica a todas las rutas excepto archivos estáticos
   matcher: [
     '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
