@@ -25,6 +25,9 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [resetSent, setResetSent] = useState(false)
   const [resetLoading, setResetLoading] = useState(false)
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMsg, setResendMsg] = useState('')
 
   async function handleForgotPassword() {
     if (!form.email.trim()) {
@@ -54,7 +57,8 @@ export default function LoginPage() {
     if (error) {
       const msg = error.message.toLowerCase()
       if (msg.includes('email not confirmed')) {
-        setError('Confirmá tu email antes de ingresar. Revisá tu bandeja de entrada.')
+        setError('Confirmá tu email antes de ingresar.')
+        setEmailNotConfirmed(true)
       } else if (msg.includes('invalid login') || msg.includes('invalid credentials') || msg.includes('wrong password')) {
         setError('Email o contraseña incorrectos.')
       } else if (msg.includes('too many requests')) {
@@ -68,6 +72,23 @@ export default function LoginPage() {
 
     router.push('/cuenta')
     router.refresh()
+  }
+
+  async function handleResend() {
+    if (!form.email.trim()) return
+    setResendLoading(true)
+    setResendMsg('')
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: form.email.trim(),
+    })
+    setResendLoading(false)
+    if (error) {
+      setResendMsg('No se pudo reenviar. Intentá de nuevo en unos minutos.')
+    } else {
+      setResendMsg('✓ Email reenviado. Revisá tu bandeja de entrada.')
+      setEmailNotConfirmed(false)
+    }
   }
 
   async function handleGoogle() {
@@ -158,7 +179,26 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="text-red-400 text-sm text-center">{error}</p>
+              <div className="text-center">
+                <p className="text-red-400 text-sm">{error}</p>
+                {emailNotConfirmed && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={resendLoading}
+                      className="text-brand-purple hover:text-brand-purple-light text-xs underline underline-offset-2 disabled:opacity-50"
+                    >
+                      {resendLoading ? 'Reenviando...' : 'Reenviar email de confirmación'}
+                    </button>
+                    {resendMsg && (
+                      <p className={`text-xs mt-1 ${resendMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>
+                        {resendMsg}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
 
             {resetSent && (
