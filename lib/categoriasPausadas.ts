@@ -3,7 +3,6 @@
 // Para reactivar una categoría, simplemente eliminala de este array.
 
 export const CATEGORIAS_PAUSADAS = [
-  'libreria',
   'utiles-escolares',
   'juegos-de-mesa',
 ]
