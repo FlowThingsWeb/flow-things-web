@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { verifyAdminToken } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
@@ -35,6 +36,7 @@ export async function PUT(req: NextRequest) {
       .upsert(rows, { onConflict: 'clave' })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    revalidateTag('site-config')
     return NextResponse.json({ ok: true })
   }
 
@@ -47,6 +49,7 @@ export async function PUT(req: NextRequest) {
     .upsert({ clave, valor }, { onConflict: 'clave' })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidateTag('site-config')
   return NextResponse.json({ ok: true })
 }
 
@@ -81,5 +84,6 @@ export async function POST(req: NextRequest) {
     .upsert({ clave, valor: publicUrl }, { onConflict: 'clave' })
 
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 })
+  revalidateTag('site-config')
   return NextResponse.json({ ok: true, url: publicUrl })
 }

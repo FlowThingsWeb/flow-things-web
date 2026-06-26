@@ -2,6 +2,32 @@
 
 import { useState } from 'react'
 
+/**
+ * Sanitizador HTML mínimo sin dependencias externas.
+ * Elimina <script>, <iframe>, <object> y atributos on* (onclick, onerror...).
+ * Solo se ejecuta en el cliente (DOMParser no existe en SSR).
+ */
+function sanitizeHtml(raw: string): string {
+  if (typeof window === 'undefined') return raw
+  try {
+    const doc = new DOMParser().parseFromString(raw, 'text/html')
+    // Eliminar nodos peligrosos
+    doc.querySelectorAll('script, iframe, object, embed, form').forEach(el => el.remove())
+    // Eliminar atributos on*
+    doc.body.querySelectorAll('*').forEach(el => {
+      Array.from(el.attributes).forEach(attr => {
+        if (attr.name.startsWith('on')) el.removeAttribute(attr.name)
+        if (attr.name === 'href' && (attr.value.startsWith('javascript:') || attr.value.startsWith('data:'))) {
+          el.removeAttribute(attr.name)
+        }
+      })
+    })
+    return doc.body.innerHTML
+  } catch {
+    return ''
+  }
+}
+
 interface EditableTextProps {
   configKey: string
   value: string
@@ -72,7 +98,7 @@ export default function EditableText({
         status === 'saved' ? 'ring-green-400/60' : '',
         'focus:ring-blue-500',
       ].join(' ')}
-      dangerouslySetInnerHTML={{ __html: value }}
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(value) }}
     />
   )
 }

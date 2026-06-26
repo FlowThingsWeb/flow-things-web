@@ -1,8 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+// Rate limiting: máx 20 intentos por IP cada 60 segundos
+const attempts = new Map<string, { count: number; resetAt: number }>()
+const MAX = 20
+const WINDOW = 60_000
+
+function getIp(req: NextRequest): string {
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    'unknown'
+  )
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const ip = getIp(request)
+    const now = Date.now()
+    const entry = attempts.get(ip)
+    if (!entry || now > entry.resetAt) {
+      attempts.set(ip, { count: 1, resetAt: now + WINDOW })
+    } else {
+      entry.count++
+      if (entry.count > MAX) {
+        return NextResponse.json(
+          { valido: false, mensaje: 'Demasiados intentos. Esperá un momento.' },
+          { status: 429 }
+        )
+      }
+    }
+
     const { codigo, subtotal, user_id } = await request.json()
 
     if (!codigo || typeof codigo !== 'string') {

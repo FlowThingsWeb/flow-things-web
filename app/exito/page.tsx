@@ -70,7 +70,7 @@ function ExitoContent() {
 
         {ordenId && (
           <p className="text-xs text-brand-text-light bg-brand-bg-soft rounded-lg px-4 py-2 mb-8 font-mono">
-            Orden: {ordenId}
+            Orden #{ordenId.slice(0, 8).toUpperCase()}
           </p>
         )}
 

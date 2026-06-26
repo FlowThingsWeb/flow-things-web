@@ -110,41 +110,80 @@ function parseFilas(rows: FilaExcel[]): { filas: FilaParsed[]; errores: { fila: 
   const filas: FilaParsed[] = []
   const errores: { fila: number; mensaje: string }[] = []
 
+  // Estado del último producto "cabecera" — se propaga a las filas de variantes siguientes
+  // que comparten el mismo SKU y solo completan los campos de variante.
+  let ultimoProducto: {
+    nombre: string
+    sku: string
+    descripcion: string
+    precio: number
+    stock: number
+    categoria: string
+    destacado: boolean
+  } | null = null
+
   rows.forEach((row, idx) => {
     const fila = idx + 2 // +2 por header + 1-index
 
     const nombre = String(row.nombre || '').trim()
-    const sku = String(row.sku || '').trim()
-    const precio = parseFloat(String(row.precio || '0'))
-
-    if (!nombre) { errores.push({ fila, mensaje: 'Falta el nombre' }); return }
-    if (!sku) { errores.push({ fila, mensaje: 'Falta el SKU' }); return }
-    if (isNaN(precio) || precio <= 0) { errores.push({ fila, mensaje: `Precio inválido: ${row.precio}` }); return }
+    const sku    = String(row.sku    || '').trim()
+    const precioRaw = parseFloat(String(row.precio || '0'))
+    const tieneNombre = nombre !== ''
+    const tienePrecio = !isNaN(precioRaw) && precioRaw > 0
 
     // Atributos de variante
     const atributos: Record<string, string> = {}
     for (let i = 1; i <= 3; i++) {
-      const tipo = String((row as any)[`atributo_${i}_tipo`] || '').trim()
+      const tipo  = String((row as any)[`atributo_${i}_tipo`]  || '').trim()
       const valor = String((row as any)[`atributo_${i}_valor`] || '').trim()
       if (tipo && valor) atributos[tipo] = valor
     }
+    const tieneAtributos = Object.keys(atributos).length > 0
+    const variante_sku   = String(row.variante_sku || '').trim()
 
-    const tieneVariantes = Object.keys(atributos).length > 0
-    const variante_sku = String(row.variante_sku || '').trim()
+    // ── Fila de continuación (variante del producto anterior):
+    //    mismo SKU que la cabecera, sin precio propio, solo aporta atributos y variante_sku
+    if (
+      !tienePrecio &&
+      ultimoProducto !== null &&
+      (sku === ultimoProducto.sku || (!sku && tieneAtributos))
+    ) {
+      if (tieneAtributos && !variante_sku) {
+        errores.push({ fila, mensaje: `Variante sin variante_sku (SKU: ${ultimoProducto.sku})` })
+        return
+      }
+      filas.push({
+        ...ultimoProducto,
+        atributos,
+        variante_sku: variante_sku || undefined,
+        variante_stock: parseInt(String(row.variante_stock || '0')) || 0,
+        _fila: fila,
+      })
+      return
+    }
 
-    if (tieneVariantes && !variante_sku) {
+    // ── Fila cabecera (nuevo producto)
+    if (!tieneNombre) { errores.push({ fila, mensaje: 'Falta el nombre' }); return }
+    if (!sku)         { errores.push({ fila, mensaje: 'Falta el SKU' });    return }
+    if (!tienePrecio) { errores.push({ fila, mensaje: `Precio inválido: ${row.precio}` }); return }
+
+    if (tieneAtributos && !variante_sku) {
       errores.push({ fila, mensaje: `Producto con atributos pero sin variante_sku` })
       return
     }
 
-    filas.push({
+    ultimoProducto = {
       nombre,
       sku,
       descripcion: String(row.descripcion || '').trim(),
-      precio,
+      precio: precioRaw,
       stock: parseInt(String(row.stock || '0')) || 0,
       categoria: String(row.categoria || '').trim().toLowerCase(),
       destacado: String(row.destacado || '').trim().toUpperCase() === 'SI',
+    }
+
+    filas.push({
+      ...ultimoProducto,
       atributos,
       variante_sku: variante_sku || undefined,
       variante_stock: parseInt(String(row.variante_stock || row.stock || '0')) || 0,

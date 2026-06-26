@@ -140,7 +140,13 @@ export default function CuentaPage() {
     )
   }
 
-  if (!user) return null
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-7 h-7 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   const nombre = perfil?.nombre || user.user_metadata?.nombre || user.email?.split('@')[0] || 'Usuario'
   const inicial = nombre.charAt(0).toUpperCase()

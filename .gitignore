@@ -18,6 +18,14 @@
 .DS_Store
 *.pem
 
+# Archivos sensibles que nunca deben commitearse
+client_secret_*.json
+*.key
+*.crt
+afip.key
+afip.crt
+qrcode_*.png
+
 # debug
 npm-debug.log*
 yarn-debug.log*
