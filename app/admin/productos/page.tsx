@@ -7,12 +7,25 @@ export const dynamic = 'force-dynamic'
 async function getProductos() {
   const { data, error } = await supabaseAdmin
     .from('productos')
-    .select('*, categorias(nombre)')
+    .select('*, categorias(nombre), variantes(imagen_url, imagenes, activo)')
     .order('created_at', { ascending: false })
-    .limit(500) // evitar fetch sin límite con catálogos grandes
+    .limit(500)
 
   if (error) console.error('[admin/productos] error:', error.message, error.code)
   return data || []
+}
+
+/** Primera imagen disponible: producto o primera variante activa con imagen */
+function resolverImagen(p: any): string | null {
+  if (p.imagen_url) return p.imagen_url
+  if (p.imagenes?.length) return p.imagenes[0]
+  const variantes: any[] = p.variantes || []
+  for (const v of variantes) {
+    if (!v.activo) continue
+    if (v.imagen_url) return v.imagen_url
+    if (v.imagenes?.length) return v.imagenes[0]
+  }
+  return null
 }
 
 function formatPrecio(precio: number) {
@@ -82,8 +95,8 @@ export default async function AdminProductosPage() {
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
                       <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-brand-bg flex-shrink-0">
-                        {p.imagen_url ? (
-                          <Image src={p.imagen_url} alt={p.nombre} fill className="object-cover" sizes="40px" />
+                        {resolverImagen(p) ? (
+                          <Image src={resolverImagen(p)!} alt={p.nombre} fill className="object-cover" sizes="40px" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-lg">📦</div>
                         )}
