@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -65,6 +65,9 @@ export default function RegistroPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const registeredEmail = useRef('')
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMsg, setResendMsg] = useState('')
 
   async function handleGoogle() {
     setOauthLoading('google')
@@ -153,24 +156,93 @@ export default function RegistroPage() {
       router.push('/cuenta')
       router.refresh()
     } else {
+      registeredEmail.current = form.email.trim()
       setSuccess(true)
     }
 
     setLoading(false)
   }
 
+  async function handleResend() {
+    if (!registeredEmail.current) return
+    setResendLoading(true)
+    setResendMsg('')
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: registeredEmail.current,
+    })
+    setResendLoading(false)
+    if (error) {
+      setResendMsg('No se pudo reenviar el email. Intentá de nuevo en unos minutos.')
+    } else {
+      setResendMsg('✓ Email reenviado. Revisá tu bandeja de entrada.')
+    }
+  }
+
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="w-full max-w-sm text-center">
-          <span className="text-5xl block mb-4">📧</span>
-          <h2 className="text-xl font-bold text-brand-text mb-2">¡Casi listo!</h2>
-          <p className="text-brand-text-muted text-sm mb-6">
-            Te enviamos un email para confirmar tu cuenta. Revisá tu bandeja de entrada.
-          </p>
-          <Link href="/cuenta/login" className="text-brand-purple hover:underline text-sm">
-            Volver al inicio de sesión
-          </Link>
+        <div className="w-full max-w-sm">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <Link href="/" className="text-2xl font-bold text-white">
+              Flow <span className="text-brand-purple">Things</span>
+            </Link>
+          </div>
+
+          <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-8 text-center">
+            {/* Ícono animado */}
+            <div className="w-16 h-16 rounded-full bg-brand-purple/15 border border-brand-purple/30 flex items-center justify-center mx-auto mb-5">
+              <span className="text-3xl">📧</span>
+            </div>
+
+            <h2 className="text-xl font-bold text-brand-text mb-2">¡Revisá tu email!</h2>
+            <p className="text-brand-text-muted text-sm mb-1">
+              Te enviamos un link de confirmación a:
+            </p>
+            <p className="text-brand-neon font-mono text-sm font-semibold mb-6 truncate">
+              {registeredEmail.current}
+            </p>
+
+            {/* Pasos */}
+            <div className="bg-brand-bg-soft border border-brand-border rounded-xl px-5 py-4 text-left mb-6 flex flex-col gap-3">
+              {[
+                ['1', 'Abrí tu email', 'Buscá un mensaje de Flow Things.'],
+                ['2', 'Hacé clic en "Confirmar cuenta"', 'Vas a quedar logueado automáticamente.'],
+                ['3', 'Si no llega en 5 min', 'Revisá la carpeta de spam o correo no deseado.'],
+              ].map(([num, title, desc]) => (
+                <div key={num} className="flex gap-3">
+                  <span className="w-5 h-5 rounded-full bg-brand-purple/20 text-brand-purple text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                    {num}
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold text-brand-text">{title}</p>
+                    <p className="text-xs text-brand-text-muted">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Botón reenviar */}
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resendLoading}
+              className="w-full border border-brand-border hover:border-brand-purple text-brand-text-muted hover:text-brand-text text-sm py-2.5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+            >
+              {resendLoading ? 'Reenviando...' : 'Reenviar email de confirmación'}
+            </button>
+
+            {resendMsg && (
+              <p className={`text-xs mb-3 ${resendMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>
+                {resendMsg}
+              </p>
+            )}
+
+            <Link href="/cuenta/login" className="text-brand-text-muted hover:text-brand-purple text-sm transition-colors">
+              ← Volver al inicio de sesión
+            </Link>
+          </div>
         </div>
       </div>
     )
