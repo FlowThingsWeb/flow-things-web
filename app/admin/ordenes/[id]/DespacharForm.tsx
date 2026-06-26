@@ -42,6 +42,13 @@ export default function DespacharForm({
 
   const handleSubmit = async () => {
     if (!courier || !trackingNum) return
+
+    // Validar que tracking_url sea una URL real (https:// o vacío)
+    if (trackingUrl && !/^https?:\/\//.test(trackingUrl)) {
+      setMsg('❌ La URL de tracking debe empezar con https://')
+      return
+    }
+
     setSending(true)
     setMsg('')
     try {

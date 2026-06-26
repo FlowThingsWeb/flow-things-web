@@ -26,6 +26,9 @@ export async function POST(req: NextRequest) {
   if (!ordenId) return NextResponse.json({ error: 'Falta ordenId' }, { status: 400 })
   if (!courier) return NextResponse.json({ error: 'Falta el courier' }, { status: 400 })
   if (!tracking_numero) return NextResponse.json({ error: 'Falta el número de seguimiento' }, { status: 400 })
+  if (tracking_url && !/^https?:\/\//.test(tracking_url)) {
+    return NextResponse.json({ error: 'tracking_url debe ser una URL válida (https://)' }, { status: 400 })
+  }
 
   try {
     // Cargar datos de la orden

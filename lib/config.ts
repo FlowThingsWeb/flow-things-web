@@ -111,7 +111,9 @@ const DEFAULTS: ConfigMap = {
   design_color_bg: '#0f0f0f',
 }
 
-export async function getConfig(): Promise<ConfigMap> {
+import { unstable_cache } from 'next/cache'
+
+async function _getConfig(): Promise<ConfigMap> {
   const { data } = await supabaseAdmin
     .from('configuracion')
     .select('clave, valor')
@@ -124,6 +126,13 @@ export async function getConfig(): Promise<ConfigMap> {
   }
   return config
 }
+
+/** Configuración con caché de 60 segundos — evita query a Supabase en cada pageview */
+export const getConfig = unstable_cache(
+  _getConfig,
+  ['site-config'],
+  { revalidate: 60, tags: ['site-config'] }
+)
 
 export interface ConfigRow {
   clave: string

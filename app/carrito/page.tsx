@@ -60,6 +60,7 @@ function CarritoContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [dniTooltip, setDniTooltip] = useState(false)
+  const [dniError, setDniError] = useState('')
 
   // Dirección seleccionada del selector
   const [dirSeleccionadaId, setDirSeleccionadaId] = useState<string | undefined>()
@@ -479,14 +480,20 @@ function CarritoContent() {
                     name="dni"
                     required
                     value={form.dni ?? ''}
-                    onChange={handleChange}
-                    className="input-dark"
+                    onChange={e => { handleChange(e); setDniError('') }}
+                    onBlur={e => {
+                      const v = e.target.value
+                      if (v && !validarDNI(v)) setDniError('DNI inválido. Ingresá 7 u 8 dígitos sin puntos.')
+                      else setDniError('')
+                    }}
+                    className={`input-dark ${dniError ? 'border-red-500' : ''}`}
                     placeholder="12345678"
                     maxLength={10}
                     inputMode="numeric"
                     pattern="[0-9]{7,8}"
                     title="Ingresá tu DNI (7 u 8 dígitos, sin puntos)"
                   />
+                  {dniError && <p className="text-red-400 text-xs mt-1">{dniError}</p>}
                 </div>
               </div>
 

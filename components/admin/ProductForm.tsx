@@ -798,6 +798,27 @@ export default function ProductForm({ producto, categorias, mode }: ProductFormP
             <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Subiendo imagen...</>
           ) : mode === 'create' ? 'Crear producto' : 'Guardar cambios'}
         </button>
+
+        {mode === 'edit' && productoId && (
+          <button
+            type="button"
+            className="w-full border border-red-700/50 text-red-400 hover:bg-red-900/20 py-2.5 rounded-xl text-sm transition-colors"
+            onClick={async () => {
+              const nombre = form.nombre || 'este producto'
+              if (!confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return
+              const res = await fetch(`/api/productos?id=${productoId}`, { method: 'DELETE' })
+              if (res.ok) {
+                router.push('/admin/productos')
+                router.refresh()
+              } else {
+                const d = await res.json()
+                setError(d.error || 'Error al eliminar el producto')
+              }
+            }}
+          >
+            Eliminar producto
+          </button>
+        )}
       </div>
     </form>
   )
