@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     ['• Si hay variantes: completá atributo_1_tipo, atributo_1_valor y variante_sku.'],
     ['• Categorías disponibles: libreria, jugueteria, utiles-escolares, juegos-de-mesa'],
     ['• destacado: SI o NO'],
+    ['• activo: SI o NO (vacío = SI por defecto)'],
     [''],
     ['EJEMPLO — Mochila con Color + Talle:'],
     ['nombre', 'sku', 'descripcion', 'precio', 'stock', 'categoria', 'destacado',
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
 
   // Plantilla vacía
   const headers = [
-    'nombre', 'sku', 'descripcion', 'precio', 'stock', 'categoria', 'destacado',
+    'nombre', 'sku', 'descripcion', 'precio', 'stock', 'categoria', 'destacado', 'activo',
     'atributo_1_tipo', 'atributo_1_valor',
     'atributo_2_tipo', 'atributo_2_valor',
     'atributo_3_tipo', 'atributo_3_valor',
@@ -72,6 +73,7 @@ interface FilaExcel {
   stock?: number | string
   categoria?: string
   destacado?: string
+  activo?: string
   atributo_1_tipo?: string
   atributo_1_valor?: string
   atributo_2_tipo?: string
@@ -90,6 +92,7 @@ interface FilaParsed {
   stock: number
   categoria: string
   destacado: boolean
+  activo: boolean
   atributos: Record<string, string>
   variante_sku?: string
   variante_stock: number
@@ -120,6 +123,7 @@ function parseFilas(rows: FilaExcel[]): { filas: FilaParsed[]; errores: { fila: 
     stock: number
     categoria: string
     destacado: boolean
+    activo: boolean
   } | null = null
 
   rows.forEach((row, idx) => {
@@ -172,6 +176,10 @@ function parseFilas(rows: FilaExcel[]): { filas: FilaParsed[]; errores: { fila: 
       return
     }
 
+    // activo: SI = activo, NO = inactivo, vacío = activo por defecto
+    const activoStr = String(row.activo || '').trim().toUpperCase()
+    const activo = activoStr === 'NO' ? false : true
+
     ultimoProducto = {
       nombre,
       sku,
@@ -180,6 +188,7 @@ function parseFilas(rows: FilaExcel[]): { filas: FilaParsed[]; errores: { fila: 
       stock: parseInt(String(row.stock || '0')) || 0,
       categoria: String(row.categoria || '').trim().toLowerCase(),
       destacado: String(row.destacado || '').trim().toUpperCase() === 'SI',
+      activo,
     }
 
     filas.push({
@@ -324,7 +333,7 @@ export async function POST(req: NextRequest) {
           stock: stockTotal,
           categoria_id: categoriaId,
           destacado: primera.destacado,
-          activo: true,
+          activo: primera.activo,
         })
         .eq('id', existenteId)
 
@@ -346,7 +355,7 @@ export async function POST(req: NextRequest) {
           stock: stockTotal,
           categoria_id: categoriaId,
           destacado: primera.destacado,
-          activo: true,
+          activo: primera.activo,
           imagenes: [],
         })
         .select('id')
