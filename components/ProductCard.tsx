@@ -22,8 +22,13 @@ function formatPrecio(precio: number) {
 export default function ProductCard({ producto, variante }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem)
 
-  // When there's a variant, use its data; otherwise use the product's
-  const imagenUrl  = variante?.imagen_url || producto.imagen_url
+  // Imagen en cascada: variante propia → galería variante → imagen producto → galería producto
+  const imagenUrl =
+    variante?.imagen_url ||
+    variante?.imagenes?.[0] ||
+    producto.imagen_url ||
+    producto.imagenes?.[0] ||
+    null
   const stockVal   = variante ? variante.stock : producto.stock
   const sinStock   = stockVal === 0
 
