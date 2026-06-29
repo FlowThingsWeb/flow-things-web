@@ -51,6 +51,7 @@ export default function RegistroPage() {
   const [oauthLoading, setOauthLoading] = useState<'google' | null>(null)
   const [form, setForm] = useState({
     nombre: '',
+    apellido: '',
     email: '',
     telefono: '',
     dni: '',
@@ -116,7 +117,7 @@ export default function RegistroPage() {
       email: form.email.trim(),
       password: form.password,
       options: {
-        data: { nombre: form.nombre.trim() },
+        data: { nombre: form.nombre.trim(), apellido: form.apellido.trim() },
       },
     })
 
@@ -133,6 +134,7 @@ export default function RegistroPage() {
       await supabase.from('perfiles').upsert({
         user_id: data.user.id,
         nombre: form.nombre.trim(),
+        apellido: form.apellido.trim() || null,
         telefono: form.telefono.trim() || null,
         dni: form.dni.trim() || null,
         fecha_nacimiento: form.fecha_nacimiento || null,
@@ -297,19 +299,35 @@ export default function RegistroPage() {
 
         <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label htmlFor="nombre" className="block text-sm font-medium text-brand-text-muted mb-1.5">
-                Nombre *
-              </label>
-              <input
-                id="nombre"
-                type="text"
-                required
-                className="input-dark"
-                placeholder="Tu nombre"
-                value={form.nombre}
-                onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="nombre" className="block text-sm font-medium text-brand-text-muted mb-1.5">
+                  Nombre *
+                </label>
+                <input
+                  id="nombre"
+                  type="text"
+                  required
+                  className="input-dark"
+                  placeholder="Tu nombre"
+                  value={form.nombre}
+                  onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label htmlFor="apellido" className="block text-sm font-medium text-brand-text-muted mb-1.5">
+                  Apellido *
+                </label>
+                <input
+                  id="apellido"
+                  type="text"
+                  required
+                  className="input-dark"
+                  placeholder="Tu apellido"
+                  value={form.apellido}
+                  onChange={e => setForm(f => ({ ...f, apellido: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div>

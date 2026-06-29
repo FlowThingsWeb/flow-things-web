@@ -9,6 +9,7 @@ import DireccionesManager from '@/components/DireccionesManager'
 
 interface Perfil {
   nombre: string | null
+  apellido: string | null
   telefono: string | null
   primer_compra_usada: boolean
   dni: string | null
@@ -48,6 +49,7 @@ export default function CuentaPage() {
   const [editando, setEditando] = useState(false)
   const [formPerfil, setFormPerfil] = useState({
     nombre: '',
+    apellido: '',
     telefono: '',
     dni: '',
   })
@@ -65,7 +67,7 @@ export default function CuentaPage() {
 
     supabase
       .from('perfiles')
-      .select('nombre, telefono, primer_compra_usada, dni, fecha_nacimiento')
+      .select('nombre, apellido, telefono, primer_compra_usada, dni, fecha_nacimiento')
       .eq('user_id', user.id)
       .single()
       .then(({ data }) => {
@@ -73,6 +75,7 @@ export default function CuentaPage() {
           setPerfil(data)
           setFormPerfil({
             nombre: data.nombre || '',
+            apellido: data.apellido || '',
             telefono: data.telefono || '',
             dni: data.dni || '',
           })
@@ -110,6 +113,7 @@ export default function CuentaPage() {
     await supabase.from('perfiles').upsert({
       user_id: user.id,
       nombre: formPerfil.nombre.trim(),
+      apellido: formPerfil.apellido.trim() || null,
       telefono: formPerfil.telefono.trim() || null,
       dni: dniLimpio || null,
     })
@@ -117,6 +121,7 @@ export default function CuentaPage() {
     setPerfil(p => p ? {
       ...p,
       nombre: formPerfil.nombre,
+      apellido: formPerfil.apellido,
       telefono: formPerfil.telefono,
       dni: formPerfil.dni,
     } : p)
@@ -149,6 +154,8 @@ export default function CuentaPage() {
   }
 
   const nombre = perfil?.nombre || user.user_metadata?.nombre || user.email?.split('@')[0] || 'Usuario'
+  const apellido = perfil?.apellido || user.user_metadata?.apellido || ''
+  const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre
   const inicial = nombre.charAt(0).toUpperCase()
 
   const formatFecha = (iso: string | null) => {
@@ -165,7 +172,7 @@ export default function CuentaPage() {
           {inicial}
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-brand-text">{nombre}</h1>
+          <h1 className="text-2xl font-bold text-brand-text">{nombreCompleto}</h1>
           <p className="text-brand-text-muted text-sm">{user.email}</p>
         </div>
         <button
@@ -211,14 +218,25 @@ export default function CuentaPage() {
 
           {editando ? (
             <form onSubmit={handleGuardarPerfil} className="flex flex-col gap-4">
-              <div>
-                <label className="block text-xs text-brand-text-muted mb-1">Nombre</label>
-                <input
-                  type="text"
-                  className="input-dark"
-                  value={formPerfil.nombre}
-                  onChange={e => setFormPerfil(f => ({ ...f, nombre: e.target.value }))}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-brand-text-muted mb-1">Nombre</label>
+                  <input
+                    type="text"
+                    className="input-dark"
+                    value={formPerfil.nombre}
+                    onChange={e => setFormPerfil(f => ({ ...f, nombre: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-brand-text-muted mb-1">Apellido</label>
+                  <input
+                    type="text"
+                    className="input-dark"
+                    value={formPerfil.apellido}
+                    onChange={e => setFormPerfil(f => ({ ...f, apellido: e.target.value }))}
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs text-brand-text-muted mb-1">Teléfono</label>
@@ -265,6 +283,10 @@ export default function CuentaPage() {
               <div className="flex gap-3">
                 <span className="text-brand-text-muted w-28 flex-shrink-0">Nombre</span>
                 <span className="text-brand-text">{perfil?.nombre || '—'}</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-brand-text-muted w-28 flex-shrink-0">Apellido</span>
+                <span className="text-brand-text">{perfil?.apellido || '—'}</span>
               </div>
               <div className="flex gap-3">
                 <span className="text-brand-text-muted w-28 flex-shrink-0">Email</span>
