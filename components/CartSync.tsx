@@ -37,7 +37,7 @@ export default function CartSync() {
           .from('carritos_guardados')
           .select('items')
           .eq('user_id', user!.id)
-          .single()
+          .maybeSingle()
 
         if (data?.items && Array.isArray(data.items) && data.items.length > 0) {
           // Mergear con el carrito local (el local tiene prioridad para cantidades)
