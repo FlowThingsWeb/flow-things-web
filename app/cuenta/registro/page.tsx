@@ -129,6 +129,13 @@ export default function RegistroPage() {
       return
     }
 
+    // Supabase devuelve éxito falso si el email ya existe (email enumeration protection)
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      setError('Ya existe una cuenta con ese email.')
+      setLoading(false)
+      return
+    }
+
     // Crear perfil en tabla perfiles
     if (data.user) {
       await supabase.from('perfiles').upsert({
