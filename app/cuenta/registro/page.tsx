@@ -122,9 +122,15 @@ export default function RegistroPage() {
     })
 
     if (signUpError) {
-      setError(signUpError.message.includes('already registered')
-        ? 'Ya existe una cuenta con ese email.'
-        : 'Ocurrió un error al registrarte. Intentá de nuevo.')
+      const msg = signUpError.message
+      setError(
+        msg.includes('already registered') ? 'Ya existe una cuenta con ese email.' :
+        msg.includes('rate limit') || msg.includes('email rate') ? 'Límite de emails alcanzado. Esperá unos minutos e intentá de nuevo.' :
+        msg.includes('disabled') || msg.includes('not allowed') ? 'El registro está deshabilitado temporalmente.' :
+        msg.includes('Password') || msg.includes('password') ? 'La contraseña debe tener al menos 6 caracteres.' :
+        msg.includes('email') || msg.includes('Email') ? 'El formato del email no es válido.' :
+        msg
+      )
       setLoading(false)
       return
     }
