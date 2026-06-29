@@ -126,9 +126,7 @@ export default function RegistroPage() {
       setError(
         msg.includes('already registered') ? 'Ya existe una cuenta con ese email.' :
         msg.includes('rate limit') || msg.includes('email rate') ? 'Límite de emails alcanzado. Esperá unos minutos e intentá de nuevo.' :
-        msg.includes('disabled') || msg.includes('not allowed') ? 'El registro está deshabilitado temporalmente.' :
-        msg.includes('Password') || msg.includes('password') ? 'La contraseña debe tener al menos 6 caracteres.' :
-        msg.includes('email') || msg.includes('Email') ? 'El formato del email no es válido.' :
+        msg.includes('signup') && msg.includes('disabled') ? 'El registro está deshabilitado temporalmente.' :
         msg
       )
       setLoading(false)
