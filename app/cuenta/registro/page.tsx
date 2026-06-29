@@ -122,12 +122,13 @@ export default function RegistroPage() {
     })
 
     if (signUpError) {
-      const msg = signUpError.message
+      console.error('signUpError:', signUpError)
+      const msg = signUpError.message || JSON.stringify(signUpError)
       setError(
         msg.includes('already registered') ? 'Ya existe una cuenta con ese email.' :
         msg.includes('rate limit') || msg.includes('email rate') ? 'Límite de emails alcanzado. Esperá unos minutos e intentá de nuevo.' :
         msg.includes('signup') && msg.includes('disabled') ? 'El registro está deshabilitado temporalmente.' :
-        msg
+        msg || 'Ocurrió un error al registrarte. Intentá de nuevo.'
       )
       setLoading(false)
       return
