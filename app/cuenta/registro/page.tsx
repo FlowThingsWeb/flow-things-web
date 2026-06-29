@@ -117,7 +117,13 @@ export default function RegistroPage() {
       email: form.email.trim(),
       password: form.password,
       options: {
-        data: { nombre: form.nombre.trim(), apellido: form.apellido.trim() },
+        data: {
+          nombre: form.nombre.trim(),
+          apellido: form.apellido.trim(),
+          telefono: form.telefono.trim() || null,
+          dni: form.dni.trim() || null,
+          fecha_nacimiento: form.fecha_nacimiento || null,
+        },
       },
     })
 
