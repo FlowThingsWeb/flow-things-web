@@ -7,6 +7,8 @@ export interface Direccion {
   id: string
   etiqueta: string
   direccion: string
+  piso: string | null
+  departamento: string | null
   ciudad: string
   provincia: string
   codigo_postal: string
@@ -15,7 +17,7 @@ export interface Direccion {
 
 const PROVINCIAS = ['Buenos Aires', 'CABA', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba', 'Corrientes', 'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza', 'Misiones', 'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis', 'Santa Cruz', 'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego', 'Tucumán']
 
-const formVacio = { etiqueta: 'Casa', direccion: '', ciudad: '', provincia: '', codigo_postal: '' }
+const formVacio = { etiqueta: 'Casa', direccion: '', piso: '', departamento: '', ciudad: '', provincia: '', codigo_postal: '' }
 
 interface Props {
   userId: string
@@ -59,6 +61,8 @@ export default function DireccionesManager({ userId, onSelect, seleccionadaId, c
       user_id: userId,
       etiqueta: form.etiqueta.trim() || 'Casa',
       direccion: form.direccion.trim(),
+      piso: form.piso.trim() || null,
+      departamento: form.departamento.trim() || null,
       ciudad: form.ciudad.trim(),
       provincia: form.provincia,
       codigo_postal: form.codigo_postal.trim(),
@@ -108,7 +112,11 @@ export default function DireccionesManager({ userId, onSelect, seleccionadaId, c
                     )}
                   </div>
                   <p className="text-brand-text-muted text-xs leading-relaxed">
-                    {dir.direccion} · {dir.ciudad}, {dir.provincia}
+                    {dir.direccion}
+                    {(dir.piso || dir.departamento) && (
+                      <span> · {[dir.piso && `Piso ${dir.piso}`, dir.departamento && `Dpto. ${dir.departamento}`].filter(Boolean).join(', ')}</span>
+                    )}
+                    {' · '}{dir.ciudad}, {dir.provincia}
                     {dir.codigo_postal ? ` (${dir.codigo_postal})` : ''}
                   </p>
                 </div>
@@ -164,6 +172,18 @@ export default function DireccionesManager({ userId, onSelect, seleccionadaId, c
             <label className="block text-xs text-brand-text-muted mb-1">Calle y número *</label>
             <input type="text" required className="input-dark text-sm" placeholder="Av. Corrientes 1234" value={form.direccion}
               onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-brand-text-muted mb-1">Piso <span className="text-brand-text-light">(opcional)</span></label>
+              <input type="text" className="input-dark text-sm" placeholder="3" value={form.piso}
+                onChange={e => setForm(f => ({ ...f, piso: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs text-brand-text-muted mb-1">Departamento <span className="text-brand-text-light">(opcional)</span></label>
+              <input type="text" className="input-dark text-sm" placeholder="B" value={form.departamento}
+                onChange={e => setForm(f => ({ ...f, departamento: e.target.value }))} />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
