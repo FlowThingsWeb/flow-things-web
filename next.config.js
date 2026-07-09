@@ -1,6 +1,26 @@
 /** @type {import('next').NextConfig} */
 
+// Content-Security-Policy — defensa en profundidad contra XSS/inyección.
+// Arranca permisiva (Next.js necesita 'unsafe-inline'/'unsafe-eval' sin nonces),
+// pero restringe object-src, base-uri y frame-ancestors, y limita conexiones a https.
+// Ajustar (endurecer script-src con nonces) en una segunda iteración.
+const cspDirectives = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https:",
+  "frame-src 'self' https:",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+  'upgrade-insecure-requests',
+].join('; ')
+
 const securityHeaders = [
+  { key: 'Content-Security-Policy', value: cspDirectives },
   // Previene clickjacking — la página no puede ser embebida en un iframe externo
   { key: 'X-Frame-Options', value: 'DENY' },
   // Previene sniffing de MIME type

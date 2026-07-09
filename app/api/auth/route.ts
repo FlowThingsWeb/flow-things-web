@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SignJWT } from 'jose'
+import { createHash, timingSafeEqual } from 'crypto'
 import { getClientIp } from '@/lib/client-ip'
+
+/**
+ * Compara dos strings en tiempo constante. Hashea ambos a 32 bytes fijos antes
+ * de comparar, así timingSafeEqual no recibe buffers de distinta longitud
+ * (que lanzaría) y no se filtra la longitud del secreto.
+ */
+function safeEqual(a: string, b: string): boolean {
+  const ha = createHash('sha256').update(a).digest()
+  const hb = createHash('sha256').update(b).digest()
+  return timingSafeEqual(ha, hb)
+}
 
 // Rate limiting en memoria — best-effort en serverless (por instancia).
 // Previene ataques de fuerza bruta desde la misma IP dentro de la misma instancia.
@@ -48,10 +60,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Error de configuración del servidor' }, { status: 500 })
     }
 
-    if (
-      email !== process.env.ADMIN_EMAIL ||
-      password !== process.env.ADMIN_PASSWORD
-    ) {
+    const emailOk = safeEqual(String(email ?? ''), process.env.ADMIN_EMAIL ?? '')
+    const passOk = safeEqual(String(password ?? ''), process.env.ADMIN_PASSWORD ?? '')
+
+    if (!(emailOk && passOk)) {
       return NextResponse.json(
         { error: 'Credenciales incorrectas' },
         { status: 401 }
