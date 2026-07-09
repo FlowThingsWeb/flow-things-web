@@ -2,9 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense } from 'react'
 import { useCartStore } from '@/lib/store'
+import { formatPrecio } from '@/lib/format'
+
+interface ItemResumen {
+  nombre: string
+  cantidad: number
+  precio: number
+  imagen_url?: string | null
+}
 
 function ExitoContent() {
   const searchParams = useSearchParams()
@@ -12,7 +21,9 @@ function ExitoContent() {
   const ordenId = searchParams.get('orden_id')
   const pending = searchParams.get('pending')
   const clearCart = useCartStore((s) => s.clearCart)
-  const [verified, setVerified] = useState(false)
+
+  const [items, setItems] = useState<ItemResumen[]>([])
+  const [total, setTotal] = useState<number | null>(null)
 
   // Sin orden_id no hay nada que mostrar — redirigir al catálogo
   useEffect(() => {
@@ -21,27 +32,22 @@ function ExitoContent() {
     }
   }, [ordenId, pending, router])
 
-  // Verificar el estado real de la orden en DB antes de limpiar el carrito.
-  // Evita que alguien navegue a /exito?orden_id=xxx manualmente y borre su carrito.
+  // Traer estado + resumen de la orden. Si está aprobada, limpiar el carrito.
   useEffect(() => {
-    if (pending || !ordenId) return
+    if (!ordenId) return
 
     fetch(`/api/ordenes/estado?id=${ordenId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.estado === 'approved') {
-          clearCart()
-          setVerified(true)
-        }
-        // Si el estado no es 'approved' (ej: aún pending), no borrar el carrito
+        if (Array.isArray(data.items)) setItems(data.items)
+        if (typeof data.total === 'number') setTotal(data.total)
+        // Solo limpiar el carrito si el pago está confirmado.
+        if (data.estado === 'approved') clearCart()
       })
       .catch(() => {
-        // No limpiar el carrito si la consulta falla — conservarlo por seguridad.
-        // MP redirige a /exito solo tras pago aprobado (auto_return: 'approved'),
-        // pero preferimos no borrar datos ante una falla de red transitoria.
-        setVerified(true)
+        // Falla de red: no tocar el carrito, mostrar la pantalla igual.
       })
-  }, [ordenId, pending, clearCart])
+  }, [ordenId, clearCart])
 
   if (!ordenId && !pending) {
     return (
@@ -52,38 +58,75 @@ function ExitoContent() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-20 text-center">
-      <div className="bg-white rounded-3xl p-10 shadow-card">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <span className="text-4xl">{pending ? '⏳' : '✅'}</span>
+    <div className="max-w-lg mx-auto px-4 py-16">
+      <div className="bg-brand-bg-card border border-brand-border rounded-3xl p-8 sm:p-10">
+        {/* Ícono */}
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 ${pending ? 'bg-amber-400/15' : 'bg-green-500/15'}`}>
+          <span className="text-3xl">{pending ? '⏳' : '✅'}</span>
         </div>
 
-        <h1 className="text-2xl font-bold text-brand-text mb-3">
+        {/* Título + mensaje */}
+        <h1 className="text-2xl font-bold text-brand-text text-center mb-2">
           {pending ? '¡Pago en proceso!' : '¡Gracias por tu compra!'}
         </h1>
-
-        <p className="text-brand-text-muted mb-6">
+        <p className="text-brand-text-muted text-center text-sm mb-6">
           {pending
-            ? 'Tu pago está siendo procesado. Te notificaremos cuando se confirme.'
-            : 'Recibimos tu pedido correctamente. Te enviaremos un email con los detalles.'}
+            ? 'Tu pago está siendo procesado. Te notificaremos por email cuando se confirme.'
+            : 'Recibimos tu pedido correctamente. Te enviamos un email con los detalles.'}
         </p>
 
+        {/* Número de orden */}
         {ordenId && (
-          <p className="text-xs text-brand-text-light bg-brand-bg-soft rounded-lg px-4 py-2 mb-8 font-mono">
+          <p className="text-xs text-brand-text-light bg-brand-bg-soft rounded-lg px-4 py-2.5 mb-6 font-mono text-center tracking-wider">
             Orden #{ordenId.slice(0, 8).toUpperCase()}
           </p>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        {/* Resumen de la compra */}
+        {items.length > 0 && (
+          <div className="border-t border-brand-border pt-5 mb-6">
+            <h2 className="text-sm font-semibold text-brand-text mb-3">Resumen del pedido</h2>
+            <div className="space-y-3">
+              {items.map((it, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <div className="relative w-11 h-11 bg-brand-bg-soft rounded-lg overflow-hidden flex-shrink-0">
+                    {it.imagen_url ? (
+                      <Image src={it.imagen_url} alt={it.nombre} fill className="object-cover" sizes="44px" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-base">📦</div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-brand-text line-clamp-1">{it.nombre}</p>
+                    <p className="text-xs text-brand-text-muted">x{it.cantidad}</p>
+                  </div>
+                  <span className="text-sm font-semibold text-brand-text whitespace-nowrap">
+                    {formatPrecio(it.precio * it.cantidad)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {total != null && (
+              <div className="flex justify-between items-center border-t border-brand-border mt-4 pt-3">
+                <span className="font-semibold text-brand-text">Total</span>
+                <span className="font-bold text-lg text-brand-text">{formatPrecio(total)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Botones */}
+        <div className="flex flex-col sm:flex-row gap-3">
           <Link
             href="/productos"
-            className="bg-brand-purple hover:bg-brand-purple-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+            className="flex-1 text-center bg-brand-purple hover:bg-brand-purple-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors"
           >
             Seguir comprando
           </Link>
           <Link
             href="/"
-            className="border border-brand-border text-brand-text hover:bg-brand-bg-soft font-semibold px-6 py-3 rounded-xl transition-colors"
+            className="flex-1 text-center border border-brand-border text-brand-text-muted hover:text-brand-text hover:bg-brand-bg-soft font-semibold px-6 py-3 rounded-xl transition-colors"
           >
             Volver al inicio
           </Link>

@@ -3,8 +3,9 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 /**
  * GET /api/ordenes/estado?id=xxx
- * Endpoint público mínimo — solo devuelve el estado de una orden.
- * No expone datos del comprador ni del pago.
+ * Endpoint público — devuelve estado + resumen de la orden (total e items).
+ * NO expone datos del comprador (nombre, DNI, dirección, pago). El id es un UUID
+ * no adivinable, y los items/total no son información sensible.
  */
 export async function GET(request: NextRequest) {
   const id = new URL(request.url).searchParams.get('id')
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from('ordenes')
-    .select('estado')
+    .select('estado, total, items')
     .eq('id', id)
     .single()
 
@@ -20,5 +21,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
   }
 
-  return NextResponse.json({ estado: data.estado })
+  // Exponer solo campos no sensibles de cada item.
+  const items = Array.isArray(data.items)
+    ? data.items.map((i: { nombre: string; cantidad: number; precio: number; imagen_url?: string | null }) => ({
+        nombre: i.nombre,
+        cantidad: i.cantidad,
+        precio: i.precio,
+        imagen_url: i.imagen_url ?? null,
+      }))
+    : []
+
+  return NextResponse.json({ estado: data.estado, total: data.total, items })
 }
