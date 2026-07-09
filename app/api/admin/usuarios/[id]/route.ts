@@ -4,12 +4,12 @@ import { verifyAdminToken } from '@/lib/admin-auth'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const unauth = await verifyAdminToken(request)
   if (unauth) return unauth
 
-  const { id } = params
+  const { id } = await params
 
   // Datos del usuario en auth
   const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(id)
