@@ -220,8 +220,32 @@ export async function POST(request: NextRequest) {
             })
             .eq('id', ordenId)
         } catch (facturaErr: any) {
-          // No cortamos el flujo si falla la factura
+          // No cortamos el flujo si falla la factura, pero NO lo silenciamos:
+          // marcamos la orden como factura pendiente y avisamos al admin para
+          // que se pueda emitir manualmente / reintentar (la factura es obligatoria).
           console.error('[afip] Error emitiendo factura:', facturaErr.message)
+
+          try {
+            const comprador = orden.datos_comprador ?? {}
+            await supabaseAdmin
+              .from('ordenes')
+              .update({
+                datos_comprador: {
+                  ...comprador,
+                  factura_pendiente: true,
+                  factura_error: String(facturaErr?.message ?? facturaErr).slice(0, 500),
+                },
+              })
+              .eq('id', ordenId)
+          } catch (markErr: any) {
+            console.error('[afip] Error marcando factura_pendiente:', markErr.message)
+          }
+
+          await sendTelegram(
+            `⚠️ FACTURA PENDIENTE\nOrden ${ordenId}\nTotal: $${orden.total ?? 0}\n` +
+            `Error AFIP: ${String(facturaErr?.message ?? facturaErr).slice(0, 300)}\n` +
+            `Emitir manualmente desde el panel.`
+          ).catch((e: any) => console.error('[telegram] Error avisando factura pendiente:', e.message))
         }
 
         // Notificaciones al comprador (email + WPP)
