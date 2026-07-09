@@ -45,7 +45,22 @@ function verifyMPSignature(request: NextRequest, paymentId: string | number): bo
   const manifest = `id:${paymentId};request-id:${xRequestId};ts:${ts};`
   const hmac = createHmac('sha256', secret).update(manifest).digest('hex')
 
-  return hmac === v1
+  const ok = hmac === v1
+  if (!ok) {
+    // Diagnóstico temporal — no expone el secret, solo su longitud.
+    const url = new URL(request.url)
+    console.error('[webhook][diag] firma no coincide', {
+      manifest,
+      hmacCalc: hmac.slice(0, 16),
+      v1recv: v1.slice(0, 16),
+      secretLen: secret.length,
+      ts,
+      xRequestId,
+      paymentIdBody: String(paymentId),
+      queryDataId: url.searchParams.get('data.id') || '(sin query data.id)',
+    })
+  }
+  return ok
 }
 
 export async function POST(request: NextRequest) {
