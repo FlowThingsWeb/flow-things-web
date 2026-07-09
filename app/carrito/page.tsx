@@ -408,9 +408,10 @@ function CarritoContent() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-brand-text-muted mb-1">Nombre completo *</label>
+                  <label htmlFor="nombre" className="block text-sm font-medium text-brand-text-muted mb-1">Nombre completo *</label>
                   <input
                     type="text"
+                    id="nombre"
                     name="nombre"
                     required
                     value={form.nombre}
@@ -421,9 +422,10 @@ function CarritoContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-brand-text-muted mb-1">Email *</label>
+                  <label htmlFor="email" className="block text-sm font-medium text-brand-text-muted mb-1">Email *</label>
                   <input
                     type="email"
+                    id="email"
                     name="email"
                     required
                     value={form.email}
@@ -434,9 +436,10 @@ function CarritoContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-brand-text-muted mb-1">Teléfono *</label>
+                  <label htmlFor="telefono" className="block text-sm font-medium text-brand-text-muted mb-1">Teléfono *</label>
                   <input
                     type="tel"
+                    id="telefono"
                     name="telefono"
                     required
                     value={form.telefono}
@@ -529,9 +532,10 @@ function CarritoContent() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-brand-text-muted mb-1">Calle y número *</label>
+                <label htmlFor="direccion" className="block text-sm font-medium text-brand-text-muted mb-1">Calle y número *</label>
                 <input
                   type="text"
+                  id="direccion"
                   name="direccion"
                   required
                   value={form.direccion}
@@ -542,9 +546,10 @@ function CarritoContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-brand-text-muted mb-1">Ciudad *</label>
+                <label htmlFor="ciudad" className="block text-sm font-medium text-brand-text-muted mb-1">Ciudad *</label>
                 <input
                   type="text"
+                  id="ciudad"
                   name="ciudad"
                   required
                   value={form.ciudad}
@@ -555,9 +560,10 @@ function CarritoContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-brand-text-muted mb-1">Código postal *</label>
+                <label htmlFor="codigo_postal" className="block text-sm font-medium text-brand-text-muted mb-1">Código postal *</label>
                 <input
                   type="text"
+                  id="codigo_postal"
                   name="codigo_postal"
                   required
                   value={form.codigo_postal}
@@ -568,8 +574,9 @@ function CarritoContent() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-brand-text-muted mb-1">Provincia *</label>
+                <label htmlFor="provincia" className="block text-sm font-medium text-brand-text-muted mb-1">Provincia *</label>
                 <select
+                  id="provincia"
                   name="provincia"
                   required
                   value={form.provincia}

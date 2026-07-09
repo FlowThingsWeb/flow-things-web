@@ -13,10 +13,11 @@ import { useEffect, useRef } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import { useCartStore } from '@/lib/store'
+import { ItemCarrito } from '@/types'
 
 export default function CartSync() {
   const { user } = useAuth()
-  const { items, addItem } = useCartStore()
+  const { items } = useCartStore()
   const prevUserIdRef = useRef<string | null>(null)
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLoadFromDb = useRef(false)
@@ -40,18 +41,19 @@ export default function CartSync() {
           .maybeSingle()
 
         if (data?.items && Array.isArray(data.items) && data.items.length > 0) {
-          // Mergear con el carrito local (el local tiene prioridad para cantidades)
+          // Mergear con el carrito local (el local tiene prioridad para cantidades).
+          // Un solo setState en vez de N addItem: evita N re-renders/escrituras y
+          // no fuerza abrir el carrito al iniciar sesión.
           const localItems = useCartStore.getState().items
           const localIds = new Set(
             localItems.map(i => `${i.producto.id}::${i.varianteId ?? ''}`)
           )
-          for (const item of data.items) {
+          const nuevos = (data.items as ItemCarrito[]).filter(item => {
             const key = `${item.producto.id}::${item.varianteId ?? ''}`
-            if (!localIds.has(key)) {
-              for (let i = 0; i < item.cantidad; i++) {
-                addItem(item.producto, item.varianteId ?? undefined)
-              }
-            }
+            return item?.producto?.id && !localIds.has(key)
+          })
+          if (nuevos.length > 0) {
+            useCartStore.setState({ items: [...localItems, ...nuevos] })
           }
         }
       } catch {
@@ -62,7 +64,7 @@ export default function CartSync() {
     }
 
     loadCart()
-  }, [user, addItem])
+  }, [user])
 
   // Al cambiar items, guardar en DB (debounced)
   useEffect(() => {
