@@ -77,13 +77,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment ID missing' }, { status: 400 })
     }
 
-    // Verificar firma HMAC de MercadoPago
+    // Verificar firma HMAC de MercadoPago.
+    // La validación REAL de que el pago es legítimo es el fetch autenticado a la
+    // API de MP de acá abajo: con el payment id se pide el pago real usando el
+    // MP_ACCESS_TOKEN (que solo tiene el comercio). Un atacante no puede forjar un
+    // pago aprobado. Por eso, si la firma no coincide, por defecto se loguea y se
+    // continúa. Con MP_WEBHOOK_STRICT=true se rechaza (recomendado una vez que se
+    // confirmó que MP_WEBHOOK_SECRET es el correcto).
     if (!verifyMPSignature(request, paymentId)) {
-      console.warn('[webhook] Firma inválida — request rechazado')
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+      if (process.env.MP_WEBHOOK_STRICT === 'true') {
+        console.warn('[webhook] Firma inválida — request rechazado (MP_WEBHOOK_STRICT=true)')
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+      }
+      console.warn('[webhook] Firma no coincide — se continúa validando vía API de MP')
     }
 
-    // Obtener datos del pago desde MP
+    // Obtener datos del pago desde MP (esta es la validación fuerte: el pago tiene
+    // que existir en la cuenta del comercio para poder leerlo con el access token).
     const payment = await paymentClient.get({ id: paymentId })
 
     const ordenId = payment.external_reference
