@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { formatMonto } from '@/lib/format'
 
 interface FacturaResultado {
   cae: string
@@ -69,9 +70,7 @@ function fmtFecha(yyyymmdd: string): string {
   return `${yyyymmdd.slice(6, 8)}/${yyyymmdd.slice(4, 6)}/${yyyymmdd.slice(0, 4)}`
 }
 
-function fmtMoneda(n: number): string {
-  return '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+const fmtMoneda = formatMonto
 
 function generarQRData(r: FacturaResultado): string {
   const obj = {

@@ -1,10 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { notFound } from 'next/navigation'
 import DespacharForm from './DespacharForm'
+import { formatPrecio } from '@/lib/format'
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
-}
+const fmt = formatPrecio
 
 function fmtFecha(s: string) {
   return new Date(s).toLocaleDateString('es-AR', {

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { formatPrecio } from '@/lib/format'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,14 +27,6 @@ function resolverImagen(p: any): string | null {
     if (v.imagenes?.length) return v.imagenes[0]
   }
   return null
-}
-
-function formatPrecio(precio: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(precio)
 }
 
 export default async function AdminProductosPage() {

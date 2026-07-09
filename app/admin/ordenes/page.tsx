@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { ClickableRow } from './ClickableRow'
+import { formatPrecio } from '@/lib/format'
 
 // Límite de 200 órdenes más recientes para evitar timeouts.
 // Si el volumen crece, agregar paginación con searchParams.
@@ -29,14 +30,6 @@ const estadoLabels: Record<string, string> = {
   rejected: '✗ Rechazado',
   cancelled: '— Cancelado',
   refunded: '↩ Reembolsado',
-}
-
-function formatPrecio(precio: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(precio)
 }
 
 function formatFecha(fecha: string) {
