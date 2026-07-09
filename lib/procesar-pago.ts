@@ -93,7 +93,12 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
 
   // ─── Factura electrónica AFIP ────────────────────────────────────────────────
   let facturaEmitida: { cae: string; nroComprobante: number; fecha: string; caeFechaVto: string } | null = null
-  try {
+  // Kill-switch: AFIP_HABILITADO=false omite la emisión de factura (útil para
+  // testear pagos sin generar comprobantes fiscales reales, o si AFIP se cae).
+  const afipHabilitado = process.env.AFIP_HABILITADO !== 'false'
+  if (!afipHabilitado) {
+    console.log('[procesar-pago] AFIP_HABILITADO=false — se omite la emisión de factura')
+  } else try {
     const comprador = orden.datos_comprador ?? {}
     facturaEmitida = await emitirFacturaC({
       nombre: comprador.nombre || 'Consumidor Final',
