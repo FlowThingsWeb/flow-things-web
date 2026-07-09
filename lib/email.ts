@@ -4,8 +4,28 @@ const nodemailer = require('nodemailer')
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 
+/** Escapa caracteres HTML para evitar inyección al interpolar texto del usuario. */
+export function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ))
+}
+
+// Claves cuyos valores son fragmentos HTML construidos por nosotros (no se escapan).
+// El resto se escapa por defecto, incluyendo datos del comprador (nombre, etc.).
+const HTML_VAR_KEYS = new Set([
+  'productos_filas',
+  'desglose_items',
+  'fila_descuento',
+  'tracking_boton',
+])
+
 export function renderTemplate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`)
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    const val = vars[key]
+    if (val == null) return `{{${key}}}`
+    return HTML_VAR_KEYS.has(key) ? val : escapeHtml(val)
+  })
 }
 
 // ─── Transport ────────────────────────────────────────────────────────────────
@@ -57,7 +77,7 @@ export function buildProductosFilas(
     .map(
       (i) =>
         `<tr>
-          <td style="font-size:14px;color:#111;padding:12px 0;border-bottom:1px solid #f0f0f0;line-height:1.4">${i.nombre}</td>
+          <td style="font-size:14px;color:#111;padding:12px 0;border-bottom:1px solid #f0f0f0;line-height:1.4">${escapeHtml(i.nombre)}</td>
           <td style="font-size:14px;color:#666;text-align:center;padding:12px 0;border-bottom:1px solid #f0f0f0">${i.cantidad}</td>
           <td style="font-size:14px;color:#111;text-align:right;padding:12px 0;border-bottom:1px solid #f0f0f0;white-space:nowrap">${fmt(i.precio * i.cantidad)}</td>
         </tr>`
@@ -73,7 +93,7 @@ export function buildDesgloseItems(
     .map(
       (i) =>
         `<tr>
-          <td style="font-size:14px;color:#374151;padding:5px 0">${i.nombre} &times; ${i.cantidad}</td>
+          <td style="font-size:14px;color:#374151;padding:5px 0">${escapeHtml(i.nombre)} &times; ${i.cantidad}</td>
           <td style="font-size:14px;color:#374151;text-align:right;padding:5px 0;font-weight:500;white-space:nowrap">${fmt(i.precio * i.cantidad)}</td>
         </tr>`
     )
@@ -83,7 +103,7 @@ export function buildDesgloseItems(
 export function buildFilaDescuento(codigo: string | null, monto: number): string {
   if (!monto || monto <= 0) return ''
   const fmt = formatMonto
-  const label = codigo ? `Descuento (${codigo})` : 'Descuento'
+  const label = codigo ? `Descuento (${escapeHtml(codigo)})` : 'Descuento'
   return `<tr>
     <td style="font-size:14px;color:#16a34a;padding:4px 0">&#x1F3F7; ${label}</td>
     <td style="font-size:14px;color:#16a34a;font-weight:600;text-align:right;padding:4px 0">- ${fmt(monto)}</td>
