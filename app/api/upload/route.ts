@@ -13,9 +13,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No se recibió archivo' }, { status: 400 })
     }
 
-    // Validar tipo
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    if (!allowedTypes.includes(file.type)) {
+    // Validar tipo. La extensión se deriva del MIME validado, no del nombre
+    // del archivo del cliente (que podría inyectar strings arbitrarios en el path).
+    const mimeToExt: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/gif': 'gif',
+    }
+    const ext = mimeToExt[file.type]
+    if (!ext) {
       return NextResponse.json(
         { error: 'Tipo de archivo no permitido. Solo JPG, PNG, WebP o GIF.' },
         { status: 400 }
@@ -30,7 +37,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const ext = file.name.split('.').pop()
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
     const path = `productos/${fileName}`
 
