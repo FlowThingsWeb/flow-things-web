@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { sendEmail } from '@/lib/email'
 import { verifyAdminToken } from '@/lib/admin-auth'
+import { enqueueJobs } from '@/lib/jobs'
+import type { User } from '@supabase/supabase-js'
+
+/** Lista TODOS los usuarios de Supabase Auth paginando (evita el cap de 1000). */
+async function listarTodosLosUsuarios(): Promise<User[]> {
+  const perPage = 1000
+  const todos: User[] = []
+  for (let page = 1; ; page++) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage })
+    if (error) throw new Error(error.message)
+    todos.push(...data.users)
+    if (data.users.length < perPage) break
+  }
+  return todos
+}
 
 export async function POST(request: NextRequest) {
   const unauth = await verifyAdminToken(request)
@@ -14,11 +28,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Asunto y cuerpo son obligatorios' }, { status: 400 })
     }
 
-    // Listar usuarios registrados desde Supabase Auth
-    const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
-
-    if (error) {
-      console.error('[broadcast] Error listando usuarios:', error.message)
+    // Listar usuarios registrados desde Supabase Auth (paginado)
+    let users: User[]
+    try {
+      users = await listarTodosLosUsuarios()
+    } catch (e: any) {
+      console.error('[broadcast] Error listando usuarios:', e.message)
       return NextResponse.json({ error: 'Error al obtener usuarios' }, { status: 500 })
     }
 
@@ -47,24 +62,24 @@ export async function POST(request: NextRequest) {
     }
 
     if (destinatarios.length === 0) {
-      return NextResponse.json({ enviados: 0, mensaje: 'No hay destinatarios para ese filtro.' })
+      return NextResponse.json({ encolados: 0, mensaje: 'No hay destinatarios para ese filtro.' })
     }
 
-    // Enviar emails (secuencial para no saturar la API de SendGrid)
-    let enviados = 0
-    let errores = 0
-    for (const u of destinatarios) {
-      if (!u.email) continue
-      try {
-        await sendEmail({ to: u.email, asunto, cuerpo })
-        enviados++
-      } catch (e: any) {
-        console.error(`[broadcast] Error enviando a ${u.email}:`, e.message)
-        errores++
-      }
-    }
+    // Encolar un job de email por destinatario. El cron los envía en lotes, así
+    // el request responde rápido y no se corta por timeout con muchos usuarios.
+    const payloads = destinatarios
+      .filter(u => !!u.email)
+      .map(u => ({ to: u.email as string, asunto, cuerpo }))
 
-    return NextResponse.json({ enviados, errores, total: destinatarios.length })
+    await enqueueJobs('email', payloads)
+
+    // `enviados` se mantiene como alias por retrocompatibilidad con la UI actual;
+    // en realidad los emails quedan encolados y el cron los envía en ~1 min.
+    return NextResponse.json({
+      encolados: payloads.length,
+      enviados: payloads.length,
+      total: destinatarios.length,
+    })
   } catch (err: any) {
     console.error('[broadcast] Error:', err.message)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

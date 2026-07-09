@@ -1,0 +1,18 @@
+name: Procesar jobs
+
+# Vercel Hobby solo permite cron diario, así que la cola se dispara desde acá
+# cada 5 minutos (mínimo de GitHub Actions). El endpoint está protegido con
+# CRON_SECRET (guardarlo en Settings → Secrets and variables → Actions).
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  procesar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar /api/cron/procesar-jobs
+        run: |
+          curl -fsS -X GET "https://flowthings.com.ar/api/cron/procesar-jobs" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
