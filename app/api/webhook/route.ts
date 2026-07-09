@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     // el simulador de MP, que manda type='test') para poder validar el secret sin
     // hacer una compra real. Solo loguea, no afecta el flujo.
     const diagId = body?.data?.id ?? body?.id ?? ''
-    console.log('[webhook][diag2] type=' + body?.type + ' firmaOk=' + verifyMPSignature(request, diagId))
+    console.error('[webhook][diag2] type=' + body?.type + ' firmaOk=' + verifyMPSignature(request, diagId))
 
     // MP envía diferentes tipos de notificaciones
     if (body.type !== 'payment') {
