@@ -44,8 +44,8 @@ function verifyMPSignature(request: NextRequest, paymentId: string | number): bo
 
   if (!ts || !v1) return false
 
-  // Manifest según la doc de MP
-  const manifest = `id:${paymentId};request-date:${ts};`
+  // Manifest según la doc de MP: id:<data.id>;request-id:<x-request-id>;ts:<ts>;
+  const manifest = `id:${paymentId};request-id:${xRequestId};ts:${ts};`
   const hmac = createHmac('sha256', secret).update(manifest).digest('hex')
 
   return hmac === v1

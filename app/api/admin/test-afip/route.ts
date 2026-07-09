@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminToken } from '@/lib/admin-auth'
+import { decodeAfipPem } from '@/lib/afip-pem'
 
 export async function GET(request: NextRequest) {
   const unauth = await verifyAdminToken(request)
@@ -16,8 +17,8 @@ export async function GET(request: NextRequest) {
   }
 
   // 2. ¿Las env vars están cargadas?
-  const cert = (process.env.AFIP_CERT || '').replace(/\\n/g, '\n')
-  const key = (process.env.AFIP_KEY || '').replace(/\\n/g, '\n')
+  const cert = decodeAfipPem(process.env.AFIP_CERT)
+  const key = decodeAfipPem(process.env.AFIP_KEY)
   results.cert_length = cert.length
   results.key_length = key.length
   results.cert_starts = cert.slice(0, 40)

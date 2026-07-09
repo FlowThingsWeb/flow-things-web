@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminToken } from '@/lib/admin-auth'
 import { getTokenAuth } from '@/lib/afip-wsaa'
 import { emitirFactura } from '@/lib/afip-wsfe'
+import { decodeAfipPem } from '@/lib/afip-pem'
 import { sendEmail, renderTemplate, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
 import { generateFacturaPDFBase64, facturaFileName } from '@/lib/factura-pdf'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
@@ -74,8 +75,8 @@ export async function POST(req: NextRequest) {
 
   // Flujo normal: emitir factura
   try {
-    const cert = (process.env.AFIP_CERT || '').replace(/\\n/g, '\n')
-    const key = (process.env.AFIP_KEY || '').replace(/\\n/g, '\n')
+    const cert = decodeAfipPem(process.env.AFIP_CERT)
+    const key = decodeAfipPem(process.env.AFIP_KEY)
     const cuit = Number(process.env.AFIP_CUIT)
     const ptoVenta = Number(process.env.AFIP_PTO_VENTA || 5)
 

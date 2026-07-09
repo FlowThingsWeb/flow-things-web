@@ -1,5 +1,6 @@
 import { getTokenAuth } from './afip-wsaa'
 import { emitirFactura } from './afip-wsfe'
+import { decodeAfipPem } from './afip-pem'
 
 export interface DatosFactura {
   nombre: string
@@ -17,8 +18,8 @@ export async function emitirFacturaC(datos: DatosFactura): Promise<{
   nroComprobante: number
   fecha: string
 }> {
-  const cert = (process.env.AFIP_CERT || '').replace(/\\n/g, '\n')
-  const key = (process.env.AFIP_KEY || '').replace(/\\n/g, '\n')
+  const cert = decodeAfipPem(process.env.AFIP_CERT)
+  const key = decodeAfipPem(process.env.AFIP_KEY)
   const cuit = Number(process.env.AFIP_CUIT)
   const ptoVenta = Number(process.env.AFIP_PTO_VENTA || 5)
 
