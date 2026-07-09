@@ -67,12 +67,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // DIAG temporal: correr la verificación de firma para CUALQUIER tipo (incluye
-    // el simulador de MP, que manda type='test') para poder validar el secret sin
-    // hacer una compra real. Solo loguea, no afecta el flujo.
-    const diagId = body?.data?.id ?? body?.id ?? ''
-    console.error('[webhook][diag2] type=' + body?.type + ' firmaOk=' + verifyMPSignature(request, diagId))
-
     // MP envía diferentes tipos de notificaciones
     if (body.type !== 'payment') {
       return NextResponse.json({ received: true })
