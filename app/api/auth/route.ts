@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SignJWT } from 'jose'
+import { getClientIp } from '@/lib/client-ip'
 
 // Rate limiting en memoria — best-effort en serverless (por instancia).
 // Previene ataques de fuerza bruta desde la misma IP dentro de la misma instancia.
@@ -7,17 +8,6 @@ import { SignJWT } from 'jose'
 const loginAttempts = new Map<string, { count: number; resetAt: number }>()
 const MAX_ATTEMPTS = 5
 const WINDOW_MS = 15 * 60 * 1000 // 15 minutos
-
-function getClientIp(request: NextRequest): string {
-  // x-real-ip es seteado por Vercel y no puede ser spoofado por el cliente.
-  // x-forwarded-for puede ser manipulado anteponiendo valores falsos,
-  // por eso solo se usa como fallback tomando el ÚLTIMO valor (el del proxy más cercano).
-  return (
-    request.headers.get('x-real-ip') ||
-    request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() ||
-    'unknown'
-  )
-}
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now()
