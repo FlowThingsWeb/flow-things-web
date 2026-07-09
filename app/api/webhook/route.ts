@@ -93,41 +93,46 @@ export async function POST(request: NextRequest) {
 
     const nuevoEstado = estadoMap[estado] || 'pending'
 
-    // Idempotencia: si la orden ya está aprobada, ignorar el reintento de MP
-    if (nuevoEstado === 'approved') {
-      const { data: ordenActual } = await supabaseAdmin
+    // Estados no aprobados (rejected, cancelled, refunded, pending):
+    // update simple, sin efectos secundarios.
+    if (nuevoEstado !== 'approved') {
+      const { error } = await supabaseAdmin
         .from('ordenes')
-        .select('estado')
+        .update({ mp_payment_id: paymentId.toString(), estado: nuevoEstado })
         .eq('id', ordenId)
-        .single()
 
-      if (ordenActual?.estado === 'approved') {
-        console.log(`[webhook] Orden ${ordenId} ya estaba aprobada — reintento ignorado`)
-        return NextResponse.json({ received: true, idempotent: true })
+      if (error) {
+        console.error('Error actualizando orden:', error)
+        return NextResponse.json({ error: 'DB error' }, { status: 500 })
       }
+      return NextResponse.json({ success: true })
     }
 
-    // Actualizar orden en Supabase
-    const { error } = await supabaseAdmin
+    // ─── Transición a 'approved' ATÓMICA (idempotente ante reintentos de MP) ──
+    // UPDATE ... WHERE id = X AND estado <> 'approved' RETURNING ...
+    // Postgres serializa el UPDATE por fila: solo la primera entrega concurrente
+    // obtiene la fila de vuelta. Los reintentos de MP reciben 0 filas y salen sin
+    // repetir descuento de stock, emisión de factura ni notificaciones.
+    const { data: transicion, error: updErr } = await supabaseAdmin
       .from('ordenes')
-      .update({
-        mp_payment_id: paymentId.toString(),
-        estado: nuevoEstado,
-      })
+      .update({ mp_payment_id: paymentId.toString(), estado: 'approved' })
       .eq('id', ordenId)
+      .neq('estado', 'approved')
+      .select('items, total, datos_comprador, descuento_monto, codigo_descuento, user_id')
 
-    if (error) {
-      console.error('Error actualizando orden:', error)
+    if (updErr) {
+      console.error('Error actualizando orden:', updErr)
       return NextResponse.json({ error: 'DB error' }, { status: 500 })
     }
 
-    // Si el pago fue aprobado, descontar stock y notificar por Telegram
+    if (!transicion || transicion.length === 0) {
+      console.log(`[webhook] Orden ${ordenId} ya estaba aprobada — reintento ignorado`)
+      return NextResponse.json({ received: true, idempotent: true })
+    }
+
+    // Pago aprobado (solo la entrega que ganó la transición llega acá).
     if (nuevoEstado === 'approved') {
-      const { data: orden } = await supabaseAdmin
-        .from('ordenes')
-        .select('items, total, datos_comprador, descuento_monto, codigo_descuento, user_id')
-        .eq('id', ordenId)
-        .single()
+      const orden = transicion[0]
 
       if (orden?.items) {
         for (const item of orden.items) {
