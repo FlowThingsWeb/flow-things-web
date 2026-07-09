@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import DireccionesManager from '@/components/DireccionesManager'
+import { formatPrecio } from '@/lib/format'
 
 interface Perfil {
   nombre: string | null
@@ -22,10 +23,6 @@ interface Orden {
   estado: string
   created_at: string
   items: { nombre: string; cantidad: number; precio: number }[]
-}
-
-function formatPrecio(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 }
 
 const ESTADO_LABEL: Record<string, { label: string; color: string }> = {

@@ -9,14 +9,7 @@ import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import { useCartStore } from '@/lib/store'
 import { Producto, Variante } from '@/types'
 import FavoritoButton from '@/components/FavoritoButton'
-
-function formatPrecio(precio: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(precio)
-}
+import { formatPrecio } from '@/lib/format'
 
 function waLink(telefono: string, texto: string) {
   const num = telefono.replace(/\D/g, '')

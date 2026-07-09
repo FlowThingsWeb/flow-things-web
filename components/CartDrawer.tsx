@@ -4,14 +4,7 @@ import { useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCartStore } from '@/lib/store'
-
-function formatPrecio(precio: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(precio)
-}
+import { formatPrecio } from '@/lib/format'
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateCantidad, total } = useCartStore()

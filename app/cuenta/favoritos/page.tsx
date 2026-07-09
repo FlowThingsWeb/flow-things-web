@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import FavoritoButton from '@/components/FavoritoButton'
+import { formatPrecio } from '@/lib/format'
 
 interface Producto {
   id: string
@@ -15,10 +16,6 @@ interface Producto {
   precio: number
   imagen_url: string | null
   activo: boolean
-}
-
-function formatPrecio(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 }
 
 export default function FavoritosPage() {

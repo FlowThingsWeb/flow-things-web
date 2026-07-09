@@ -5,18 +5,11 @@ import Link from 'next/link'
 import { Producto, Variante } from '@/types'
 import { useCartStore } from '@/lib/store'
 import FavoritoButton from '@/components/FavoritoButton'
+import { formatPrecio } from '@/lib/format'
 
 interface ProductCardProps {
   producto: Producto
   variante?: Variante | null
-}
-
-function formatPrecio(precio: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(precio)
 }
 
 export default function ProductCard({ producto, variante }: ProductCardProps) {

@@ -9,18 +9,11 @@ import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import { DatosComprador } from '@/types'
 import DireccionesManager, { Direccion } from '@/components/DireccionesManager'
+import { formatPrecio } from '@/lib/format'
 
 function validarDNI(dni: string): boolean {
   const limpio = (dni || '').replace(/\./g, '').trim()
   return /^\d{7,8}$/.test(limpio)
-}
-
-function formatPrecio(precio: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(precio)
 }
 
 const formInicial: DatosComprador = {
@@ -301,7 +294,7 @@ function CarritoContent() {
           primer_compra: primerCompraDescuento,
           envio_tipo: envioSeleccionado?.modalidad ?? null,
           envio_nombre: envioSeleccionado?.nombre ?? null,
-          envio_costo: envioSeleccionado?.precio ?? 0,
+          // envio_costo NO se envía: el servidor lo recalcula desde la config.
         }),
       })
 

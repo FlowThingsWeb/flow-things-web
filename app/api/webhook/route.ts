@@ -7,6 +7,7 @@ import { emitirFacturaC } from '@/lib/afip'
 import { sendEmail, renderTemplate, buildProductosFilas, buildDesgloseItems, buildFilaDescuento, buildMedioPago, DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO } from '@/lib/email'
 import { generateFacturaPDFBase64, facturaFileName } from '@/lib/factura-pdf'
 import { sendWhatsApp, DEFAULT_WPP_MENSAJE } from '@/lib/whatsapp'
+import { formatMonto } from '@/lib/format'
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN!,
@@ -265,8 +266,7 @@ export async function POST(request: NextRequest) {
           const costoEnvio = Number(compradorData.envio_costo ?? 0)
           const subtotal = items.reduce((s: number, i: any) => s + i.precio * i.cantidad, 0)
 
-          const fmt = (n: number) =>
-            '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          const fmt = formatMonto
 
           const totalFmt = fmt(orden.total ?? 0)
           const fechaFmt = new Date().toLocaleDateString('es-AR')

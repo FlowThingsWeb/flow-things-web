@@ -1,3 +1,4 @@
+import { formatMonto } from './format'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const nodemailer = require('nodemailer')
 
@@ -51,8 +52,7 @@ export async function sendEmail(params: {
 export function buildProductosFilas(
   items: { nombre: string; cantidad: number; precio: number }[]
 ): string {
-  const fmt = (n: number) =>
-    '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const fmt = formatMonto
   return items
     .map(
       (i) =>
@@ -68,8 +68,7 @@ export function buildProductosFilas(
 export function buildDesgloseItems(
   items: { nombre: string; cantidad: number; precio: number }[]
 ): string {
-  const fmt = (n: number) =>
-    '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const fmt = formatMonto
   return items
     .map(
       (i) =>
@@ -83,8 +82,7 @@ export function buildDesgloseItems(
 
 export function buildFilaDescuento(codigo: string | null, monto: number): string {
   if (!monto || monto <= 0) return ''
-  const fmt = (n: number) =>
-    '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const fmt = formatMonto
   const label = codigo ? `Descuento (${codigo})` : 'Descuento'
   return `<tr>
     <td style="font-size:14px;color:#16a34a;padding:4px 0">&#x1F3F7; ${label}</td>
