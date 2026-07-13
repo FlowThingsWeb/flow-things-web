@@ -166,7 +166,7 @@ export default function Footer({ cfg }: FooterProps) {
 
           {/* Data Fiscal (AFIP) */}
           <a
-            href="https://qr.afip.gob.ar/?qr=zC0YQ5CI7eeX6Yhp0RPTzw,,"
+            href="http://qr.afip.gob.ar/?qr=zC0YQ5CI7eeX6Yhp0RPTzw,,"
             target="_F960AFIPInfo"
             rel="noopener noreferrer"
             className="flex-shrink-0"
