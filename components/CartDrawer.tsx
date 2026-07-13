@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCartStore } from '@/lib/store'
+import { supabase } from '@/lib/supabase'
+import { Producto } from '@/types'
 import { formatPrecio } from '@/lib/format'
 
 interface CartDrawerProps {
@@ -13,8 +15,28 @@ interface CartDrawerProps {
 }
 
 export default function CartDrawer({ gratisAmba = 60000, gratisInterior = 120000 }: CartDrawerProps) {
-  const { items, isOpen, closeCart, removeItem, updateCantidad, total } = useCartStore()
+  const { items, isOpen, closeCart, removeItem, updateCantidad, total, addItem } = useCartStore()
   const totalAmount = total()
+
+  // Cross-sell: productos destacados que no están en el carrito
+  const [sugeridos, setSugeridos] = useState<Producto[]>([])
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelado = false
+    supabase
+      .from('productos')
+      .select('*')
+      .eq('activo', true)
+      .eq('destacado', true)
+      .gt('stock', 0)
+      .limit(12)
+      .then(({ data }) => {
+        if (cancelado) return
+        const enCarrito = new Set(useCartStore.getState().items.map((i) => i.producto.id))
+        setSugeridos(((data as Producto[]) || []).filter((p) => !enCarrito.has(p.id)).slice(0, 3))
+      })
+    return () => { cancelado = true }
+  }, [isOpen, items.length])
 
   // Cerrar con Escape
   useEffect(() => {
@@ -182,6 +204,37 @@ export default function CartDrawer({ gratisAmba = 60000, gratisInterior = 120000
                 </div>
               )
             })()}
+
+            {/* Cross-sell: sumá esto */}
+            {sugeridos.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-brand-text-muted uppercase tracking-wide">Sumá a tu pedido</p>
+                {sugeridos.map((p) => {
+                  const img = p.imagen_url || p.imagenes?.[0] || null
+                  return (
+                    <div key={p.id} className="flex items-center gap-3">
+                      <div className="relative w-10 h-10 bg-brand-bg-soft rounded-lg overflow-hidden flex-shrink-0">
+                        {img ? (
+                          <Image src={img} alt={p.nombre} fill className="object-cover" sizes="40px" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-sm">📦</div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-brand-text line-clamp-1">{p.nombre}</p>
+                        <p className="text-xs font-semibold text-brand-neon">{formatPrecio(p.precio)}</p>
+                      </div>
+                      <button
+                        onClick={() => addItem(p)}
+                        className="text-xs font-semibold bg-brand-purple/15 text-brand-purple-light hover:bg-brand-purple hover:text-white px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                      >
+                        + Sumar
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <span className="text-brand-text-muted text-sm">Subtotal</span>

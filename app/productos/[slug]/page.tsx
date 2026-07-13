@@ -11,6 +11,7 @@ import { Producto, Variante } from '@/types'
 import FavoritoButton from '@/components/FavoritoButton'
 import CuotasMP from '@/components/CuotasMP'
 import ProductReviews from '@/components/ProductReviews'
+import RelatedProducts from '@/components/RelatedProducts'
 import { formatPrecio } from '@/lib/format'
 
 function waLink(telefono: string, texto: string) {
@@ -662,6 +663,12 @@ export default function ProductoDetallePage() {
             </div>
           </div>
         </div>
+
+        {/* Productos relacionados */}
+        <RelatedProducts
+          productoId={producto.id}
+          categoriaId={(producto as any).categoria_id ?? (producto.categorias as any)?.id}
+        />
 
         {/* Reseñas */}
         <ProductReviews productoId={producto.id} />
