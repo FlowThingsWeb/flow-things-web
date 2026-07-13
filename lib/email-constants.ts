@@ -161,6 +161,49 @@ export const DEFAULT_CARRITO_CUERPO = `<!DOCTYPE html>
 </table>
 </body></html>`
 
+// ─── Newsletter: cupón de bienvenida ────────────────────────────────────────
+export const DEFAULT_NEWSLETTER_ASUNTO = 'Tu cupón de bienvenida a Flow Things &#x1F381;'
+
+export const DEFAULT_NEWSLETTER_CUERPO = `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#ede9f7;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ede9f7">
+<tr><td align="center" style="padding:36px 16px 48px">
+<table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(80,0,200,0.13)">
+
+<tr><td style="background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 60%,#9333ea 100%);padding:28px 40px;text-align:center">
+  <img src="https://flow-things-web.vercel.app/logo-light.png" height="56" alt="Flow Things" style="display:block;margin:0 auto"/>
+</td></tr>
+
+<tr><td style="background:#f5f0ff;padding:36px 40px 12px;text-align:center">
+  <div style="font-size:52px;line-height:1;margin-bottom:10px">&#x1F381;</div>
+  <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#1a0040">¡Gracias por sumarte!</h1>
+  <p style="margin:0;font-size:15px;color:#6b21a8">Acá tenés tu cupón de bienvenida:</p>
+</td></tr>
+
+<tr><td style="background:#ffffff;padding:20px 40px 8px;text-align:center">
+  <div style="border:2px dashed #7C3AED;border-radius:14px;padding:18px;display:inline-block">
+    <span style="font-size:26px;font-weight:800;color:#7C3AED;letter-spacing:2px;font-family:monospace">{{cupon}}</span>
+  </div>
+</td></tr>
+
+<tr><td style="background:#ffffff;padding:16px 40px 36px;text-align:center">
+  <a href="{{link}}" style="display:inline-block;background:#7C3AED;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:14px 40px;border-radius:14px">
+    Ver productos
+  </a>
+  <p style="margin:18px 0 0;font-size:12px;color:#9ca3af">Ingresá el código en el carrito al finalizar tu compra.</p>
+</td></tr>
+
+<tr><td style="background:#1e0050;padding:22px 40px;text-align:center">
+  <a href="https://flowthings.com.ar" style="color:#a78bfa;text-decoration:none;font-size:13px;font-weight:600">flowthings.com.ar</a>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body></html>`
+
 export const DEFAULT_DESPACHO_ASUNTO = 'Tu pedido de Flow Things esta en camino!'
 
 export const DEFAULT_DESPACHO_CUERPO = `<!DOCTYPE html>
