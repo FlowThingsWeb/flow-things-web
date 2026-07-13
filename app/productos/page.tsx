@@ -2,11 +2,15 @@ import { Suspense } from 'react'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import ProductCard from '@/components/ProductCard'
 import SearchInput from '@/components/SearchInput'
+import SortSelect from '@/components/SortSelect'
+import Link from 'next/link'
 import { Producto, Variante } from '@/types'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 
+const PAGE_SIZE = 24
+
 interface PageProps {
-  searchParams: Promise<{ categoria?: string; q?: string }>
+  searchParams: Promise<{ categoria?: string; q?: string; orden?: string; page?: string }>
 }
 
 export type CatalogItem = {
@@ -82,6 +86,29 @@ export default async function ProductosPage({ searchParams }: PageProps) {
     (c) => c.slug === params.categoria
   )
 
+  // ─── Ordenar ─────────────────────────────────────────────────────────────
+  // 'nuevo' respeta el orden de la query (created_at desc). El resto reordena.
+  const orden = params.orden || 'nuevo'
+  const ordenados = [...items]
+  if (orden === 'precio-asc') ordenados.sort((a, b) => a.producto.precio - b.producto.precio)
+  else if (orden === 'precio-desc') ordenados.sort((a, b) => b.producto.precio - a.producto.precio)
+  else if (orden === 'nombre') ordenados.sort((a, b) => a.producto.nombre.localeCompare(b.producto.nombre, 'es'))
+
+  // ─── Paginar ─────────────────────────────────────────────────────────────
+  const totalPaginas = Math.max(1, Math.ceil(ordenados.length / PAGE_SIZE))
+  const paginaActual = Math.min(Math.max(1, parseInt(params.page || '1', 10) || 1), totalPaginas)
+  const visibles = ordenados.slice((paginaActual - 1) * PAGE_SIZE, paginaActual * PAGE_SIZE)
+
+  // Link de paginación preservando categoria / q / orden
+  const linkPagina = (p: number) => {
+    const sp = new URLSearchParams()
+    if (params.categoria) sp.set('categoria', params.categoria)
+    if (params.q) sp.set('q', params.q)
+    if (params.orden) sp.set('orden', params.orden)
+    if (p > 1) sp.set('page', String(p))
+    return `/productos${sp.toString() ? `?${sp.toString()}` : ''}`
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Header */}
@@ -134,6 +161,16 @@ export default async function ProductosPage({ searchParams }: PageProps) {
         <div className="flex-1">
           <SearchInput categoria={params.categoria} />
 
+          {ordenados.length > 0 && (
+            <div className="flex items-center justify-between gap-3 mb-6">
+              <p className="text-sm text-brand-text-muted whitespace-nowrap">
+                Mostrando {(paginaActual - 1) * PAGE_SIZE + 1}–
+                {Math.min(paginaActual * PAGE_SIZE, ordenados.length)} de {ordenados.length}
+              </p>
+              <SortSelect />
+            </div>
+          )}
+
           {items.length === 0 ? (
             <div className="text-center py-20">
               <span className="text-5xl block mb-4">🔍</span>
@@ -143,15 +180,60 @@ export default async function ProductosPage({ searchParams }: PageProps) {
               </a>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {items.map(({ producto, variante }) => (
-                <ProductCard
-                  key={variante ? `${producto.id}-${variante.id}` : producto.id}
-                  producto={producto}
-                  variante={variante}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                {visibles.map(({ producto, variante }) => (
+                  <ProductCard
+                    key={variante ? `${producto.id}-${variante.id}` : producto.id}
+                    producto={producto}
+                    variante={variante}
+                  />
+                ))}
+              </div>
+
+              {/* Paginación */}
+              {totalPaginas > 1 && (
+                <nav className="flex items-center justify-center gap-2 mt-10" aria-label="Paginación">
+                  {paginaActual > 1 && (
+                    <Link
+                      href={linkPagina(paginaActual - 1)}
+                      className="px-4 py-2 rounded-xl border border-brand-border text-brand-text-muted hover:text-white hover:border-brand-purple transition-colors text-sm"
+                    >
+                      ← Anterior
+                    </Link>
+                  )}
+
+                  {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPaginas || Math.abs(p - paginaActual) <= 1)
+                    .map((p, idx, arr) => (
+                      <span key={p} className="flex items-center gap-2">
+                        {idx > 0 && arr[idx - 1] !== p - 1 && (
+                          <span className="text-brand-text-light px-1">…</span>
+                        )}
+                        <Link
+                          href={linkPagina(p)}
+                          className={`w-10 h-10 flex items-center justify-center rounded-xl text-sm font-medium transition-colors ${
+                            p === paginaActual
+                              ? 'bg-brand-purple text-white'
+                              : 'border border-brand-border text-brand-text-muted hover:text-white hover:border-brand-purple'
+                          }`}
+                        >
+                          {p}
+                        </Link>
+                      </span>
+                    ))}
+
+                  {paginaActual < totalPaginas && (
+                    <Link
+                      href={linkPagina(paginaActual + 1)}
+                      className="px-4 py-2 rounded-xl border border-brand-border text-brand-text-muted hover:text-white hover:border-brand-purple transition-colors text-sm"
+                    >
+                      Siguiente →
+                    </Link>
+                  )}
+                </nav>
+              )}
+            </>
           )}
         </div>
       </div>
