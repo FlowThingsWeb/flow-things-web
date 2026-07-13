@@ -104,9 +104,12 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
   }
 
+  // Borrado real. Las variantes y favoritos tienen FK ON DELETE CASCADE, así que
+  // se eliminan solos. El historial de órdenes guarda los items como snapshot JSON
+  // (sin FK), por lo que no se ve afectado.
   const { error } = await supabaseAdmin
     .from('productos')
-    .update({ activo: false })
+    .delete()
     .eq('id', id)
 
   if (error) {

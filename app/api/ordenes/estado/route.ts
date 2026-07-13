@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from('ordenes')
-    .select('estado, total, items')
+    .select('estado, total, items, descuento_monto, datos_comprador')
     .eq('id', id)
     .single()
 
@@ -31,5 +31,9 @@ export async function GET(request: NextRequest) {
       }))
     : []
 
-  return NextResponse.json({ estado: data.estado, total: data.total, items })
+  // Envío y descuento para el resumen (no son datos sensibles del comprador).
+  const envio = Number(data.datos_comprador?.envio_costo ?? 0)
+  const descuento = Number(data.descuento_monto ?? 0)
+
+  return NextResponse.json({ estado: data.estado, total: data.total, items, envio, descuento })
 }

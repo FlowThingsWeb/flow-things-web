@@ -24,6 +24,8 @@ function ExitoContent() {
 
   const [items, setItems] = useState<ItemResumen[]>([])
   const [total, setTotal] = useState<number | null>(null)
+  const [envio, setEnvio] = useState(0)
+  const [descuento, setDescuento] = useState(0)
 
   // Sin orden_id no hay nada que mostrar — redirigir al catálogo
   useEffect(() => {
@@ -48,6 +50,8 @@ function ExitoContent() {
         if (cancelado) return
         if (Array.isArray(data.items)) setItems(data.items)
         if (typeof data.total === 'number') setTotal(data.total)
+        if (typeof data.envio === 'number') setEnvio(data.envio)
+        if (typeof data.descuento === 'number') setDescuento(data.descuento)
         if (data.estado === 'approved') {
           clearCart()
           return // pago confirmado — dejar de pollear
@@ -124,9 +128,21 @@ function ExitoContent() {
             </div>
 
             {total != null && (
-              <div className="flex justify-between items-center border-t border-brand-border mt-4 pt-3">
-                <span className="font-semibold text-brand-text">Total</span>
-                <span className="font-bold text-lg text-brand-text">{formatPrecio(total)}</span>
+              <div className="border-t border-brand-border mt-4 pt-3 space-y-2">
+                {descuento > 0 && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-brand-text-muted">Descuento</span>
+                    <span className="text-green-400">− {formatPrecio(descuento)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-brand-text-muted">Envío</span>
+                  <span className="text-brand-text">{envio > 0 ? formatPrecio(envio) : 'Gratis'}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-brand-border">
+                  <span className="font-semibold text-brand-text">Total</span>
+                  <span className="font-bold text-lg text-brand-text">{formatPrecio(total)}</span>
+                </div>
               </div>
             )}
           </div>

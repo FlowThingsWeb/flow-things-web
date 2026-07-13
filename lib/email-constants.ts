@@ -17,9 +17,7 @@ export const DEFAULT_EMAIL_CUERPO = `<!DOCTYPE html>
 
 <!-- HERO -->
 <tr><td style="background:#f5f0ff;padding:36px 40px 28px;text-align:center;border-bottom:1px solid #ede9f7">
-  <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:#7C3AED;margin-bottom:16px">
-    <span style="font-size:30px;line-height:1">&#x2713;</span>
-  </div>
+  <div style="width:64px;height:64px;border-radius:50%;background:#7C3AED;margin:0 auto 16px;text-align:center;line-height:64px;font-size:34px;color:#ffffff">&#x2713;</div>
   <h1 style="margin:0 0 8px;font-size:28px;font-weight:800;color:#1a0040;line-height:1.2">&#xA1;Compra confirmada!</h1>
   <p style="margin:0 0 18px;font-size:16px;color:#6b21a8;font-weight:500">Hola {{nombre}}, gracias por elegirnos &#x1F609;</p>
   <div style="display:inline-block;background:#7C3AED;border-radius:50px;padding:8px 24px">
