@@ -76,7 +76,9 @@ export default function CartSync() {
       try {
         await supabase
           .from('carritos_guardados')
-          .upsert({ user_id: user.id, items, updated_at: new Date().toISOString() })
+          // recordatorio_enviado: null re-arma el recordatorio de carrito abandonado
+          // cada vez que el carrito cambia (así se puede volver a avisar más adelante).
+          .upsert({ user_id: user.id, items, updated_at: new Date().toISOString(), recordatorio_enviado: null })
       } catch {
         // silenciar errores de red
       }
