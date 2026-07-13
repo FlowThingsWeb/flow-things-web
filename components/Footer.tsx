@@ -164,25 +164,23 @@ export default function Footer({ cfg }: FooterProps) {
             </li>
           </ul>
 
-          {/* Data Fiscal (AFIP) — se muestra solo si está configurada la URL */}
-          {cfg.footer_data_fiscal_url && (
-            <a
-              href={cfg.footer_data_fiscal_url}
-              target="_F960AFIPInfo"
-              rel="noopener noreferrer"
-              className="flex-shrink-0"
-              aria-label="Data Fiscal AFIP"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://www.afip.gob.ar/images/f960/DATAWEB.jpg"
-                alt="Data Fiscal"
-                width={40}
-                height={54}
-                style={{ height: '54px', width: 'auto' }}
-              />
-            </a>
-          )}
+          {/* Data Fiscal (AFIP) */}
+          <a
+            href="https://qr.afip.gob.ar/?qr=zC0YQ5CI7eeX6Yhp0RPTzw,,"
+            target="_F960AFIPInfo"
+            rel="noopener noreferrer"
+            className="flex-shrink-0"
+            aria-label="Data Fiscal AFIP"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://www.afip.gob.ar/images/f960/DATAWEB.jpg"
+              alt="Data Fiscal"
+              width={40}
+              height={54}
+              style={{ height: '54px', width: 'auto' }}
+            />
+          </a>
         </div>
 
         <div className="border-t border-brand-border mt-6 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
