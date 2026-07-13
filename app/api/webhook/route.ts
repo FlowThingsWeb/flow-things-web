@@ -1,9 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { createHmac } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import MercadoPagoConfig, { Payment } from 'mercadopago'
 import { enqueueJob } from '@/lib/jobs'
-import { procesarPagoAprobado } from '@/lib/procesar-pago'
+import { procesarJobsPendientes } from '@/lib/procesar-jobs'
+
+// El fulfillment (factura/email/stock) corre en after(), después de responderle
+// a MP. Necesita margen de tiempo para AFIP + email.
+export const maxDuration = 60
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN!,
@@ -45,22 +49,7 @@ function verifyMPSignature(request: NextRequest, paymentId: string | number): bo
   const manifest = `id:${paymentId};request-id:${xRequestId};ts:${ts};`
   const hmac = createHmac('sha256', secret).update(manifest).digest('hex')
 
-  const ok = hmac === v1
-  if (!ok) {
-    // Diagnóstico temporal — no expone el secret, solo su longitud.
-    const url = new URL(request.url)
-    console.error('[webhook][diag] firma no coincide', {
-      manifest,
-      hmacCalc: hmac.slice(0, 16),
-      v1recv: v1.slice(0, 16),
-      secretLen: secret.length,
-      ts,
-      xRequestId,
-      paymentIdBody: String(paymentId),
-      queryDataId: url.searchParams.get('data.id') || '(sin query data.id)',
-    })
-  }
-  return ok
+  return hmac === v1
 }
 
 export async function POST(request: NextRequest) {
@@ -152,17 +141,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, idempotent: true })
     }
 
-    // Encolar el procesamiento post-pago (stock, factura, notificaciones) para
-    // responder rápido a MP y no disparar reintentos por timeout. El cron
-    // (/api/cron/procesar-jobs) lo ejecuta. Si el encolado falla, procesamos
-    // inline como fallback para no dejar la venta sin fulfillment.
+    // Encolar el procesamiento post-pago (stock, factura, notificaciones).
+    // Se responde rápido a MP y el fulfillment corre en after() (abajo), así que
+    // el cliente recibe factura/email en segundos sin depender del cron diario.
     try {
       await enqueueJob('post_pago', { ordenId })
     } catch (e: any) {
-      console.error('[webhook] Encolado falló, procesando inline:', e.message)
-      await procesarPagoAprobado(ordenId).catch((err: any) =>
-        console.error('[webhook] Proceso inline falló:', err.message))
+      // Si no se pudo encolar, no hay job que procesar después: el cron de
+      // respaldo no lo va a levantar. Logueamos para intervención manual.
+      console.error('[webhook] Encolado falló:', e.message)
     }
+
+    // Disparo inmediato del procesamiento DESPUÉS de responderle a MP.
+    // procesarJobsPendientes reclama el job de forma atómica, así que no se
+    // duplica con el cron de respaldo. Si el after() muere, el cron lo levanta.
+    after(async () => {
+      try {
+        await procesarJobsPendientes(10)
+      } catch (e: any) {
+        console.error('[webhook] after() procesarJobsPendientes falló:', e.message)
+      }
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {
