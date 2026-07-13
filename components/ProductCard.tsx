@@ -5,14 +5,16 @@ import Link from 'next/link'
 import { Producto, Variante } from '@/types'
 import { useCartStore } from '@/lib/store'
 import FavoritoButton from '@/components/FavoritoButton'
+import Stars from '@/components/Stars'
 import { formatPrecio } from '@/lib/format'
 
 interface ProductCardProps {
   producto: Producto
   variante?: Variante | null
+  rating?: { promedio: number; cantidad: number } | null
 }
 
-export default function ProductCard({ producto, variante }: ProductCardProps) {
+export default function ProductCard({ producto, variante, rating }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem)
 
   // Imagen en cascada: variante propia → galería variante → imagen producto → galería producto
@@ -102,6 +104,13 @@ export default function ProductCard({ producto, variante }: ProductCardProps) {
             {nombre}
           </h3>
         </Link>
+
+        {rating && rating.cantidad > 0 && (
+          <div className="flex items-center gap-1 mt-1.5">
+            <Stars value={rating.promedio} size={13} />
+            <span className="text-xs text-brand-text-light">({rating.cantidad})</span>
+          </div>
+        )}
 
         <div className="mt-auto pt-3 flex items-end justify-between gap-2">
           <div>

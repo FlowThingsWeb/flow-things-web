@@ -75,12 +75,32 @@ async function getCategorias() {
   return (data || []).filter((c: any) => !CATEGORIAS_PAUSADAS.includes(c.slug))
 }
 
+/** Ratings por producto (best-effort: si la vista no existe todavía, devuelve mapa vacío). */
+async function getRatings(ids: string[]): Promise<Map<string, { promedio: number; cantidad: number }>> {
+  const map = new Map<string, { promedio: number; cantidad: number }>()
+  if (ids.length === 0) return map
+  try {
+    const { data } = await supabaseAdmin
+      .from('producto_ratings')
+      .select('producto_id, promedio, cantidad')
+      .in('producto_id', ids)
+    for (const r of data || []) {
+      map.set(r.producto_id, { promedio: Number(r.promedio), cantidad: Number(r.cantidad) })
+    }
+  } catch {
+    // vista aún no creada — sin ratings
+  }
+  return map
+}
+
 export default async function ProductosPage({ searchParams }: PageProps) {
   const params = await searchParams
   const [items, categorias] = await Promise.all([
     getProductos(params.categoria, params.q),
     getCategorias(),
   ])
+
+  const ratings = await getRatings([...new Set(items.map((i) => i.producto.id))])
 
   const categoriaActiva = categorias.find(
     (c) => c.slug === params.categoria
@@ -187,6 +207,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
                     key={variante ? `${producto.id}-${variante.id}` : producto.id}
                     producto={producto}
                     variante={variante}
+                    rating={ratings.get(producto.id) ?? null}
                   />
                 ))}
               </div>

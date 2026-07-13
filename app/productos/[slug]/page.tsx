@@ -10,6 +10,7 @@ import { useCartStore } from '@/lib/store'
 import { Producto, Variante } from '@/types'
 import FavoritoButton from '@/components/FavoritoButton'
 import CuotasMP from '@/components/CuotasMP'
+import ProductReviews from '@/components/ProductReviews'
 import { formatPrecio } from '@/lib/format'
 
 function waLink(telefono: string, texto: string) {
@@ -661,6 +662,9 @@ export default function ProductoDetallePage() {
             </div>
           </div>
         </div>
+
+        {/* Reseñas */}
+        <ProductReviews productoId={producto.id} />
       </div>
     </div>
   )
