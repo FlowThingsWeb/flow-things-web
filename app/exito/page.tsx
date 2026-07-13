@@ -26,7 +26,10 @@ function ExitoContent() {
   const [total, setTotal] = useState<number | null>(null)
   const [envio, setEnvio] = useState(0)
   const [descuento, setDescuento] = useState(0)
+  const [aprobado, setAprobado] = useState(false)
+  const [copiado, setCopiado] = useState(false)
   const trackedRef = useRef(false)
+  const cuponProxima = process.env.NEXT_PUBLIC_CUPON_POSTCOMPRA
 
   // Sin orden_id no hay nada que mostrar — redirigir al catálogo
   useEffect(() => {
@@ -55,6 +58,7 @@ function ExitoContent() {
         if (typeof data.descuento === 'number') setDescuento(data.descuento)
         if (data.estado === 'approved') {
           clearCart()
+          setAprobado(true)
           // Evento de conversión para analytics (GA4 + Meta Pixel), una sola vez.
           if (!trackedRef.current) {
             trackedRef.current = true
@@ -109,6 +113,27 @@ function ExitoContent() {
           <p className="text-xs text-brand-text-light bg-brand-bg-soft rounded-lg px-4 py-2.5 mb-6 font-mono text-center tracking-wider">
             Orden #{ordenId.slice(0, 8).toUpperCase()}
           </p>
+        )}
+
+        {/* Cupón para la próxima compra */}
+        {aprobado && cuponProxima && (
+          <div className="border border-dashed border-brand-purple rounded-2xl p-4 mb-6 text-center bg-brand-purple/5">
+            <p className="text-xs text-brand-text-muted mb-2">🎁 Un regalo para tu próxima compra:</p>
+            <div className="flex items-center justify-center gap-2">
+              <span className="font-mono font-bold text-brand-purple text-lg tracking-wider">{cuponProxima}</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard?.writeText(cuponProxima).then(() => {
+                    setCopiado(true)
+                    setTimeout(() => setCopiado(false), 2000)
+                  })
+                }}
+                className="text-xs bg-brand-purple/15 text-brand-purple-light hover:bg-brand-purple hover:text-white px-2.5 py-1 rounded-lg transition-colors"
+              >
+                {copiado ? '¡Copiado!' : 'Copiar'}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Resumen de la compra */}
