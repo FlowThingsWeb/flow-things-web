@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { getConfig } from '@/lib/config'
 
 /**
  * GET /api/ordenes/estado?id=xxx
@@ -35,5 +36,9 @@ export async function GET(request: NextRequest) {
   const envio = Number(data.datos_comprador?.envio_costo ?? 0)
   const descuento = Number(data.descuento_monto ?? 0)
 
-  return NextResponse.json({ estado: data.estado, total: data.total, items, envio, descuento })
+  // Cupón para la próxima compra (editable desde /admin/descuentos).
+  const cfg = await getConfig()
+  const cupon_postcompra = cfg.cupon_postcompra_codigo || ''
+
+  return NextResponse.json({ estado: data.estado, total: data.total, items, envio, descuento, cupon_postcompra })
 }

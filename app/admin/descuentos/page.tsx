@@ -39,6 +39,11 @@ export default function DescuentosPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // Cupón post-compra (config editable)
+  const [cuponPost, setCuponPost] = useState('')
+  const [savingCupon, setSavingCupon] = useState(false)
+  const [cuponMsg, setCuponMsg] = useState('')
+
   const cargar = async () => {
     setLoading(true)
     const res = await fetch('/api/admin/descuentos')
@@ -47,6 +52,34 @@ export default function DescuentosPage() {
   }
 
   useEffect(() => { cargar() }, [])
+
+  // Cargar el código post-compra configurado
+  useEffect(() => {
+    fetch('/api/admin/config')
+      .then(r => r.json())
+      .then(d => {
+        const cfg = Object.fromEntries((d.data || []).map((r: any) => [r.clave, r.valor]))
+        setCuponPost(cfg.cupon_postcompra_codigo || '')
+      })
+      .catch(() => {})
+  }, [])
+
+  const guardarCuponPost = async () => {
+    setSavingCupon(true); setCuponMsg('')
+    try {
+      await fetch('/api/admin/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: { cupon_postcompra_codigo: cuponPost } }),
+      })
+      setCuponMsg('Guardado ✅')
+    } catch {
+      setCuponMsg('Error al guardar')
+    } finally {
+      setSavingCupon(false)
+      setTimeout(() => setCuponMsg(''), 3000)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,6 +137,40 @@ export default function DescuentosPage() {
         <h1 className="text-2xl font-bold text-brand-text">Códigos de descuento</h1>
         <p className="text-brand-text-muted text-sm mt-1">
           Creá y gestioná códigos de descuento para aplicar en la compra.
+        </p>
+      </div>
+
+      {/* Cupón post-compra */}
+      <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
+        <h2 className="font-semibold text-white text-base">Cupón después de la compra</h2>
+        <p className="text-brand-text-muted text-sm mt-1 mb-4">
+          Se muestra en la pantalla de "¡Gracias por tu compra!" para incentivar la recompra. Elegí uno de tus códigos (o ninguno).
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            value={cuponPost}
+            onChange={e => setCuponPost(e.target.value)}
+            className="input-dark w-full sm:w-64"
+          >
+            <option value="">— Ninguno (no mostrar) —</option>
+            {cuponPost && !codigos.some(c => c.codigo === cuponPost) && (
+              <option value={cuponPost}>{cuponPost}</option>
+            )}
+            {codigos.map(c => (
+              <option key={c.id} value={c.codigo}>{c.codigo}{c.activo ? '' : ' (inactivo)'}</option>
+            ))}
+          </select>
+          <button
+            onClick={guardarCuponPost}
+            disabled={savingCupon}
+            className="bg-brand-purple hover:bg-brand-purple-light disabled:opacity-60 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
+          >
+            {savingCupon ? 'Guardando...' : 'Guardar'}
+          </button>
+          {cuponMsg && <span className="text-sm text-green-400">{cuponMsg}</span>}
+        </div>
+        <p className="text-xs text-brand-text-light mt-2">
+          Asegurate de que el código exista y esté activo para que el cliente pueda usarlo.
         </p>
       </div>
 

@@ -28,8 +28,8 @@ function ExitoContent() {
   const [descuento, setDescuento] = useState(0)
   const [aprobado, setAprobado] = useState(false)
   const [copiado, setCopiado] = useState(false)
+  const [cuponProxima, setCuponProxima] = useState('')
   const trackedRef = useRef(false)
-  const cuponProxima = process.env.NEXT_PUBLIC_CUPON_POSTCOMPRA
 
   // Sin orden_id no hay nada que mostrar — redirigir al catálogo
   useEffect(() => {
@@ -56,6 +56,7 @@ function ExitoContent() {
         if (typeof data.total === 'number') setTotal(data.total)
         if (typeof data.envio === 'number') setEnvio(data.envio)
         if (typeof data.descuento === 'number') setDescuento(data.descuento)
+        if (typeof data.cupon_postcompra === 'string') setCuponProxima(data.cupon_postcompra)
         if (data.estado === 'approved') {
           clearCart()
           setAprobado(true)
