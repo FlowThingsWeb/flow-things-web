@@ -7,6 +7,7 @@ import UserShell from '@/components/UserShell'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar'),
   title: {
     default: 'Flow Things — Librería & Juguetería',
     template: '%s | Flow Things',
