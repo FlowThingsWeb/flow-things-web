@@ -6,7 +6,13 @@ import Link from 'next/link'
 import { useCartStore } from '@/lib/store'
 import { formatPrecio } from '@/lib/format'
 
-export default function CartDrawer() {
+interface CartDrawerProps {
+  /** Umbrales de envío gratis (desde config). Deben coincidir con /admin/envios. */
+  gratisAmba?: number
+  gratisInterior?: number
+}
+
+export default function CartDrawer({ gratisAmba = 60000, gratisInterior = 120000 }: CartDrawerProps) {
   const { items, isOpen, closeCart, removeItem, updateCantidad, total } = useCartStore()
   const totalAmount = total()
 
@@ -131,8 +137,8 @@ export default function CartDrawer() {
           <div className="border-t border-brand-border p-5 space-y-4">
             {/* Progreso envío gratis */}
             {(() => {
-              const AMBA = 40000
-              const INTERIOR = 120000
+              const AMBA = gratisAmba
+              const INTERIOR = gratisInterior
               const pctAmba = Math.min(100, (totalAmount / AMBA) * 100)
               const pctInterior = Math.min(100, (totalAmount / INTERIOR) * 100)
               const libreAmba = totalAmount >= AMBA

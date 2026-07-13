@@ -39,12 +39,15 @@ export default function UserShell({ cfg, children }: Props) {
       <CartSync />
       <RegistrationBanner />
       <AnnouncementBar
-        gratisAmba={Number(cfg.envio_gratis_gba_desde) || 40000}
+        gratisAmba={Number(cfg.envio_gratis_amba_desde || cfg.envio_gratis_gba_desde) || 60000}
         gratisInterior={Number(cfg.envio_gratis_interior_desde) || 120000}
       />
       <Header cfg={cfg} />
       <main className="min-h-screen">{children}</main>
-      <CartDrawer />
+      <CartDrawer
+        gratisAmba={Number(cfg.envio_gratis_amba_desde || cfg.envio_gratis_gba_desde) || 60000}
+        gratisInterior={Number(cfg.envio_gratis_interior_desde) || 120000}
+      />
       <Footer cfg={cfg} />
     </>
   )

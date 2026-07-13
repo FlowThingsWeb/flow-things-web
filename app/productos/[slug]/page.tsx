@@ -33,6 +33,10 @@ export default function ProductoDetallePage() {
   const [telefono, setTelefono] = useState('+54 9 11 5607 5633')
   const [email,    setEmail]    = useState('contacto@flowthings.com.ar')
 
+  // Umbrales de envío gratis (desde config; deben coincidir con /admin/envios)
+  const [gratisAmba,     setGratisAmba]     = useState(60000)
+  const [gratisInterior, setGratisInterior] = useState(120000)
+
   const addItem = useCartStore(s => s.addItem)
 
   // Selected variant by ID (declared early so the load effect can set it)
@@ -51,7 +55,7 @@ export default function ProductoDetallePage() {
         supabase
           .from('configuracion')
           .select('clave, valor')
-          .in('clave', ['footer_telefono', 'footer_email']),
+          .in('clave', ['footer_telefono', 'footer_email', 'envio_gratis_amba_desde', 'envio_gratis_gba_desde', 'envio_gratis_interior_desde']),
       ])
 
       if (!prodRes.data) { setLoading(false); return }
@@ -69,10 +73,18 @@ export default function ProductoDetallePage() {
         if (match) setVarianteId(match.id)
       }
 
+      let ambaCfg: number | null = null
+      let gbaCfg: number | null = null
       for (const row of cfgRes.data || []) {
         if (row.clave === 'footer_telefono' && row.valor) setTelefono(row.valor)
         if (row.clave === 'footer_email'    && row.valor) setEmail(row.valor)
+        if (row.clave === 'envio_gratis_amba_desde'     && row.valor) ambaCfg = Number(row.valor)
+        if (row.clave === 'envio_gratis_gba_desde'      && row.valor) gbaCfg = Number(row.valor)
+        if (row.clave === 'envio_gratis_interior_desde' && row.valor) setGratisInterior(Number(row.valor))
       }
+      // AMBA: clave propia, o fallback al valor viejo 'gba'
+      if (ambaCfg) setGratisAmba(ambaCfg)
+      else if (gbaCfg) setGratisAmba(gbaCfg)
 
       setLoading(false)
     }
@@ -637,7 +649,7 @@ export default function ProductoDetallePage() {
             </div>
             <div className="flex items-start gap-2">
               <span>🎁</span>
-              <span>Envío gratis en AMBA +$40.000 · Interior del país +$120.000</span>
+              <span>Envío gratis en AMBA desde {formatPrecio(gratisAmba)} · Interior del país desde {formatPrecio(gratisInterior)}</span>
             </div>
             <div className="flex items-center gap-2">
               <span>🔒</span>

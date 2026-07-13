@@ -3,7 +3,7 @@ function fmt(n: number) {
 }
 
 export default function AnnouncementBar({
-  gratisAmba = 40000,
+  gratisAmba = 60000,
   gratisInterior = 120000,
 }: {
   gratisAmba?: number
