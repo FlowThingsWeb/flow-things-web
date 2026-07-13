@@ -16,6 +16,7 @@ import RegistrationBanner from '@/components/RegistrationBanner'
 import CartSync from '@/components/CartSync'
 import ProfileGuard from '@/components/ProfileGuard'
 import RegistrationPopup from '@/components/RegistrationPopup'
+import FloatingWhatsApp from '@/components/FloatingWhatsApp'
 import type { ConfigMap } from '@/lib/config'
 
 interface Props {
@@ -48,6 +49,7 @@ export default function UserShell({ cfg, children }: Props) {
         gratisAmba={Number(cfg.envio_gratis_amba_desde || cfg.envio_gratis_gba_desde) || 60000}
         gratisInterior={Number(cfg.envio_gratis_interior_desde) || 120000}
       />
+      <FloatingWhatsApp telefono={cfg.footer_telefono} />
       <Footer cfg={cfg} />
     </>
   )
