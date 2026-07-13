@@ -47,27 +47,66 @@ async function getStockBajo(): Promise<LineaStock[]> {
   return lineas.sort((a, b) => a.stock - b.stock)
 }
 
+interface TopProducto {
+  nombre: string
+  cantidad: number
+  monto: number
+}
+
 async function getStats() {
-  const [{ count: totalProductos }, { count: totalOrdenes }, { data: ordenesRecientes }] =
-    await Promise.all([
-      supabaseAdmin.from('productos').select('id', { count: 'exact', head: true }).eq('activo', true),
-      supabaseAdmin.from('ordenes').select('id', { count: 'exact', head: true }),
-      supabaseAdmin
-        .from('ordenes')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5),
-    ])
+  const ahora = new Date()
+  const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
+  const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1)
 
-  // Calcular ingresos aprobados
-  const { data: ordenesAprobadas } = await supabaseAdmin
-    .from('ordenes')
-    .select('total')
-    .eq('estado', 'approved')
+  const [
+    { count: totalProductos },
+    { count: totalOrdenes },
+    { data: ordenesRecientes },
+    { data: aprobadasTotales },
+    { data: aprobadasMes },
+  ] = await Promise.all([
+    supabaseAdmin.from('productos').select('id', { count: 'exact', head: true }).eq('activo', true),
+    supabaseAdmin.from('ordenes').select('id', { count: 'exact', head: true }),
+    supabaseAdmin.from('ordenes').select('*').order('created_at', { ascending: false }).limit(5),
+    // Ingresos históricos: solo la columna total (payload mínimo)
+    supabaseAdmin.from('ordenes').select('total').eq('estado', 'approved'),
+    // Set del mes: para ventas de hoy, del mes y top productos (una sola lectura)
+    supabaseAdmin
+      .from('ordenes')
+      .select('total, items, created_at')
+      .eq('estado', 'approved')
+      .gte('created_at', inicioMes.toISOString()),
+  ])
 
-  const ingresos = ordenesAprobadas?.reduce((acc, o) => acc + Number(o.total), 0) || 0
+  const ingresos = (aprobadasTotales || []).reduce((acc, o) => acc + Number(o.total), 0)
 
-  return { totalProductos, totalOrdenes, ingresos, ordenesRecientes: ordenesRecientes || [] }
+  const mes = aprobadasMes || []
+  const ventasMes = { count: mes.length, monto: mes.reduce((a, o) => a + Number(o.total), 0) }
+
+  const hoy = mes.filter((o) => new Date(o.created_at) >= inicioDia)
+  const ventasHoy = { count: hoy.length, monto: hoy.reduce((a, o) => a + Number(o.total), 0) }
+
+  // Top productos del mes (por unidades vendidas)
+  const acum = new Map<string, TopProducto>()
+  for (const o of mes) {
+    for (const it of ((o.items as any[]) || [])) {
+      const prev = acum.get(it.nombre) || { nombre: it.nombre, cantidad: 0, monto: 0 }
+      prev.cantidad += Number(it.cantidad) || 0
+      prev.monto += (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
+      acum.set(it.nombre, prev)
+    }
+  }
+  const topProductos = [...acum.values()].sort((a, b) => b.cantidad - a.cantidad).slice(0, 5)
+
+  return {
+    totalProductos,
+    totalOrdenes,
+    ingresos,
+    ventasHoy,
+    ventasMes,
+    topProductos,
+    ordenesRecientes: ordenesRecientes || [],
+  }
 }
 
 const estadoColores: Record<string, string> = {
@@ -96,10 +135,12 @@ function formatFecha(fecha: string) {
 }
 
 export default async function AdminDashboard() {
-  const [{ totalProductos, totalOrdenes, ingresos, ordenesRecientes }, stockBajo] =
-    await Promise.all([getStats(), getStockBajo()])
+  const [
+    { totalProductos, totalOrdenes, ingresos, ventasHoy, ventasMes, topProductos, ordenesRecientes },
+    stockBajo,
+  ] = await Promise.all([getStats(), getStockBajo()])
 
-  const stats = [
+  const secundarias = [
     { label: 'Productos activos', value: totalProductos || 0, icon: '📦', href: '/admin/productos' },
     { label: 'Órdenes totales', value: totalOrdenes || 0, icon: '🛍️', href: '/admin/ordenes' },
     { label: 'Ingresos totales', value: formatPrecio(ingresos), icon: '💰', href: '/admin/ordenes' },
@@ -114,9 +155,33 @@ export default async function AdminDashboard() {
         </p>
       </div>
 
-      {/* Stats */}
+      {/* KPIs de ventas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-2xl">☀️</span>
+            <span className="text-brand-text-muted text-sm">Ventas de hoy</span>
+          </div>
+          <p className="text-3xl font-bold text-brand-neon">{formatPrecio(ventasHoy.monto)}</p>
+          <p className="text-brand-text-muted text-sm mt-1">
+            {ventasHoy.count} venta{ventasHoy.count !== 1 ? 's' : ''} aprobada{ventasHoy.count !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-2xl">📅</span>
+            <span className="text-brand-text-muted text-sm">Ventas del mes</span>
+          </div>
+          <p className="text-3xl font-bold text-brand-neon">{formatPrecio(ventasMes.monto)}</p>
+          <p className="text-brand-text-muted text-sm mt-1">
+            {ventasMes.count} venta{ventasMes.count !== 1 ? 's' : ''} aprobada{ventasMes.count !== 1 ? 's' : ''}
+          </p>
+        </div>
+      </div>
+
+      {/* Stats secundarias */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-        {stats.map((stat) => (
+        {secundarias.map((stat) => (
           <Link
             key={stat.label}
             href={stat.href}
@@ -129,6 +194,33 @@ export default async function AdminDashboard() {
             <p className="text-brand-text-muted text-sm mt-1">{stat.label}</p>
           </Link>
         ))}
+      </div>
+
+      {/* Top productos del mes */}
+      <div className="bg-brand-bg-card border border-brand-border rounded-2xl overflow-hidden mb-10">
+        <div className="px-6 py-4 border-b border-brand-border">
+          <h2 className="font-semibold text-white flex items-center gap-2">
+            <span>🏆</span> Más vendidos del mes
+          </h2>
+        </div>
+        {topProductos.length === 0 ? (
+          <div className="p-8 text-center text-brand-text-muted text-sm">
+            Todavía no hay ventas este mes
+          </div>
+        ) : (
+          <div className="divide-y divide-brand-border">
+            {topProductos.map((p, i) => (
+              <div key={p.nombre} className="px-6 py-3 flex items-center gap-4">
+                <span className="text-brand-text-light font-bold text-sm w-5">{i + 1}</span>
+                <p className="flex-1 min-w-0 text-sm font-medium text-brand-text truncate">{p.nombre}</p>
+                <span className="text-xs text-brand-text-muted whitespace-nowrap">{formatPrecio(p.monto)}</span>
+                <span className="text-xs font-bold bg-brand-purple/20 text-brand-purple-light px-2.5 py-1 rounded-full whitespace-nowrap">
+                  {p.cantidad} u.
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Acciones rápidas */}
