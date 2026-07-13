@@ -21,8 +21,9 @@ export default function TerminosPage() {
       <section>
         <h2 className="text-xl font-bold text-brand-text mb-3">1. Titular</h2>
         <p>
-          El sitio es operado por <strong className="text-brand-text">[Razón social / Nombre y apellido del titular]</strong>,
-          CUIT <strong className="text-brand-text">[CUIT]</strong>, con domicilio en <strong className="text-brand-text">[Domicilio comercial]</strong>,
+          El sitio es operado por <strong className="text-brand-text">Lucas Barman</strong>,
+          CUIT <strong className="text-brand-text">20-46212670-1</strong>, con domicilio en{' '}
+          <strong className="text-brand-text">Avenida Ángel Gallardo 160</strong>, Ciudad Autónoma de Buenos Aires,
           Argentina. Contacto: <a href={`mailto:${EMAIL}`} className="text-brand-purple hover:underline">{EMAIL}</a>.
         </p>
       </section>
