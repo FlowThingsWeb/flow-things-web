@@ -4,6 +4,49 @@ import { formatPrecio } from '@/lib/format'
 
 export const dynamic = 'force-dynamic'
 
+// Umbral de stock bajo: productos/variantes con stock <= este valor se listan
+// como alerta en el dashboard. Ajustar acá si el negocio necesita otro corte.
+const UMBRAL_STOCK_BAJO = 5
+
+interface LineaStock {
+  id: string
+  slug: string
+  nombre: string
+  stock: number
+  variante: string | null
+}
+
+async function getStockBajo(): Promise<LineaStock[]> {
+  const { data } = await supabaseAdmin
+    .from('productos')
+    .select('id, nombre, slug, stock, variantes(id, stock, atributos, activo)')
+    .eq('activo', true)
+
+  const lineas: LineaStock[] = []
+  for (const p of (data as any[]) || []) {
+    const variantesActivas = (p.variantes || []).filter((v: any) => v.activo)
+    if (variantesActivas.length > 0) {
+      // Stock se controla a nivel variante
+      for (const v of variantesActivas) {
+        if (v.stock <= UMBRAL_STOCK_BAJO) {
+          lineas.push({
+            id: p.id,
+            slug: p.slug,
+            nombre: p.nombre,
+            stock: v.stock,
+            variante: Object.values(v.atributos || {}).join(' / ') || 'Variante',
+          })
+        }
+      }
+    } else if (p.stock <= UMBRAL_STOCK_BAJO) {
+      lineas.push({ id: p.id, slug: p.slug, nombre: p.nombre, stock: p.stock, variante: null })
+    }
+  }
+
+  // Más críticos primero (sin stock arriba)
+  return lineas.sort((a, b) => a.stock - b.stock)
+}
+
 async function getStats() {
   const [{ count: totalProductos }, { count: totalOrdenes }, { data: ordenesRecientes }] =
     await Promise.all([
@@ -53,7 +96,8 @@ function formatFecha(fecha: string) {
 }
 
 export default async function AdminDashboard() {
-  const { totalProductos, totalOrdenes, ingresos, ordenesRecientes } = await getStats()
+  const [{ totalProductos, totalOrdenes, ingresos, ordenesRecientes }, stockBajo] =
+    await Promise.all([getStats(), getStockBajo()])
 
   const stats = [
     { label: 'Productos activos', value: totalProductos || 0, icon: '📦', href: '/admin/productos' },
@@ -109,6 +153,55 @@ export default async function AdminDashboard() {
             <p className="text-brand-text-muted text-sm">Monitoreá el estado de ventas</p>
           </div>
         </Link>
+      </div>
+
+      {/* Alerta de stock bajo */}
+      <div className="bg-brand-bg-card border border-brand-border rounded-2xl overflow-hidden mb-10">
+        <div className="px-6 py-4 border-b border-brand-border flex items-center justify-between">
+          <h2 className="font-semibold text-white flex items-center gap-2">
+            <span>⚠️</span> Stock bajo
+            {stockBajo.length > 0 && (
+              <span className="text-xs font-medium bg-amber-900/40 text-amber-400 px-2 py-0.5 rounded-full">
+                {stockBajo.length}
+              </span>
+            )}
+          </h2>
+          <Link href="/admin/productos" className="text-brand-purple text-sm hover:underline">
+            Ver productos
+          </Link>
+        </div>
+
+        {stockBajo.length === 0 ? (
+          <div className="p-8 text-center text-brand-text-muted text-sm">
+            ✅ Todo con stock suficiente (nada en {UMBRAL_STOCK_BAJO} unidades o menos)
+          </div>
+        ) : (
+          <div className="divide-y divide-brand-border max-h-96 overflow-y-auto">
+            {stockBajo.map((l, i) => (
+              <Link
+                key={`${l.id}-${l.variante ?? ''}-${i}`}
+                href={`/admin/productos/nuevo?id=${l.id}`}
+                className="px-6 py-3 flex items-center gap-4 hover:bg-brand-bg-soft/50 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-brand-text truncate">{l.nombre}</p>
+                  {l.variante && (
+                    <p className="text-xs text-brand-text-muted truncate">{l.variante}</p>
+                  )}
+                </div>
+                <span
+                  className={`text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${
+                    l.stock === 0
+                      ? 'bg-red-900/40 text-red-400'
+                      : 'bg-amber-900/40 text-amber-400'
+                  }`}
+                >
+                  {l.stock === 0 ? 'Sin stock' : `${l.stock} u.`}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Últimas órdenes */}
