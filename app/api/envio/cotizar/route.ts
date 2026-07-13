@@ -4,13 +4,13 @@ import { calcularEnvio } from '@/lib/envio'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { provincia, subtotal = 0 } = body ?? {}
+    const { provincia, subtotal = 0, codigo_postal } = body ?? {}
 
     if (!provincia) {
       return NextResponse.json({ error: 'Provincia requerida' }, { status: 400 })
     }
 
-    const opcion = await calcularEnvio(provincia, subtotal)
+    const opcion = await calcularEnvio(provincia, subtotal, codigo_postal)
     if (!opcion) {
       return NextResponse.json({ error: 'No se pudo calcular el envío.' }, { status: 500 })
     }

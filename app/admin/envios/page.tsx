@@ -16,13 +16,15 @@ interface ZonaConfig {
 
 const DEFAULTS = {
   caba: { precio: '2500', gratis_desde: '40000', tiempo: '24-48 hs hábiles' },
-  gba: { precio: '3500', gratis_desde: '60000', tiempo: '48-72 hs hábiles' },
+  amba: { precio: '3500', gratis_desde: '60000', tiempo: '48-72 hs hábiles' },
+  bsas: { precio: '5000', gratis_desde: '90000', tiempo: '3-5 días hábiles' },
   interior: { precio: '6000', gratis_desde: '120000', tiempo: '3-7 días hábiles' },
 }
 
 export default function EnviosAdminPage() {
   const [caba, setCaba] = useState<ZonaConfig>(DEFAULTS.caba)
-  const [gba, setGba] = useState<ZonaConfig>(DEFAULTS.gba)
+  const [amba, setAmba] = useState<ZonaConfig>(DEFAULTS.amba)
+  const [bsas, setBsas] = useState<ZonaConfig>(DEFAULTS.bsas)
   const [interior, setInterior] = useState<ZonaConfig>(DEFAULTS.interior)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -40,10 +42,16 @@ export default function EnviosAdminPage() {
           gratis_desde: cfg.envio_gratis_caba_desde || DEFAULTS.caba.gratis_desde,
           tiempo: cfg.envio_tiempo_caba || DEFAULTS.caba.tiempo,
         })
-        setGba({
-          precio: cfg.envio_precio_gba || DEFAULTS.gba.precio,
-          gratis_desde: cfg.envio_gratis_gba_desde || DEFAULTS.gba.gratis_desde,
-          tiempo: cfg.envio_tiempo_gba || DEFAULTS.gba.tiempo,
+        // AMBA y Resto BA: si no tienen su propia config, heredan del valor viejo 'gba'.
+        setAmba({
+          precio: cfg.envio_precio_amba || cfg.envio_precio_gba || DEFAULTS.amba.precio,
+          gratis_desde: cfg.envio_gratis_amba_desde || cfg.envio_gratis_gba_desde || DEFAULTS.amba.gratis_desde,
+          tiempo: cfg.envio_tiempo_amba || cfg.envio_tiempo_gba || DEFAULTS.amba.tiempo,
+        })
+        setBsas({
+          precio: cfg.envio_precio_bsas || cfg.envio_precio_gba || DEFAULTS.bsas.precio,
+          gratis_desde: cfg.envio_gratis_bsas_desde || cfg.envio_gratis_gba_desde || DEFAULTS.bsas.gratis_desde,
+          tiempo: cfg.envio_tiempo_bsas || DEFAULTS.bsas.tiempo,
         })
         setInterior({
           precio: cfg.envio_precio_interior || DEFAULTS.interior.precio,
@@ -65,9 +73,12 @@ export default function EnviosAdminPage() {
         envio_precio_caba: caba.precio,
         envio_gratis_caba_desde: caba.gratis_desde,
         envio_tiempo_caba: caba.tiempo,
-        envio_precio_gba: gba.precio,
-        envio_gratis_gba_desde: gba.gratis_desde,
-        envio_tiempo_gba: gba.tiempo,
+        envio_precio_amba: amba.precio,
+        envio_gratis_amba_desde: amba.gratis_desde,
+        envio_tiempo_amba: amba.tiempo,
+        envio_precio_bsas: bsas.precio,
+        envio_gratis_bsas_desde: bsas.gratis_desde,
+        envio_tiempo_bsas: bsas.tiempo,
         envio_precio_interior: interior.precio,
         envio_gratis_interior_desde: interior.gratis_desde,
         envio_tiempo_interior: interior.tiempo,
@@ -116,19 +127,28 @@ export default function EnviosAdminPage() {
           onChange={setCaba}
         />
 
-        {/* GBA */}
+        {/* AMBA */}
         <ZonaCard
-          titulo="GBA / Buenos Aires"
-          subtitulo="Provincia de Buenos Aires (Gran Buenos Aires e interior)"
+          titulo="AMBA"
+          subtitulo="Conurbano bonaerense — 1er y 2do cordón (Gran Buenos Aires)"
           emoji="🏘️"
-          config={gba}
-          onChange={setGba}
+          config={amba}
+          onChange={setAmba}
+        />
+
+        {/* Resto Buenos Aires */}
+        <ZonaCard
+          titulo="Resto de Buenos Aires"
+          subtitulo="Provincia de Buenos Aires fuera del conurbano (La Plata, Mar del Plata, etc.)"
+          emoji="🌾"
+          config={bsas}
+          onChange={setBsas}
         />
 
         {/* Interior */}
         <ZonaCard
-          titulo="Interior del país"
-          subtitulo="Resto de las provincias"
+          titulo="Resto del país"
+          subtitulo="Todas las demás provincias"
           emoji="🗺️"
           config={interior}
           onChange={setInterior}
