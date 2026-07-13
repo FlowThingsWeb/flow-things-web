@@ -12,6 +12,7 @@ import FavoritoButton from '@/components/FavoritoButton'
 import CuotasMP from '@/components/CuotasMP'
 import ProductReviews from '@/components/ProductReviews'
 import RelatedProducts from '@/components/RelatedProducts'
+import EnvioEstimador from '@/components/EnvioEstimador'
 import { formatPrecio } from '@/lib/format'
 
 function waLink(telefono: string, texto: string) {
@@ -646,6 +647,9 @@ export default function ProductoDetallePage() {
               Seleccioná una opción para agregar
             </button>
           )}
+
+          {/* Estimador de envío */}
+          <EnvioEstimador precio={producto.precio} />
 
           {/* Beneficios */}
           <div className="bg-brand-bg-soft rounded-2xl p-4 space-y-3 text-sm text-brand-text-muted">
