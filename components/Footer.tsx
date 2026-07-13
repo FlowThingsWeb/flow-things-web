@@ -145,7 +145,47 @@ export default function Footer({ cfg }: FooterProps) {
           )}
         </div>
 
-        <div className="border-t border-brand-border mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+        {/* Links legales */}
+        <div className="border-t border-brand-border mt-8 pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-brand-text-muted">
+            <li>
+              <Link href="/terminos" className="hover:text-brand-neon transition-colors">Términos y Condiciones</Link>
+            </li>
+            <li>
+              <Link href="/cambios-y-devoluciones" className="hover:text-brand-neon transition-colors">Cambios y Devoluciones</Link>
+            </li>
+            <li>
+              <Link href="/boton-de-arrepentimiento" className="hover:text-brand-neon transition-colors font-medium text-brand-text">
+                Botón de Arrepentimiento
+              </Link>
+            </li>
+            <li>
+              <Link href="/politica-de-privacidad" className="hover:text-brand-neon transition-colors">Política de Privacidad</Link>
+            </li>
+          </ul>
+
+          {/* Data Fiscal (AFIP) — se muestra solo si está configurada la URL */}
+          {cfg.footer_data_fiscal_url && (
+            <a
+              href={cfg.footer_data_fiscal_url}
+              target="_F960AFIPInfo"
+              rel="noopener noreferrer"
+              className="flex-shrink-0"
+              aria-label="Data Fiscal AFIP"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://www.afip.gob.ar/images/f960/DATAWEB.jpg"
+                alt="Data Fiscal"
+                width={40}
+                height={54}
+                style={{ height: '54px', width: 'auto' }}
+              />
+            </a>
+          )}
+        </div>
+
+        <div className="border-t border-brand-border mt-6 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-brand-text-light text-xs">
             © {new Date().getFullYear()} {cfg.sitio_nombre}.{' '}
             <ET k="footer_copyright" />
