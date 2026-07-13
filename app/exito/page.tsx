@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -26,6 +26,7 @@ function ExitoContent() {
   const [total, setTotal] = useState<number | null>(null)
   const [envio, setEnvio] = useState(0)
   const [descuento, setDescuento] = useState(0)
+  const trackedRef = useRef(false)
 
   // Sin orden_id no hay nada que mostrar — redirigir al catálogo
   useEffect(() => {
@@ -54,6 +55,14 @@ function ExitoContent() {
         if (typeof data.descuento === 'number') setDescuento(data.descuento)
         if (data.estado === 'approved') {
           clearCart()
+          // Evento de conversión para analytics (GA4 + Meta Pixel), una sola vez.
+          if (!trackedRef.current) {
+            trackedRef.current = true
+            const total = Number(data.total) || 0
+            const w = window as any
+            try { w.gtag?.('event', 'purchase', { transaction_id: ordenId, value: total, currency: 'ARS' }) } catch {}
+            try { w.fbq?.('track', 'Purchase', { value: total, currency: 'ARS' }) } catch {}
+          }
           return // pago confirmado — dejar de pollear
         }
       } catch {

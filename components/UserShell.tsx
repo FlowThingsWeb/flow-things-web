@@ -17,6 +17,7 @@ import CartSync from '@/components/CartSync'
 import ProfileGuard from '@/components/ProfileGuard'
 import RegistrationPopup from '@/components/RegistrationPopup'
 import FloatingWhatsApp from '@/components/FloatingWhatsApp'
+import Analytics from '@/components/Analytics'
 import type { ConfigMap } from '@/lib/config'
 
 interface Props {
@@ -35,6 +36,7 @@ export default function UserShell({ cfg, children }: Props) {
 
   return (
     <>
+      <Analytics />
       <ProfileGuard />
       <RegistrationPopup />
       <CartSync />
