@@ -48,8 +48,7 @@ export default function DireccionesManager({ userId, onSelect, seleccionadaId, c
     if (data) setDirecciones(data)
   }
 
-  async function guardarDireccion(e: React.FormEvent) {
-    e.preventDefault()
+  async function guardarDireccion() {
     setError('')
     if (!form.direccion.trim() || !form.ciudad.trim() || !form.provincia) {
       setError('Completá calle, ciudad y provincia.')
@@ -147,9 +146,11 @@ export default function DireccionesManager({ userId, onSelect, seleccionadaId, c
         </div>
       )}
 
-      {/* Formulario agregar */}
+      {/* Formulario agregar — NO usar <form> acá: este componente se embebe dentro
+          del <form> de checkout en el carrito, y forms anidados son HTML inválido
+          (el submit interno dispararía el form externo). Usamos div + onClick. */}
       {agregando ? (
-        <form onSubmit={guardarDireccion} className="border border-brand-border rounded-xl p-4 space-y-3 bg-brand-bg-soft">
+        <div className="border border-brand-border rounded-xl p-4 space-y-3 bg-brand-bg-soft">
           <p className="text-xs font-semibold text-brand-text">Nueva dirección</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -202,7 +203,7 @@ export default function DireccionesManager({ userId, onSelect, seleccionadaId, c
           </div>
           {error && <p className="text-red-400 text-xs">{error}</p>}
           <div className="flex gap-2">
-            <button type="submit" disabled={guardando}
+            <button type="button" onClick={guardarDireccion} disabled={guardando}
               className="bg-brand-purple hover:bg-brand-purple-light text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
               {guardando ? 'Guardando...' : 'Guardar'}
             </button>
@@ -211,7 +212,7 @@ export default function DireccionesManager({ userId, onSelect, seleccionadaId, c
               Cancelar
             </button>
           </div>
-        </form>
+        </div>
       ) : (
         <button
           type="button"

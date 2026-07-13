@@ -87,6 +87,8 @@ export default function CuentaPage() {
       .from('ordenes')
       .select('id, total, estado, created_at, items')
       .eq('user_id', user.id)
+      // Solo compras realizadas — ocultar pendientes/rechazadas/canceladas
+      .in('estado', ['approved', 'refunded'])
       .order('created_at', { ascending: false })
       .limit(5)
       .then(({ data }) => {

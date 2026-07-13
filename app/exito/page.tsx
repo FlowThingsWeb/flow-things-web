@@ -32,21 +32,37 @@ function ExitoContent() {
     }
   }, [ordenId, pending, router])
 
-  // Traer estado + resumen de la orden. Si está aprobada, limpiar el carrito.
+  // Traer estado + resumen de la orden. El webhook puede tardar unos segundos en
+  // marcar la orden como 'approved', así que reintentamos (poll) hasta confirmarlo
+  // y recién ahí limpiamos el carrito. Evita que quede sin vaciarse por timing.
   useEffect(() => {
     if (!ordenId) return
+    let cancelado = false
+    let intentos = 0
+    const MAX_INTENTOS = 15 // ~30s
 
-    fetch(`/api/ordenes/estado?id=${ordenId}`)
-      .then((r) => r.json())
-      .then((data) => {
+    async function poll() {
+      try {
+        const r = await fetch(`/api/ordenes/estado?id=${ordenId}`)
+        const data = await r.json()
+        if (cancelado) return
         if (Array.isArray(data.items)) setItems(data.items)
         if (typeof data.total === 'number') setTotal(data.total)
-        // Solo limpiar el carrito si el pago está confirmado.
-        if (data.estado === 'approved') clearCart()
-      })
-      .catch(() => {
-        // Falla de red: no tocar el carrito, mostrar la pantalla igual.
-      })
+        if (data.estado === 'approved') {
+          clearCart()
+          return // pago confirmado — dejar de pollear
+        }
+      } catch {
+        // falla de red transitoria — reintentar
+      }
+      intentos++
+      if (!cancelado && intentos < MAX_INTENTOS) {
+        setTimeout(poll, 2000)
+      }
+    }
+
+    poll()
+    return () => { cancelado = true }
   }, [ordenId, clearCart])
 
   if (!ordenId && !pending) {

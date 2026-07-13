@@ -21,6 +21,8 @@ const formInicial: DatosComprador = {
   email: '',
   telefono: '',
   direccion: '',
+  piso: '',
+  departamento: '',
   ciudad: '',
   provincia: '',
   codigo_postal: '',
@@ -150,6 +152,8 @@ function CarritoContent() {
     setForm(f => ({
       ...f,
       direccion: dir.direccion,
+      piso: dir.piso ?? '',
+      departamento: dir.departamento ?? '',
       ciudad: dir.ciudad,
       provincia: dir.provincia,
       codigo_postal: dir.codigo_postal,
@@ -541,7 +545,33 @@ function CarritoContent() {
                   value={form.direccion}
                   onChange={handleChange}
                   className="input-dark"
-                  placeholder="Av. Corrientes 1234, Piso 2"
+                  placeholder="Av. Corrientes 1234"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="piso" className="block text-sm font-medium text-brand-text-muted mb-1">Piso <span className="text-brand-text-light font-normal">(opcional)</span></label>
+                <input
+                  type="text"
+                  id="piso"
+                  name="piso"
+                  value={form.piso ?? ''}
+                  onChange={handleChange}
+                  className="input-dark"
+                  placeholder="3"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="departamento" className="block text-sm font-medium text-brand-text-muted mb-1">Depto <span className="text-brand-text-light font-normal">(opcional)</span></label>
+                <input
+                  type="text"
+                  id="departamento"
+                  name="departamento"
+                  value={form.departamento ?? ''}
+                  onChange={handleChange}
+                  className="input-dark"
+                  placeholder="B"
                 />
               </div>
 

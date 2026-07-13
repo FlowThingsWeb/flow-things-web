@@ -72,7 +72,14 @@ export default async function OrdenDetailPage({ params }: { params: Promise<{ id
           {comprador.direccion && (
             <div className="col-span-2">
               <span className="text-brand-text-muted">Dirección de envío</span>
-              <p className="text-white mt-0.5">{comprador.direccion}, {comprador.ciudad}</p>
+              <p className="text-white mt-0.5">
+                {comprador.direccion}
+                {comprador.piso ? `, Piso ${comprador.piso}` : ''}
+                {comprador.departamento ? `, Dpto ${comprador.departamento}` : ''}
+                {comprador.ciudad ? ` — ${comprador.ciudad}` : ''}
+                {comprador.provincia ? `, ${comprador.provincia}` : ''}
+                {comprador.codigo_postal ? ` (${comprador.codigo_postal})` : ''}
+              </p>
             </div>
           )}
         </div>
@@ -133,6 +140,14 @@ export default async function OrdenDetailPage({ params }: { params: Promise<{ id
             <div><span className="text-brand-text-muted">Fecha</span><p className="text-white mt-0.5">{comprador.factura_fecha}</p></div>
             <div><span className="text-brand-text-muted">Vto. CAE</span><p className="text-white mt-0.5">{comprador.factura_vto}</p></div>
           </div>
+          <a
+            href={`/api/admin/factura-pdf?ordenId=${id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 mt-4 bg-brand-purple hover:bg-brand-purple-dark text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            📄 Ver / descargar PDF
+          </a>
         </div>
       )}
 

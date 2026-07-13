@@ -53,6 +53,8 @@ export interface DatosComprador {
   email: string
   telefono: string
   direccion: string
+  piso?: string | null
+  departamento?: string | null
   ciudad: string
   provincia: string
   codigo_postal: string
