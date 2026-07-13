@@ -9,6 +9,7 @@ import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import { useCartStore } from '@/lib/store'
 import { Producto, Variante } from '@/types'
 import FavoritoButton from '@/components/FavoritoButton'
+import CuotasMP from '@/components/CuotasMP'
 import { formatPrecio } from '@/lib/format'
 
 function waLink(telefono: string, texto: string) {
@@ -444,6 +445,9 @@ export default function ProductoDetallePage() {
               </>
             )}
           </div>
+
+          {/* Cuotas Mercado Pago */}
+          <CuotasMP amount={producto.precio} />
 
           {/* Descripción */}
           {producto.descripcion && (
