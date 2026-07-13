@@ -8,6 +8,7 @@ import { useEditMode } from '@/lib/useEditMode'
 import EditableText from '@/components/EditableText'
 import EditableImage from '@/components/EditableImage'
 import UserMenu from '@/components/UserMenu'
+import HeaderSearch from '@/components/HeaderSearch'
 import type { ConfigMap } from '@/lib/config'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 
@@ -95,6 +96,11 @@ export default function Header({ cfg }: HeaderProps) {
 
           {/* Acciones */}
           <div className="flex items-center gap-3">
+            {/* Buscador (desktop) */}
+            <div className="hidden md:block">
+              <HeaderSearch />
+            </div>
+
             {/* Carrito */}
             <button
               onClick={openCart}
@@ -136,6 +142,10 @@ export default function Header({ cfg }: HeaderProps) {
       {menuOpen && (
         <div className="md:hidden border-t border-brand-border bg-brand-bg-card animate-fade-in">
           <nav className="px-4 py-4 flex flex-col gap-1">
+            {/* Buscador (mobile) */}
+            <div className="mb-3">
+              <HeaderSearch variant="full" onSubmitted={() => setMenuOpen(false)} />
+            </div>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
