@@ -9,6 +9,8 @@ import {
 import { generateFacturaPDFBase64, facturaFileName } from './factura-pdf'
 import { sendWhatsApp, DEFAULT_WPP_MENSAJE } from './whatsapp'
 import { formatMonto } from './format'
+import { enqueueJob } from './jobs'
+import { crmHabilitado } from './crm'
 
 const paymentClient = new Payment(new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! }))
 
@@ -46,13 +48,37 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
   }
 
   // ─── Descontar stock ────────────────────────────────────────────────────────
+  // Si el item tiene variante, hay que descontar el stock de ESA variante
+  // (es el que se muestra y se valida). Además se baja el total del producto
+  // para mantener el invariante productos.stock = suma de sus variantes.
   for (const item of orden.items) {
+    if (item.variante_id) {
+      const { error: varErr } = await supabaseAdmin.rpc('decrementar_stock_variante', {
+        variante_id: item.variante_id,
+        cantidad: item.cantidad,
+      })
+      if (varErr) {
+        console.error(`[procesar-pago] Error decrementando stock de variante ${item.variante_id}:`, varErr.message)
+      }
+    }
+
     const { error: stockErr } = await supabaseAdmin.rpc('decrementar_stock', {
       p_producto_id: item.id,
       p_cantidad: item.cantidad,
     })
     if (stockErr) {
       console.error(`[procesar-pago] Error decrementando stock para producto ${item.id}:`, stockErr.message)
+    }
+  }
+
+  // ─── Informar la venta al CRM (canal 'tienda') ──────────────────────────────
+  // Va como job aparte: si el CRM está caído reintenta solo, sin volver a
+  // disparar factura ni emails. El endpoint del CRM es idempotente por orden_id.
+  if (crmHabilitado()) {
+    try {
+      await enqueueJob('crm_venta', { ordenId })
+    } catch (e: any) {
+      console.error('[procesar-pago] No se pudo encolar el aviso al CRM:', e.message)
     }
   }
 

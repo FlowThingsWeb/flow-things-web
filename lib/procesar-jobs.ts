@@ -1,6 +1,7 @@
 import { reclamarJobs, completarJob, fallarJob, Job } from '@/lib/jobs'
 import { sendEmail } from '@/lib/email'
 import { procesarPagoAprobado } from '@/lib/procesar-pago'
+import { notificarVentaCRM } from '@/lib/crm'
 
 /**
  * Procesa un lote de jobs de la cola. Usado tanto por el cron de respaldo
@@ -40,6 +41,13 @@ async function procesarJob(job: Job): Promise<void> {
       const { ordenId } = job.payload
       if (!ordenId) throw new Error('payload post_pago sin ordenId')
       await procesarPagoAprobado(ordenId)
+      return
+    }
+    case 'crm_venta': {
+      const { ordenId } = job.payload
+      if (!ordenId) throw new Error('payload crm_venta sin ordenId')
+      // El endpoint del CRM es idempotente por orden_id: reintentar es seguro.
+      await notificarVentaCRM(ordenId)
       return
     }
     default:

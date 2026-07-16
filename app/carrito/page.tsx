@@ -275,12 +275,15 @@ function CarritoContent() {
     setLoading(true)
 
     try {
-      const orderItems = items.map(({ producto, cantidad }) => ({
+      // variante_id viaja para que el servidor valide y descuente el stock de
+      // la variante correcta (el sku y el nombre los completa el servidor).
+      const orderItems = items.map(({ producto, cantidad, varianteId }) => ({
         id: producto.id,
         nombre: producto.nombre,
         precio: producto.precio,
         cantidad,
         imagen_url: producto.imagen_url,
+        variante_id: varianteId ?? null,
       }))
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }

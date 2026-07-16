@@ -88,4 +88,12 @@ export interface ItemOrden {
   precio: number
   cantidad: number
   imagen_url: string | null
+  /** Variante vendida. Null para productos sin variantes.
+   *  Necesario para descontar el stock correcto y para informar al CRM. */
+  variante_id?: string | null
+  /** Snapshot del SKU y del nombre de la variante al momento de la compra.
+   *  Los completa el servidor en /api/checkout — no se confía en el cliente.
+   *  Son el puente para mapear la venta contra el CRM (canal tienda). */
+  sku?: string | null
+  variante_nombre?: string | null
 }

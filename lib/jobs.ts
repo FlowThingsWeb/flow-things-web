@@ -1,6 +1,6 @@
 import { supabaseAdmin } from './supabaseAdmin'
 
-export type JobTipo = 'email' | 'post_pago'
+export type JobTipo = 'email' | 'post_pago' | 'crm_venta'
 
 export interface Job {
   id: string

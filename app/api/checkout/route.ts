@@ -42,11 +42,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── 1. Validar stock Y precios desde la DB ─────────────────────────────
-    // No confiamos en el precio enviado por el frontend.
+    // No confiamos en el precio ni en el stock enviados por el frontend.
+    // Cuando el item tiene variante, el stock que manda es el de la VARIANTE
+    // (productos.stock es solo el total del producto).
     const ids = itemsFrontend.map((i) => i.id)
     const { data: productosDB } = await supabaseAdmin
       .from('productos')
-      .select('id, nombre, precio, stock')
+      .select('id, nombre, precio, stock, sku, variantes(id, atributos, stock, activo)')
       .in('id', ids)
 
     const items: ItemOrden[] = []
@@ -58,15 +60,50 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
-      const prod = productosDB?.find((p: { id: string; precio: number; stock: number }) => p.id === item.id)
-      if (!prod || prod.stock < item.cantidad) {
+
+      const prod = (productosDB as any[])?.find((p) => p.id === item.id)
+      if (!prod) {
         return NextResponse.json(
-          { error: `Sin stock suficiente para "${item.nombre}". Solo quedan ${prod?.stock ?? 0} unidades.` },
+          { error: `El producto "${item.nombre}" ya no está disponible.` },
           { status: 409 }
         )
       }
-      // Usar precio de la DB, ignorar el del frontend
-      items.push({ ...item, precio: prod.precio })
+
+      let varianteNombre: string | null = null
+
+      if (item.variante_id) {
+        const variante = (prod.variantes as any[] | null)?.find(
+          (v) => v.id === item.variante_id && v.activo
+        )
+        if (!variante) {
+          return NextResponse.json(
+            { error: `La variante elegida de "${item.nombre}" ya no está disponible.` },
+            { status: 409 }
+          )
+        }
+        if (variante.stock < item.cantidad) {
+          return NextResponse.json(
+            { error: `Sin stock suficiente para "${item.nombre}". Solo quedan ${variante.stock} unidades.` },
+            { status: 409 }
+          )
+        }
+        varianteNombre = Object.values(variante.atributos ?? {}).join(' / ') || null
+      } else if (prod.stock < item.cantidad) {
+        return NextResponse.json(
+          { error: `Sin stock suficiente para "${item.nombre}". Solo quedan ${prod.stock} unidades.` },
+          { status: 409 }
+        )
+      }
+
+      // Usar precio de la DB, ignorar el del frontend. Guardar sku y nombre de
+      // variante como snapshot (puente con el CRM).
+      items.push({
+        ...item,
+        precio: prod.precio,
+        variante_id: item.variante_id ?? null,
+        sku: prod.sku ?? null,
+        variante_nombre: varianteNombre,
+      })
     }
 
     const subtotal = items.reduce((acc, item) => acc + item.precio * item.cantidad, 0)
