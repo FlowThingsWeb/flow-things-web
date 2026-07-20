@@ -13,7 +13,9 @@ export const dynamic = 'force-dynamic'
 async function getDestacados(): Promise<Producto[]> {
   const { data } = await supabaseAdmin
     .from('productos')
-    .select('*, categorias(id, nombre, slug)')
+    .select(
+      '*, categorias(id, nombre, slug), variantes(id, imagen_url, imagenes, activo)',
+    )
     .eq('activo', true)
     .eq('destacado', true)
     .order('created_at', { ascending: false })

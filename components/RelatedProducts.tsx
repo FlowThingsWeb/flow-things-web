@@ -24,7 +24,9 @@ export default function RelatedProducts({
     async function load() {
       const { data } = await supabase
         .from('productos')
-        .select('*, categorias(id, nombre, slug)')
+        .select(
+          '*, categorias(id, nombre, slug), variantes(id, imagen_url, imagenes, activo)',
+        )
         .eq('activo', true)
         .eq('categoria_id', categoriaId)
         .neq('id', productoId)

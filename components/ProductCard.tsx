@@ -17,12 +17,22 @@ interface ProductCardProps {
 export default function ProductCard({ producto, variante, rating }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem)
 
-  // Imagen en cascada: variante propia → galería variante → imagen producto → galería producto
+  // Primera variante activa que tenga alguna imagen. Sirve de red de
+  // seguridad para productos que no cargaron imagen principal y tienen las
+  // fotos sólo en sus variantes (si no, la card salía con el 📦).
+  const varianteConImagen = producto.variantes?.find(
+    (v) => v.activo !== false && (v.imagen_url || v.imagenes?.[0]),
+  )
+
+  // Imagen en cascada: variante propia → galería variante → imagen producto
+  // → galería producto → imagen de alguna variante del producto
   const imagenUrl =
     variante?.imagen_url ||
     variante?.imagenes?.[0] ||
     producto.imagen_url ||
     producto.imagenes?.[0] ||
+    varianteConImagen?.imagen_url ||
+    varianteConImagen?.imagenes?.[0] ||
     null
   const stockVal   = variante ? variante.stock : producto.stock
   const sinStock   = stockVal === 0
@@ -112,13 +122,16 @@ export default function ProductCard({ producto, variante, rating }: ProductCardP
           </div>
         )}
 
-        <div className="mt-auto pt-3 flex items-end justify-between gap-2">
-          <div>
-            <p className="font-bold text-brand-neon text-base">
+        {/* Precio arriba y botón full-width abajo: en cards angostas (grilla
+            de 4) el precio largo empujaba el botón fuera del card y, como el
+            contenedor tiene overflow-hidden, quedaba cortado ("+ Ag"). */}
+        <div className="mt-auto pt-3 space-y-2">
+          <div className="min-w-0">
+            <p className="font-bold text-brand-neon text-base truncate">
               {formatPrecio(producto.precio)}
             </p>
             {tieneDescuento && (
-              <p className="text-brand-text-light text-xs line-through">
+              <p className="text-brand-text-light text-xs line-through truncate">
                 {formatPrecio(producto.precio_anterior!)}
               </p>
             )}
@@ -127,7 +140,7 @@ export default function ProductCard({ producto, variante, rating }: ProductCardP
           <button
             onClick={handleAgregar}
             disabled={sinStock}
-            className="bg-brand-purple hover:bg-brand-purple-light disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors whitespace-nowrap"
+            className="w-full bg-brand-purple hover:bg-brand-purple-light disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors whitespace-nowrap"
           >
             {sinStock ? 'Agotado' : '+ Agregar'}
           </button>
