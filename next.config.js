@@ -57,6 +57,23 @@ const nextConfig = {
         pathname: '/storage/v1/object/public/**',
       },
     ],
+    // Vercel cobra una "transformación" por cada combinación única de
+    // (imagen, ancho, calidad, formato). Con ~150 imágenes entre productos y
+    // variantes, los defaults de Next (8 deviceSizes + 8 imageSizes, y un
+    // cache de 60s) se comen el free tier enseguida.
+    //
+    // Menos anchos = menos transformaciones. Estos cubren lo que realmente
+    // usa el sitio: grillas de 2/3/4 columnas y la ficha a 100vw/50vw.
+    deviceSizes: [640, 828, 1080, 1920],
+    // Para los <Image> con `sizes` fijo y chico: 36px y 40px (logos),
+    // 48px (carrito), 64px (drawer). Next elige el inmediato superior.
+    imageSizes: [48, 64, 96, 128, 256],
+    // Solo webp. Sumar avif duplicaría las transformaciones por imagen.
+    formats: ['image/webp'],
+    // 31 días. El default de Next 15 es 60 segundos: cada vez que expira,
+    // volver a servir la misma imagen cuenta como transformación nueva.
+    // Este es el ahorro más grande y no cambia lo que ve el usuario.
+    minimumCacheTTL: 2678400,
   },
   experimental: {
     serverActions: {
