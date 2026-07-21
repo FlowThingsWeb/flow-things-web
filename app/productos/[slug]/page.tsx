@@ -70,12 +70,20 @@ export default function ProductoDetallePage() {
 
       setProducto(prodRes.data as Producto)
 
-      // Pre-select variant from URL param
+      // Variante inicial: la del ?variante= si vino y es válida.
+      const variantesActivas = ((prodRes.data.variantes || []) as Variante[]).filter(v => v.activo)
+      let inicial: string | null = null
       if (varianteParam) {
-        const variantesActivas = ((prodRes.data.variantes || []) as Variante[]).filter(v => v.activo)
-        const match = variantesActivas.find(v => v.id === varianteParam)
-        if (match) setVarianteId(match.id)
+        inicial = variantesActivas.find(v => v.id === varianteParam)?.id ?? null
       }
+      // Si no, preseleccionamos la primera con stock. Si no hay ninguna
+      // seleccionada la ficha queda sin imagen (los productos que cargan las
+      // fotos en las variantes no tienen imagen propia) — que es lo que
+      // pasaba al entrar desde recomendados.
+      if (!inicial && variantesActivas.length > 0) {
+        inicial = (variantesActivas.find(v => v.stock > 0) ?? variantesActivas[0]).id
+      }
+      if (inicial) setVarianteId(inicial)
 
       let ambaCfg: number | null = null
       let gbaCfg: number | null = null
@@ -143,6 +151,18 @@ export default function ProductoDetallePage() {
     if (producto.imagen_url) imgs.push(producto.imagen_url)
     for (const img of (producto.imagenes || [])) {
       if (!imgs.includes(img)) imgs.push(img)
+    }
+    // Red de seguridad: si el producto no tiene imagen propia (las fotos
+    // viven en las variantes), usamos las de la primera variante con imagen
+    // para no dejar la ficha en blanco.
+    if (imgs.length === 0) {
+      const conImagen = (producto.variantes || []).find(
+        v => v.activo && (v.imagen_url || v.imagenes?.length)
+      )
+      if (conImagen?.imagen_url) imgs.push(conImagen.imagen_url)
+      for (const img of (conImagen?.imagenes || [])) {
+        if (!imgs.includes(img)) imgs.push(img)
+      }
     }
     return imgs
   }, [producto, varianteSeleccionada])
