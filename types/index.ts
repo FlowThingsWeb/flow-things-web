@@ -36,6 +36,8 @@ export interface Variante {
   imagen_url: string | null
   imagenes: string[]
   activo: boolean
+  /** true = la desactivó el sistema por quedarse sin stock (se reactiva sola al reponer) */
+  desactivado_por_stock?: boolean
   created_at: string
 }
 
