@@ -18,6 +18,8 @@ export interface Producto {
   imagen_url: string | null
   imagenes: string[]
   activo: boolean
+  /** true = lo desactivó el sistema por quedarse sin stock (se reactiva solo al reponer) */
+  desactivado_por_stock?: boolean
   destacado: boolean
   created_at: string
   updated_at: string
