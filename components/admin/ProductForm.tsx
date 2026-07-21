@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Producto, Categoria, Variante } from '@/types'
+import { comprimirImagen, formatBytes } from '@/lib/comprimir-imagen'
 
 interface ProductFormProps {
   producto?: Producto
@@ -22,8 +23,18 @@ function slugify(text: string) {
 }
 
 async function uploadFile(file: File): Promise<string> {
+  // Redimensionamos y pasamos a webp antes de subir: las fotos del celular
+  // vienen en 4000px / varios MB y la web nunca las muestra a ese tamaño.
+  // Si algo falla, comprimirImagen devuelve el original y seguimos igual.
+  const { archivo, comprimido, bytesAntes, bytesDespues } = await comprimirImagen(file)
+  if (comprimido) {
+    console.info(
+      `[upload] ${file.name}: ${formatBytes(bytesAntes)} → ${formatBytes(bytesDespues)}`,
+    )
+  }
+
   const formData = new FormData()
-  formData.append('file', file)
+  formData.append('file', archivo)
   const res = await fetch('/api/upload', { method: 'POST', body: formData })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Error al subir imagen')
