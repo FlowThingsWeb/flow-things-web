@@ -5,6 +5,25 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 
 const STORAGE_KEY = 'ft_popup_dismissed'
+/** Días que el popup queda oculto después de cerrarlo. */
+const DIAS_OCULTO = 7
+const MS_OCULTO = DIAS_OCULTO * 24 * 60 * 60 * 1000
+
+/**
+ * ¿Sigue vigente el "no me lo muestres" del visitante?
+ * Guardamos el timestamp del descarte en vez de un flag permanente: si
+ * alguien lo cierra sin prestar atención, vuelve a verlo a los 7 días en
+ * lugar de perderlo para siempre.
+ * Los valores viejos (se guardaba un '1') quedan vencidos y el popup se
+ * vuelve a mostrar una vez, que es el comportamiento deseado.
+ */
+function descarteVigente(): boolean {
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (!raw) return false
+  const ts = Number(raw)
+  if (!Number.isFinite(ts)) return false
+  return Date.now() - ts < MS_OCULTO
+}
 
 export default function RegistrationPopup() {
   const { user, loading } = useAuth()
@@ -13,14 +32,14 @@ export default function RegistrationPopup() {
   useEffect(() => {
     if (loading) return
     if (user) return
-    if (localStorage.getItem(STORAGE_KEY)) return
+    if (descarteVigente()) return
 
     const timer = setTimeout(() => setVisible(true), 2000)
     return () => clearTimeout(timer)
   }, [loading, user])
 
   function dismiss() {
-    localStorage.setItem(STORAGE_KEY, '1')
+    localStorage.setItem(STORAGE_KEY, String(Date.now()))
     setVisible(false)
   }
 
