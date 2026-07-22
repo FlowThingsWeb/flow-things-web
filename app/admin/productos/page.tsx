@@ -13,10 +13,31 @@ type Filtros = {
   stock?: string
 }
 
+/**
+ * Stock efectivo de un producto + qué variantes están agotadas.
+ * Si tiene variantes, el stock real es la suma de ellas (productos.stock lo
+ * sincroniza el CRM con ese total, pero calculamos igual por las dudas).
+ */
+function infoStock(p: any) {
+  const variantes: any[] = p.variantes || []
+  const conVariantes = variantes.length > 0
+  const total = conVariantes
+    ? variantes.reduce((s, v) => s + (Number(v.stock) || 0), 0)
+    : Number(p.stock) || 0
+  const agotadas = variantes.filter((v) => (Number(v.stock) || 0) <= 0)
+  return { total, agotadas, conVariantes }
+}
+
+function nombreVariante(v: any): string {
+  return Object.values(v.atributos ?? {}).join(' / ') || '—'
+}
+
 async function getProductos(f: Filtros) {
   let query = supabaseAdmin
     .from('productos')
-    .select('*, categorias(nombre), variantes(imagen_url, imagenes, activo)')
+    .select(
+      '*, categorias(nombre), variantes(id, atributos, stock, imagen_url, imagenes, activo)',
+    )
 
   const q = f.q?.trim()
   if (q) {
@@ -27,16 +48,31 @@ async function getProductos(f: Filtros) {
   if (f.categoria) query = query.eq('categoria_id', f.categoria)
   if (f.estado === 'activo') query = query.eq('activo', true)
   if (f.estado === 'inactivo') query = query.eq('activo', false)
-  if (f.stock === 'agotado') query = query.lte('stock', 0)
-  if (f.stock === 'bajo') query = query.gte('stock', 1).lte('stock', 4)
-  if (f.stock === 'con') query = query.gte('stock', 5)
 
   const { data, error } = await query
     .order('created_at', { ascending: false })
     .limit(500)
 
   if (error) console.error('[admin/productos] error:', error.message, error.code)
-  return data || []
+
+  // El filtro de stock se aplica acá y no en la query porque tiene que mirar
+  // las variantes: un producto puede tener stock total > 0 y aun asi tener un
+  // color agotado, que es lo que el admin necesita ver.
+  let lista = data || []
+  if (f.stock === 'agotado') {
+    lista = lista.filter((p) => {
+      const i = infoStock(p)
+      return i.total <= 0 || i.agotadas.length > 0
+    })
+  } else if (f.stock === 'bajo') {
+    lista = lista.filter((p) => {
+      const t = infoStock(p).total
+      return t >= 1 && t <= 4
+    })
+  } else if (f.stock === 'con') {
+    lista = lista.filter((p) => infoStock(p).total >= 5)
+  }
+  return lista
 }
 
 /** Primera imagen disponible: producto o primera variante activa con imagen */
@@ -157,10 +193,30 @@ export default async function AdminProductosPage({
                         {formatPrecio(p.precio)}
                       </span>
                     </td>
-                    <td className="px-5 py-4 hidden sm:table-cell">
-                      <span className={`text-sm ${p.stock === 0 ? 'text-red-500' : p.stock < 5 ? 'text-yellow-500' : 'text-green-600'}`}>
-                        {p.stock}
-                      </span>
+                    <td className="px-5 py-4 hidden sm:table-cell align-top">
+                      {(() => {
+                        const { total, agotadas, conVariantes } = infoStock(p)
+                        return (
+                          <>
+                            <span className={`text-sm ${total === 0 ? 'text-red-500' : total < 5 ? 'text-yellow-500' : 'text-green-600'}`}>
+                              {total}
+                            </span>
+                            {conVariantes && (
+                              <span className="text-brand-text-light text-xs ml-1">
+                                en {p.variantes.length} var.
+                              </span>
+                            )}
+                            {/* Qué variante concreta se quedó sin stock: es lo
+                                que el admin necesita para saber qué reponer. */}
+                            {agotadas.length > 0 && (
+                              <span className="block mt-1 text-[11px] text-red-400 leading-snug">
+                                Agotada{agotadas.length > 1 ? 's' : ''}:{' '}
+                                {agotadas.map(nombreVariante).join(', ')}
+                              </span>
+                            )}
+                          </>
+                        )
+                      })()}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">

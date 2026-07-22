@@ -95,7 +95,7 @@ export default function ProductosFiltros({
           className={selectCls}
         >
           <option value="">Cualquier stock</option>
-          <option value="agotado">Agotados (0)</option>
+          <option value="agotado">Agotados o con variante agotada</option>
           <option value="bajo">Stock bajo (1-4)</option>
           <option value="con">Con stock (5+)</option>
         </select>
