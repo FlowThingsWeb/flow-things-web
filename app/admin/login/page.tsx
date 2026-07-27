@@ -9,7 +9,8 @@ function AdminLoginForm() {
   const searchParams = useSearchParams()
   const conflict = searchParams.get('conflict') === '1'
 
-  const [form, setForm] = useState({ email: '', password: '' })
+  const [form, setForm] = useState({ email: '', password: '', totp: '' })
+  const [need2fa, setNeed2fa] = useState(false)
   const [loading, setLoading] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState('')
@@ -47,7 +48,14 @@ function AdminLoginForm() {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Credenciales incorrectas')
+        // El server pide 2FA: revelamos el campo de código (no es un error duro
+        // la primera vez, solo cuando ya lo mostramos y el código está mal).
+        if (data.need2fa) {
+          setNeed2fa(true)
+          setError(form.totp ? (data.error || 'Código incorrecto') : '')
+        } else {
+          setError(data.error || 'Credenciales incorrectas')
+        }
         return
       }
 
@@ -134,6 +142,32 @@ function AdminLoginForm() {
                 />
               </div>
 
+              {need2fa && (
+                <div>
+                  <label className="block text-sm font-medium text-brand-text-muted mb-1">
+                    Código de verificación (2 pasos)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    required
+                    autoFocus
+                    value={form.totp}
+                    onChange={e =>
+                      setForm({ ...form, totp: e.target.value.replace(/\D/g, '') })
+                    }
+                    className="input-dark tracking-[0.4em] text-center"
+                    placeholder="000000"
+                  />
+                  <p className="text-xs text-brand-text-muted mt-1">
+                    Ingresá el código de 6 dígitos de tu app de autenticación.
+                  </p>
+                </div>
+              )}
+
               {error && (
                 <div className="bg-red-900/30 border border-red-700 text-red-400 rounded-xl p-3 text-sm">
                   {error}
@@ -150,6 +184,8 @@ function AdminLoginForm() {
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     Ingresando...
                   </>
+                ) : need2fa ? (
+                  'Verificar código'
                 ) : (
                   'Ingresar'
                 )}

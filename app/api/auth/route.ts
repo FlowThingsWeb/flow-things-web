@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { SignJWT } from 'jose'
 import { createHash, timingSafeEqual } from 'crypto'
 import { getClientIp } from '@/lib/client-ip'
+import { verifyTOTP, totpConfigurado } from '@/lib/totp'
+
+// Duración de la sesión admin. Larga a propósito: con 2FA en el login, la
+// fricción está en entrar, así que mantenemos la sesión iniciada 30 días
+// para no pedir código a cada rato.
+const SESION_DIAS = 30
+const SESION_SEG = SESION_DIAS * 24 * 60 * 60
 
 /**
  * Compara dos strings en tiempo constante. Hashea ambos a 32 bytes fijos antes
@@ -51,7 +58,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { email, password } = await request.json()
+    const { email, password, totp } = await request.json()
 
     // Validar ADMIN_SECRET dentro del handler (no a nivel de módulo)
     const adminSecret = process.env.ADMIN_SECRET
@@ -70,6 +77,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Segundo factor (TOTP). Solo se exige si ADMIN_TOTP_SECRET está
+    // configurada — así activar el 2FA es cargar la env, sin quedar
+    // bloqueado antes de enrolar el teléfono.
+    if (totpConfigurado()) {
+      const codigo = String(totp ?? '').trim()
+      if (!codigo) {
+        // Password OK pero falta el código: el front pide el 2FA.
+        return NextResponse.json(
+          { error: 'Ingresá el código de 2 pasos', need2fa: true },
+          { status: 401 }
+        )
+      }
+      if (!verifyTOTP(codigo, process.env.ADMIN_TOTP_SECRET!)) {
+        return NextResponse.json(
+          { error: 'Código de 2 pasos incorrecto', need2fa: true },
+          { status: 401 }
+        )
+      }
+    }
+
     // Login exitoso — limpiar intentos fallidos
     clearAttempts(ip)
 
@@ -77,7 +104,7 @@ export async function POST(request: NextRequest) {
     const token = await new SignJWT({ email, role: 'admin' })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
-      .setExpirationTime('24h')
+      .setExpirationTime(`${SESION_DIAS}d`)
       .sign(secret)
 
     const response = NextResponse.json({ success: true })
@@ -85,7 +112,7 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24 horas
+      maxAge: SESION_SEG, // sesión larga: 30 días
       path: '/',
     })
 
