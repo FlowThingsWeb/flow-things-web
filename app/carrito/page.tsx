@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import { DatosComprador } from '@/types'
 import DireccionesManager, { Direccion } from '@/components/DireccionesManager'
+import CuotasMP from '@/components/CuotasMP'
 import { formatPrecio } from '@/lib/format'
 
 function validarDNI(dni: string): boolean {
@@ -867,6 +868,14 @@ function CarritoContent() {
                   {formatPrecio(totalFinal)}
                 </span>
               </div>
+
+              {/* Cuotas del total: que el comprador vea que puede financiar
+                  antes de ir al checkout de Mercado Pago. */}
+              {totalFinal > 0 && (
+                <div className="pt-1">
+                  <CuotasMP amount={totalFinal} />
+                </div>
+              )}
             </div>
           </div>
         </div>
