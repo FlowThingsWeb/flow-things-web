@@ -13,6 +13,7 @@ import CuotasMP from '@/components/CuotasMP'
 import ProductReviews from '@/components/ProductReviews'
 import RelatedProducts from '@/components/RelatedProducts'
 import EnvioEstimador from '@/components/EnvioEstimador'
+import ShareButton from '@/components/ShareButton'
 import { formatPrecio } from '@/lib/format'
 
 function waLink(telefono: string, texto: string) {
@@ -446,9 +447,17 @@ export default function ProductoDetallePage() {
             </Link>
           )}
 
-          <h1 className="text-3xl font-bold text-brand-text leading-tight">
-            {producto.nombre}
-          </h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-3xl font-bold text-brand-text leading-tight">
+              {producto.nombre}
+            </h1>
+            <div className="shrink-0 pt-1">
+              <ShareButton
+                nombre={producto.nombre}
+                precio={formatPrecio(producto.precio)}
+              />
+            </div>
+          </div>
 
           {/* Precio */}
           <div className="flex items-baseline gap-3">
