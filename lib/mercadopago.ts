@@ -48,6 +48,13 @@ export async function crearPreferencia({
         picture_url: item.imagen_url || undefined,
       }))
 
+  // Vigencia del link de pago: válido desde ahora y por 48h. Evita que un
+  // link viejo (mail, WhatsApp) se pague días después con precio/stock ya
+  // cambiado. Para el cupón de efectivo, MP usa esta misma fecha de
+  // vencimiento (date_of_expiration).
+  const ahora = new Date()
+  const vence = new Date(ahora.getTime() + 48 * 60 * 60 * 1000)
+
   const response = await preference.create({
     body: {
       items: mpItems,
@@ -70,6 +77,12 @@ export async function crearPreferencia({
       notification_url: `${baseUrl}/api/webhook`,
       external_reference: ordenId,
       statement_descriptor: 'Flow Things',
+      // Vigencia de la preferencia (ventana en la que el link es pagable).
+      expires: true,
+      expiration_date_from: ahora.toISOString(),
+      expiration_date_to: vence.toISOString(),
+      // Vencimiento del cupón de pago en efectivo (Rapipago/Pago Fácil).
+      date_of_expiration: vence.toISOString(),
     },
   })
 
