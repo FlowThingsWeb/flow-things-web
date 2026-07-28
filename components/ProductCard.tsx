@@ -135,6 +135,12 @@ export default function ProductCard({ producto, variante, rating }: ProductCardP
                 {formatPrecio(producto.precio_anterior!)}
               </p>
             )}
+            {/* Cuotas: renglón estático (sin fetch) para no disparar N
+                llamadas a MP desde la grilla. El detalle exacto (sin interés /
+                monto por cuota) va en la ficha y el carrito. */}
+            <p className="text-brand-text-light text-[11px]">
+              Hasta 12 cuotas
+            </p>
           </div>
 
           <button

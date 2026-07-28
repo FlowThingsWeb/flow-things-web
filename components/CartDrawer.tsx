@@ -7,6 +7,7 @@ import { useCartStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase'
 import { Producto } from '@/types'
 import { formatPrecio } from '@/lib/format'
+import CuotasMP from '@/components/CuotasMP'
 
 interface CartDrawerProps {
   /** Umbrales de envío gratis (desde config). Deben coincidir con /admin/envios. */
@@ -245,6 +246,11 @@ export default function CartDrawer({ gratisAmba = 60000, gratisInterior = 120000
             <p className="text-xs text-brand-text-light">
               Descuentos calculados al finalizar la compra
             </p>
+            {totalAmount > 0 && (
+              <div>
+                <CuotasMP amount={totalAmount} />
+              </div>
+            )}
             <Link
               href="/carrito"
               onClick={closeCart}
