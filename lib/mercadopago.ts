@@ -27,10 +27,13 @@ export async function crearPreferencia({
   const baseUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
 
   // Si hay descuento, colapsar a un único ítem para evitar precios negativos
+  // MP pide items.description para su motor anti-fraude (mejora la tasa de
+  // aprobación). Para productos usamos el nombre; para el envío un texto fijo.
   const mpItems = totalConDescuento != null
     ? [{
         id: 'orden',
         title: 'Compra en Flow Things',
+        description: 'Compra en Flow Things',
         quantity: 1,
         unit_price: totalConDescuento,
         currency_id: 'ARS',
@@ -38,6 +41,7 @@ export async function crearPreferencia({
     : items.map((item) => ({
         id: item.id,
         title: item.nombre,
+        description: item.id === 'envio' ? 'Costo de envío' : item.nombre,
         quantity: item.cantidad,
         unit_price: Number(item.precio),
         currency_id: 'ARS',
