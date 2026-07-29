@@ -14,6 +14,9 @@ export interface CreatePreferenceParams {
   /** Si hay descuento, pasar el total final ya calculado para usar un ítem único.
    *  MercadoPago no acepta unit_price negativo, así que no se pueden pasar descuentos como ítems. */
   totalConDescuento?: number
+  /** Costo de envío. Se manda a MP en el campo `shipments` (no como ítem),
+   *  así lo muestra como "Envío" separado en el checkout. */
+  costoEnvio?: number
 }
 
 export async function crearPreferencia({
@@ -21,6 +24,7 @@ export async function crearPreferencia({
   comprador,
   ordenId,
   totalConDescuento,
+  costoEnvio = 0,
 }: CreatePreferenceParams) {
   // Garantizar que la URL tenga esquema https:// (requerido por MercadoPago)
   const rawUrl = process.env.NEXT_PUBLIC_APP_URL!
@@ -55,9 +59,18 @@ export async function crearPreferencia({
   const ahora = new Date()
   const vence = new Date(ahora.getTime() + 48 * 60 * 60 * 1000)
 
+  // Envío como `shipments.cost` (no como ítem): MP lo muestra separado como
+  // "Envío". Si hay descuento, el envío ya está dentro del ítem único colapsado
+  // (total con descuento), así que no lo sumamos de nuevo acá.
+  const shipments =
+    totalConDescuento == null && costoEnvio > 0
+      ? { cost: Number(costoEnvio), mode: 'not_specified' as const }
+      : undefined
+
   const response = await preference.create({
     body: {
       items: mpItems,
+      ...(shipments ? { shipments } : {}),
       payer: {
         name: comprador.nombre.split(' ')[0],
         surname: comprador.nombre.split(' ').slice(1).join(' '),

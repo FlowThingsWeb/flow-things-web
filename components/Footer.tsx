@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useEditMode } from '@/lib/useEditMode'
 import EditableText from '@/components/EditableText'
 import EditableImage from '@/components/EditableImage'
+import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import type { ConfigMap } from '@/lib/config'
 
 interface FooterProps {
@@ -188,10 +189,7 @@ export default function Footer({ cfg }: FooterProps) {
             © {new Date().getFullYear()} {cfg.sitio_nombre}.{' '}
             <ET k="footer_copyright" />
           </p>
-          <div className="flex items-center gap-1 text-xs text-brand-text-muted">
-            <span>Pagos seguros con</span>
-            <span className="font-bold text-brand-purple">Mercado Pago</span>
-          </div>
+          <MercadoPagoBadge />
         </div>
       </div>
     </footer>

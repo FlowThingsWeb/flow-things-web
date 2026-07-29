@@ -207,22 +207,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── 5. Crear preferencia MP ─────────────────────────────────────────────
-    const itemsParaMP = [...items] as (ItemOrden & { imagen_url?: string | null })[]
-
-    if (costoEnvio > 0) {
-      itemsParaMP.push({
-        id: 'envio',
-        nombre: `Envío ${envioNombreFinal ?? envioTipoFinal ?? ''}`.trim(),
-        precio: costoEnvio,
-        cantidad: 1,
-        imagen_url: null,
-      } as ItemOrden)
-    }
-
+    // El envío va en el campo `shipments` de la preferencia (no como ítem),
+    // así MP lo muestra separado como "Envío".
     const mpPreference = await crearPreferencia({
-      items: itemsParaMP,
+      items,
       comprador,
       ordenId: orden.id,
+      costoEnvio,
       // Si hay descuento, usar total final como ítem único (MP rechaza unit_price negativos)
       totalConDescuento: descuento_monto > 0 ? total : undefined,
     })

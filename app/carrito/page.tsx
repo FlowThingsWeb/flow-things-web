@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { DatosComprador } from '@/types'
 import DireccionesManager, { Direccion } from '@/components/DireccionesManager'
 import CuotasMP from '@/components/CuotasMP'
+import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
 
 function validarDNI(dni: string): boolean {
@@ -782,6 +783,9 @@ function CarritoContent() {
           <p className="text-center text-xs text-brand-text-light">
             Serás redirigido a Mercado Pago para completar el pago de forma segura
           </p>
+          <div className="flex justify-center">
+            <MercadoPagoBadge />
+          </div>
         </form>
 
         {/* Resumen del pedido */}
