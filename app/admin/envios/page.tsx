@@ -26,6 +26,8 @@ export default function EnviosAdminPage() {
   const [amba, setAmba] = useState<ZonaConfig>(DEFAULTS.amba)
   const [bsas, setBsas] = useState<ZonaConfig>(DEFAULTS.bsas)
   const [interior, setInterior] = useState<ZonaConfig>(DEFAULTS.interior)
+  // Mínimos de cuotas sin interés (deben coincidir con el panel de MP).
+  const [cuotas, setCuotas] = useState({ c2: '95000', c3: '115000', c6: '311000' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -58,6 +60,16 @@ export default function EnviosAdminPage() {
           gratis_desde: cfg.envio_gratis_interior_desde || DEFAULTS.interior.gratis_desde,
           tiempo: cfg.envio_tiempo_interior || DEFAULTS.interior.tiempo,
         })
+        // Cuotas sin interés: se guardan como JSON [{cuotas,min}].
+        try {
+          const planes = JSON.parse(cfg.cuotas_sin_interes || '[]') as { cuotas: number; min: number }[]
+          const get = (n: number) => planes.find(p => Number(p.cuotas) === n)?.min
+          setCuotas({
+            c2: String(get(2) ?? 95000),
+            c3: String(get(3) ?? 115000),
+            c6: String(get(6) ?? 311000),
+          })
+        } catch { /* deja los defaults */ }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -82,6 +94,11 @@ export default function EnviosAdminPage() {
         envio_precio_interior: interior.precio,
         envio_gratis_interior_desde: interior.gratis_desde,
         envio_tiempo_interior: interior.tiempo,
+        cuotas_sin_interes: JSON.stringify([
+          { cuotas: 2, min: Number(cuotas.c2) || 0 },
+          { cuotas: 3, min: Number(cuotas.c3) || 0 },
+          { cuotas: 6, min: Number(cuotas.c6) || 0 },
+        ]),
       }
 
       const res = await fetch('/api/admin/config', {
@@ -160,6 +177,52 @@ export default function EnviosAdminPage() {
         <p className="text-xs text-brand-text-muted">
           💡 <strong className="text-brand-text">Envío gratis:</strong> si el cliente supera el monto mínimo al momento de calcular el envío, el costo se muestra como $0. Poné <strong>0</strong> para desactivarlo.
         </p>
+      </div>
+
+      {/* Cuotas sin interés */}
+      <div className="mt-8 bg-brand-bg-card border border-brand-border rounded-2xl p-6">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-2xl">💳</span>
+          <div>
+            <h2 className="font-semibold text-white">Cuotas sin interés</h2>
+            <p className="text-xs text-brand-text-muted">
+              Desde qué monto se ofrece cada plan sin interés. La web lo muestra en
+              el producto y el carrito.
+            </p>
+          </div>
+        </div>
+        <div className="mb-5 rounded-lg border border-yellow-600/30 bg-yellow-500/10 p-3">
+          <p className="text-xs text-yellow-300/90">
+            ⚠️ Estos valores tienen que coincidir con los mínimos que cargaste en
+            Mercado Pago (Costos y cuotas). Si los cambiás allá, actualizalos acá.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {([
+            ['2 cuotas sin interés desde ($)', 'c2', '95000'],
+            ['3 cuotas sin interés desde ($)', 'c3', '115000'],
+            ['6 cuotas sin interés desde ($)', 'c6', '311000'],
+          ] as const).map(([label, key, ph]) => (
+            <div key={key}>
+              <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+                {label}
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={cuotas[key]}
+                onChange={e => setCuotas({ ...cuotas, [key]: e.target.value })}
+                className="input-dark w-full"
+                placeholder={ph}
+              />
+              {cuotas[key] && Number(cuotas[key]) > 0 && (
+                <p className="text-xs text-green-400 mt-1">
+                  Desde {formatPrecio(cuotas[key])}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Guardar */}
