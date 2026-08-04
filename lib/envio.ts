@@ -3,6 +3,7 @@
  * Centralizar aquí evita que la lógica de precios se duplique.
  */
 import { getConfig } from '@/lib/config'
+import { distanciaManejoKm } from '@/lib/google-maps'
 
 export type ZonaEnvio = 'caba' | 'amba' | 'bsas' | 'interior'
 
@@ -89,7 +90,8 @@ export interface OpcionEnvio {
 export async function calcularEnvio(
   provincia: string | null | undefined,
   subtotal: number,
-  codigoPostal?: string | null
+  codigoPostal?: string | null,
+  destino?: { direccion?: string | null; localidad?: string | null }
 ): Promise<OpcionEnvio | null> {
   if (!provincia) return null
 
@@ -99,6 +101,44 @@ export async function calcularEnvio(
   // Compat: el valor viejo 'gba' (cuando toda la provincia era una sola zona)
   // se usa como fallback para AMBA y Resto BA hasta que se configuren aparte.
   const num = (v: string | undefined, def: number) => Number(v) || def
+
+  // ── Envío por cercanía (km): reemplaza CABA/AMBA cuando está activo ──
+  // Si falla (sin key, dirección no ubicable, o fuera de radio) cae a la
+  // tarifa plana de la zona (el bloque de abajo).
+  if (
+    (zona === 'caba' || zona === 'amba') &&
+    cfg.envio_km_activo === '1' &&
+    cfg.envio_km_origen?.trim() &&
+    destino?.direccion?.trim()
+  ) {
+    const destinoStr = [destino.direccion, destino.localidad, provincia, codigoPostal, 'Argentina']
+      .filter((s) => s && String(s).trim())
+      .join(', ')
+    const km = await distanciaManejoKm(cfg.envio_km_origen, destinoStr)
+    if (km != null) {
+      const radioMax = num(cfg.envio_km_radio_max, 0)
+      if (radioMax <= 0 || km <= radioMax) {
+        const base = num(cfg.envio_km_base, 0)
+        const porKm = num(cfg.envio_km_por_km, 0)
+        const gratisDesde = num(cfg.envio_km_gratis_desde, 0)
+        const esGratis = subtotal > 0 && gratisDesde > 0 && subtotal >= gratisDesde
+        // Redondeo a $100 para precios prolijos.
+        const bruto = base + porKm * km
+        const precio = esGratis ? 0 : Math.round(bruto / 100) * 100
+        return {
+          id: 'cercania',
+          nombre: cfg.envio_km_nombre || 'Envío a domicilio',
+          precio,
+          tiempo_estimado: cfg.envio_km_tiempo || '',
+          descripcion: esGratis
+            ? '¡Envío gratis por superar el mínimo!'
+            : `A ${km.toFixed(1)} km de nuestro local`,
+        }
+      }
+      // fuera de radio → sigue a tarifa plana
+    }
+    // km no calculable → sigue a tarifa plana
+  }
 
   const zonas: Record<ZonaEnvio, { precio: number; gratis_desde: number; tiempo: string; nombre: string; id: string }> = {
     caba: {

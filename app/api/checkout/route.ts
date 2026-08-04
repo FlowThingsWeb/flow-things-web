@@ -167,7 +167,10 @@ export async function POST(request: NextRequest) {
         envioNombreFinal = 'Retiro en tienda'
         envioTipoFinal   = 'retiro'
       } else {
-        const opcion = await calcularEnvio(comprador.provincia, subtotalConDescuento, comprador.codigo_postal)
+        const opcion = await calcularEnvio(comprador.provincia, subtotalConDescuento, comprador.codigo_postal, {
+          direccion: comprador.direccion,
+          localidad: comprador.ciudad,
+        })
         if (opcion) {
           costoEnvio       = opcion.precio
           envioNombreFinal = opcion.nombre

@@ -50,6 +50,15 @@ export interface ConfigMap {
   envio_tiempo_gba: string
   envio_tiempo_interior: string
   cabify_direccion_origen: string
+  // Envío por cercanía (km) — reemplaza CABA/AMBA cuando está activo
+  envio_km_activo: string        // '1' | '0'
+  envio_km_origen: string        // dirección del local (origen)
+  envio_km_base: string          // costo base $
+  envio_km_por_km: string        // $ por km
+  envio_km_gratis_desde: string  // subtotal para envío gratis
+  envio_km_radio_max: string     // km máximo; fuera de radio → cae a zona plana
+  envio_km_nombre: string        // etiqueta mostrada
+  envio_km_tiempo: string        // tiempo estimado
   // Design
   design_overrides: string
   design_font_family: string
@@ -103,6 +112,15 @@ const DEFAULTS: ConfigMap = {
   envio_tiempo_gba: '48-72 hs hábiles',
   envio_tiempo_interior: '3-7 días hábiles',
   cabify_direccion_origen: 'Federico Lacroze 3885, CABA, 1427',
+  // Envío por cercanía (km) — off hasta configurar key + origen
+  envio_km_activo: '0',
+  envio_km_origen: '',
+  envio_km_base: '2000',
+  envio_km_por_km: '300',
+  envio_km_gratis_desde: '40000',
+  envio_km_radio_max: '20',
+  envio_km_nombre: 'Envío a domicilio',
+  envio_km_tiempo: 'Coordinamos el día de entrega',
   // Design
   design_overrides: '',
   design_font_family: 'inherit',

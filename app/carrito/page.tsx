@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import { DatosComprador } from '@/types'
 import DireccionesManager, { Direccion } from '@/components/DireccionesManager'
+import MapaDireccion, { DireccionParseada } from '@/components/MapaDireccion'
 import CuotasMP from '@/components/CuotasMP'
 import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
@@ -161,6 +162,23 @@ function CarritoContent() {
       codigo_postal: dir.codigo_postal,
     }))
     // Resetear envío calculado porque cambió la provincia
+    setEnvioSeleccionado(null)
+    setEnvioOpciones([])
+    setEnvioCalculado(false)
+    setEnvioError('')
+  }
+
+  // Dirección elegida en el mapa (Google Places). Completa los campos; el piso
+  // y depto los sigue cargando el usuario a mano.
+  function aplicarDireccionMapa(d: DireccionParseada) {
+    setDirSeleccionadaId(undefined)
+    setForm(f => ({
+      ...f,
+      direccion: d.direccion || f.direccion,
+      ciudad: d.ciudad || f.ciudad,
+      provincia: d.provincia || f.provincia,
+      codigo_postal: d.codigo_postal || f.codigo_postal,
+    }))
     setEnvioSeleccionado(null)
     setEnvioOpciones([])
     setEnvioCalculado(false)
@@ -538,6 +556,9 @@ function CarritoContent() {
                 </div>
               </div>
             )}
+
+            {/* Buscador en mapa (Google Places) — completa los campos de abajo */}
+            <MapaDireccion onCambio={aplicarDireccionMapa} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">

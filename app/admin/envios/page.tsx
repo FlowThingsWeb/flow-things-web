@@ -28,6 +28,17 @@ export default function EnviosAdminPage() {
   const [interior, setInterior] = useState<ZonaConfig>(DEFAULTS.interior)
   // Mínimos de cuotas sin interés (deben coincidir con el panel de MP).
   const [cuotas, setCuotas] = useState({ c2: '95000', c3: '115000', c6: '311000' })
+  // Envío por cercanía (km) — reemplaza CABA/AMBA cuando está activo.
+  const [km, setKm] = useState({
+    activo: false,
+    origen: '',
+    base: '2000',
+    por_km: '400',
+    gratis_desde: '40000',
+    radio_max: '20',
+    nombre: 'Envío a domicilio',
+    tiempo: 'Coordinamos el día de entrega',
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -70,6 +81,16 @@ export default function EnviosAdminPage() {
             c6: String(get(6) ?? 311000),
           })
         } catch { /* deja los defaults */ }
+        setKm({
+          activo: cfg.envio_km_activo === '1',
+          origen: cfg.envio_km_origen ?? '',
+          base: cfg.envio_km_base || '2000',
+          por_km: cfg.envio_km_por_km || '400',
+          gratis_desde: cfg.envio_km_gratis_desde || '40000',
+          radio_max: cfg.envio_km_radio_max || '20',
+          nombre: cfg.envio_km_nombre || 'Envío a domicilio',
+          tiempo: cfg.envio_km_tiempo || 'Coordinamos el día de entrega',
+        })
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -99,6 +120,14 @@ export default function EnviosAdminPage() {
           { cuotas: 3, min: Number(cuotas.c3) || 0 },
           { cuotas: 6, min: Number(cuotas.c6) || 0 },
         ]),
+        envio_km_activo: km.activo ? '1' : '0',
+        envio_km_origen: km.origen,
+        envio_km_base: km.base,
+        envio_km_por_km: km.por_km,
+        envio_km_gratis_desde: km.gratis_desde,
+        envio_km_radio_max: km.radio_max,
+        envio_km_nombre: km.nombre,
+        envio_km_tiempo: km.tiempo,
       }
 
       const res = await fetch('/api/admin/config', {
@@ -132,6 +161,118 @@ export default function EnviosAdminPage() {
         <p className="text-brand-text-muted mt-1 text-sm">
           Definí el costo de envío y el mínimo para envío gratis por zona.
         </p>
+      </div>
+
+      {/* Envío por cercanía (km) — reemplaza CABA/AMBA */}
+      <div className="mb-6 bg-brand-bg-card border border-brand-border rounded-2xl p-6">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">📍</span>
+            <div>
+              <h2 className="font-semibold text-white">Envío por cercanía (por km)</h2>
+              <p className="text-xs text-brand-text-muted">
+                Cuando está activo, el envío a <strong>CABA y AMBA</strong> se cobra por
+                distancia desde tu local (base + $/km). El resto del país sigue con las
+                tarifas planas de abajo.
+              </p>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 shrink-0 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={km.activo}
+              onChange={e => setKm({ ...km, activo: e.target.checked })}
+              className="w-4 h-4 accent-brand-purple"
+            />
+            <span className="text-sm text-brand-text">{km.activo ? 'Activo' : 'Inactivo'}</span>
+          </label>
+        </div>
+
+        <div className="mb-5 rounded-lg border border-yellow-600/30 bg-yellow-500/10 p-3">
+          <p className="text-xs text-yellow-300/90">
+            ⚠️ Requiere las API keys de Google Maps cargadas en Vercel
+            (<code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> y <code>GOOGLE_MAPS_API_KEY</code>).
+            Si una dirección queda fuera del radio máximo o no se puede ubicar, se usa la
+            tarifa plana de CABA/AMBA.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Dirección de tu local (origen)
+            </label>
+            <input
+              type="text"
+              value={km.origen}
+              onChange={e => setKm({ ...km, origen: e.target.value })}
+              className="input-dark w-full"
+              placeholder="Federico Lacroze 3885, CABA"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Tarifa base ($)
+            </label>
+            <input type="number" min="0" value={km.base}
+              onChange={e => setKm({ ...km, base: e.target.value })}
+              className="input-dark w-full" placeholder="2000" />
+            {km.base && <p className="text-xs text-brand-neon mt-1">{formatPrecio(km.base)}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Costo por km ($)
+            </label>
+            <input type="number" min="0" value={km.por_km}
+              onChange={e => setKm({ ...km, por_km: e.target.value })}
+              className="input-dark w-full" placeholder="400" />
+            {km.por_km && <p className="text-xs text-brand-neon mt-1">{formatPrecio(km.por_km)} / km</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Envío gratis desde ($)
+            </label>
+            <input type="number" min="0" value={km.gratis_desde}
+              onChange={e => setKm({ ...km, gratis_desde: e.target.value })}
+              className="input-dark w-full" placeholder="40000" />
+            {Number(km.gratis_desde) > 0
+              ? <p className="text-xs text-green-400 mt-1">Gratis desde {formatPrecio(km.gratis_desde)}</p>
+              : <p className="text-xs text-brand-text-light mt-1">Sin envío gratis</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Radio máximo (km)
+            </label>
+            <input type="number" min="0" value={km.radio_max}
+              onChange={e => setKm({ ...km, radio_max: e.target.value })}
+              className="input-dark w-full" placeholder="20" />
+            <p className="text-xs text-brand-text-light mt-1">Más lejos → tarifa plana. 0 = sin límite.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Nombre mostrado
+            </label>
+            <input type="text" value={km.nombre}
+              onChange={e => setKm({ ...km, nombre: e.target.value })}
+              className="input-dark w-full" placeholder="Envío a domicilio" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Tiempo estimado
+            </label>
+            <input type="text" value={km.tiempo}
+              onChange={e => setKm({ ...km, tiempo: e.target.value })}
+              className="input-dark w-full" placeholder="Coordinamos el día de entrega" />
+          </div>
+        </div>
+        {km.base && km.por_km && (
+          <p className="text-xs text-brand-text-muted mt-4">
+            Ejemplo: una dirección a 6 km costaría{' '}
+            <strong className="text-brand-text">
+              {formatPrecio(String(Math.round((Number(km.base) + Number(km.por_km) * 6) / 100) * 100))}
+            </strong>.
+          </p>
+        )}
       </div>
 
       <div className="space-y-6">
