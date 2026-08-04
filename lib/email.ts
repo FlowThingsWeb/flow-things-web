@@ -42,6 +42,10 @@ function createTransport() {
   })
 }
 
+// Copia oculta de TODOS los mails salientes (factura, venta, envío, promo,
+// cumpleaños, etc.) a la casilla del comercio. Configurable por env.
+const EMAIL_BCC = process.env.EMAIL_COPIA_BCC || 'contacto@flowthings.com.ar'
+
 export async function sendEmail(params: {
   to: string
   asunto: string
@@ -53,9 +57,14 @@ export async function sendEmail(params: {
     return
   }
   const transporter = createTransport()
+  // No duplicar si el destinatario ya es la propia casilla de copia.
+  const bcc = EMAIL_BCC && params.to.toLowerCase() !== EMAIL_BCC.toLowerCase()
+    ? EMAIL_BCC
+    : undefined
   await transporter.sendMail({
     from: `"Flow Things" <${process.env.GMAIL_USER}>`,
     to: params.to,
+    bcc,
     subject: params.asunto,
     html: params.cuerpo,
     attachments: params.adjuntos?.map(a => ({
