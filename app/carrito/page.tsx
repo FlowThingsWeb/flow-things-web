@@ -142,6 +142,8 @@ function CarritoContent() {
   const [calculandoEnvio, setCalculandoEnvio] = useState(false)
   const [envioError, setEnvioError] = useState('')
   const [envioCalculado, setEnvioCalculado] = useState(false)
+  // Fallback: editar la dirección a mano si Google no la ubicó bien.
+  const [editarManual, setEditarManual] = useState(false)
 
   const subtotal = total()
   const costoEnvio = envioSeleccionado?.precio ?? 0
@@ -284,6 +286,11 @@ function CarritoContent() {
 
     if (form.dni && !validarDNI(form.dni)) {
       setError('El DNI debe tener 7 u 8 dígitos numéricos, sin puntos ni espacios.')
+      return
+    }
+
+    if (!form.direccion.trim() || !form.ciudad.trim() || !form.provincia.trim() || !form.codigo_postal.trim()) {
+      setError('Buscá tu dirección en el mapa (o cargala a mano) para completar los datos de envío.')
       return
     }
 
@@ -560,21 +567,34 @@ function CarritoContent() {
             {/* Buscador en mapa (Google Places) — completa los campos de abajo */}
             <MapaDireccion onCambio={aplicarDireccionMapa} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label htmlFor="direccion" className="block text-sm font-medium text-brand-text-muted mb-1">Calle y número *</label>
-                <input
-                  type="text"
-                  id="direccion"
-                  name="direccion"
-                  required
-                  value={form.direccion}
-                  onChange={handleChange}
-                  className="input-dark"
-                  placeholder="Av. Corrientes 1234"
-                />
+            {/* Resumen de la dirección elegida (se completa desde el mapa) */}
+            {(form.direccion || form.ciudad || form.codigo_postal || form.provincia) ? (
+              <div className="rounded-xl border border-brand-border bg-brand-bg-soft p-4 text-sm space-y-1.5">
+                <div className="flex justify-between gap-3">
+                  <span className="text-brand-text-muted">Calle y número</span>
+                  <span className="text-brand-text font-medium text-right">{form.direccion || '—'}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-brand-text-muted">Ciudad</span>
+                  <span className="text-brand-text text-right">{form.ciudad || '—'}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-brand-text-muted">Código postal</span>
+                  <span className="text-brand-text text-right">{form.codigo_postal || '—'}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-brand-text-muted">Provincia</span>
+                  <span className="text-brand-text text-right">{form.provincia || '—'}</span>
+                </div>
               </div>
+            ) : (
+              <p className="text-sm text-brand-text-muted">
+                Buscá tu dirección en el mapa y completamos los datos solos.
+              </p>
+            )}
 
+            {/* Piso + Depto — lo único que se carga a mano */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="piso" className="block text-sm font-medium text-brand-text-muted mb-1">Piso <span className="text-brand-text-light font-normal">(opcional)</span></label>
                 <input
@@ -587,7 +607,6 @@ function CarritoContent() {
                   placeholder="3"
                 />
               </div>
-
               <div>
                 <label htmlFor="departamento" className="block text-sm font-medium text-brand-text-muted mb-1">Depto <span className="text-brand-text-light font-normal">(opcional)</span></label>
                 <input
@@ -600,52 +619,51 @@ function CarritoContent() {
                   placeholder="B"
                 />
               </div>
-
-              <div>
-                <label htmlFor="ciudad" className="block text-sm font-medium text-brand-text-muted mb-1">Ciudad *</label>
-                <input
-                  type="text"
-                  id="ciudad"
-                  name="ciudad"
-                  required
-                  value={form.ciudad}
-                  onChange={handleChange}
-                  className="input-dark"
-                  placeholder="Buenos Aires"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="codigo_postal" className="block text-sm font-medium text-brand-text-muted mb-1">Código postal *</label>
-                <input
-                  type="text"
-                  id="codigo_postal"
-                  name="codigo_postal"
-                  required
-                  value={form.codigo_postal}
-                  onChange={handleChange}
-                  className="input-dark"
-                  placeholder="C1414"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label htmlFor="provincia" className="block text-sm font-medium text-brand-text-muted mb-1">Provincia *</label>
-                <select
-                  id="provincia"
-                  name="provincia"
-                  required
-                  value={form.provincia}
-                  onChange={handleChange}
-                  className="input-dark"
-                >
-                  <option value="">Seleccioná tu provincia</option>
-                  {['Buenos Aires', 'CABA', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba', 'Corrientes', 'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza', 'Misiones', 'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis', 'Santa Cruz', 'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego', 'Tucumán'].map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
             </div>
+
+            {/* Aviso si el mapa no trajo algún dato clave */}
+            {form.direccion && (!form.codigo_postal || !form.provincia) && (
+              <p className="text-xs text-amber-400">
+                Faltan datos de tu dirección. Ajustá el pin en el mapa o cargalos a mano abajo.
+              </p>
+            )}
+
+            {/* Fallback: editar a mano si Google no ubicó bien la dirección */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setEditarManual(v => !v)}
+                className="text-xs text-brand-text-muted underline hover:text-brand-text"
+              >
+                {editarManual ? 'Ocultar edición manual' : '¿La dirección no es correcta? Editar a mano'}
+              </button>
+            </div>
+
+            {editarManual && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-brand-border pt-4">
+                <div className="sm:col-span-2">
+                  <label htmlFor="direccion" className="block text-sm font-medium text-brand-text-muted mb-1">Calle y número *</label>
+                  <input type="text" id="direccion" name="direccion" value={form.direccion} onChange={handleChange} className="input-dark" placeholder="Av. Corrientes 1234" />
+                </div>
+                <div>
+                  <label htmlFor="ciudad" className="block text-sm font-medium text-brand-text-muted mb-1">Ciudad *</label>
+                  <input type="text" id="ciudad" name="ciudad" value={form.ciudad} onChange={handleChange} className="input-dark" placeholder="Buenos Aires" />
+                </div>
+                <div>
+                  <label htmlFor="codigo_postal" className="block text-sm font-medium text-brand-text-muted mb-1">Código postal *</label>
+                  <input type="text" id="codigo_postal" name="codigo_postal" value={form.codigo_postal} onChange={handleChange} className="input-dark" placeholder="C1414" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="provincia" className="block text-sm font-medium text-brand-text-muted mb-1">Provincia *</label>
+                  <select id="provincia" name="provincia" value={form.provincia} onChange={handleChange} className="input-dark">
+                    <option value="">Seleccioná tu provincia</option>
+                    {['Buenos Aires', 'CABA', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba', 'Corrientes', 'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza', 'Misiones', 'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis', 'Santa Cruz', 'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego', 'Tucumán'].map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Envío */}
