@@ -11,11 +11,12 @@ import CuotasMP from '@/components/CuotasMP'
 
 interface CartDrawerProps {
   /** Umbrales de envío gratis (desde config). Deben coincidir con /admin/envios. */
+  gratisCaba?: number
   gratisAmba?: number
   gratisInterior?: number
 }
 
-export default function CartDrawer({ gratisAmba = 60000, gratisInterior = 120000 }: CartDrawerProps) {
+export default function CartDrawer({ gratisCaba = 40000, gratisAmba = 60000, gratisInterior = 120000 }: CartDrawerProps) {
   const { items, isOpen, closeCart, removeItem, updateCantidad, total, addItem } = useCartStore()
   const totalAmount = total()
 
@@ -160,10 +161,13 @@ export default function CartDrawer({ gratisAmba = 60000, gratisInterior = 120000
           <div className="border-t border-brand-border p-5 space-y-4">
             {/* Progreso envío gratis */}
             {(() => {
+              const CABA = gratisCaba
               const AMBA = gratisAmba
               const INTERIOR = gratisInterior
+              const pctCaba = Math.min(100, (totalAmount / CABA) * 100)
               const pctAmba = Math.min(100, (totalAmount / AMBA) * 100)
               const pctInterior = Math.min(100, (totalAmount / INTERIOR) * 100)
+              const libreCaba = totalAmount >= CABA
               const libreAmba = totalAmount >= AMBA
               const libreInterior = totalAmount >= INTERIOR
 
@@ -179,6 +183,19 @@ export default function CartDrawer({ gratisAmba = 60000, gratisInterior = 120000
 
               return (
                 <div className="bg-brand-bg-soft rounded-xl p-3 space-y-3">
+                  {/* CABA */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-brand-text-muted">🚚 CABA</p>
+                      {libreCaba
+                        ? <span className="text-xs text-green-400 font-semibold">¡Gratis! ✓</span>
+                        : <span className="text-xs text-brand-text-muted">Falta <span className="text-white font-bold">{formatPrecio(CABA - totalAmount)}</span></span>
+                      }
+                    </div>
+                    <div className="w-full h-1.5 bg-brand-border rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-500 ${libreCaba ? 'bg-green-400' : 'bg-brand-neon'}`} style={{ width: `${pctCaba}%` }} />
+                    </div>
+                  </div>
                   {/* AMBA */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
