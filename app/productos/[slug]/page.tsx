@@ -39,6 +39,7 @@ export default function ProductoDetallePage() {
   const [email,    setEmail]    = useState('contacto@flowthings.com.ar')
 
   // Umbrales de envío gratis (desde config; deben coincidir con /admin/envios)
+  const [gratisCaba,     setGratisCaba]     = useState(40000)
   const [gratisAmba,     setGratisAmba]     = useState(60000)
   const [gratisInterior, setGratisInterior] = useState(120000)
 
@@ -60,7 +61,7 @@ export default function ProductoDetallePage() {
         supabase
           .from('configuracion')
           .select('clave, valor')
-          .in('clave', ['footer_telefono', 'footer_email', 'envio_gratis_amba_desde', 'envio_gratis_gba_desde', 'envio_gratis_interior_desde']),
+          .in('clave', ['footer_telefono', 'footer_email', 'envio_gratis_caba_desde', 'envio_gratis_amba_desde', 'envio_gratis_gba_desde', 'envio_gratis_interior_desde']),
       ])
 
       if (!prodRes.data) { setLoading(false); return }
@@ -91,6 +92,7 @@ export default function ProductoDetallePage() {
       for (const row of cfgRes.data || []) {
         if (row.clave === 'footer_telefono' && row.valor) setTelefono(row.valor)
         if (row.clave === 'footer_email'    && row.valor) setEmail(row.valor)
+        if (row.clave === 'envio_gratis_caba_desde'     && row.valor) setGratisCaba(Number(row.valor))
         if (row.clave === 'envio_gratis_amba_desde'     && row.valor) ambaCfg = Number(row.valor)
         if (row.clave === 'envio_gratis_gba_desde'      && row.valor) gbaCfg = Number(row.valor)
         if (row.clave === 'envio_gratis_interior_desde' && row.valor) setGratisInterior(Number(row.valor))
@@ -688,7 +690,7 @@ export default function ProductoDetallePage() {
             </div>
             <div className="flex items-start gap-2">
               <span>🎁</span>
-              <span>Envío gratis en AMBA desde {formatPrecio(gratisAmba)} · Interior del país desde {formatPrecio(gratisInterior)}</span>
+              <span>Envío gratis en CABA desde {formatPrecio(gratisCaba)} · AMBA desde {formatPrecio(gratisAmba)} · Interior del país desde {formatPrecio(gratisInterior)}</span>
             </div>
             <div className="flex items-center gap-2">
               <span>🔒</span>
