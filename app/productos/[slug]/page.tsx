@@ -15,6 +15,7 @@ import RelatedProducts from '@/components/RelatedProducts'
 import EnvioEstimador from '@/components/EnvioEstimador'
 import ShareButton from '@/components/ShareButton'
 import { formatPrecio } from '@/lib/format'
+import { trackViewContent, trackAddToCart } from '@/lib/fbpixel'
 
 function waLink(telefono: string, texto: string) {
   const num = telefono.replace(/\D/g, '')
@@ -177,6 +178,14 @@ export default function ProductoDetallePage() {
     if (galeriaLen > 0 && imagenActiva >= galeriaLen) setImagenActiva(0)
   }, [galeriaLen, imagenActiva])
 
+  // Meta Pixel: ViewContent al abrir la ficha (una vez por producto).
+  useEffect(() => {
+    if (producto) {
+      trackViewContent({ id: producto.id, nombre: producto.nombre, precio: producto.precio })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [producto?.id])
+
   const prevImg = useCallback(() =>
     setImagenActiva(i => (i - 1 + galeriaLen) % galeriaLen), [galeriaLen])
   const nextImg = useCallback(() =>
@@ -238,6 +247,7 @@ export default function ProductoDetallePage() {
     for (let i = 0; i < cantidad; i++) {
       addItem(productoParaCarrito, varianteSeleccionada?.id ?? undefined)
     }
+    trackAddToCart({ id: producto.id, nombre: producto.nombre, precio: producto.precio, cantidad })
     setAgregado(true)
     setTimeout(() => setAgregado(false), 2000)
   }

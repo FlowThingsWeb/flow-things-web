@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCartStore } from '@/lib/store'
+import { trackAddToCart } from '@/lib/fbpixel'
 import { supabase } from '@/lib/supabase'
 import { Producto } from '@/types'
 import { formatPrecio } from '@/lib/format'
@@ -243,7 +244,7 @@ export default function CartDrawer({ gratisCaba = 40000, gratisAmba = 60000, gra
                         <p className="text-xs font-semibold text-brand-neon">{formatPrecio(p.precio)}</p>
                       </div>
                       <button
-                        onClick={() => addItem(p)}
+                        onClick={() => { addItem(p); trackAddToCart({ id: p.id, nombre: p.nombre, precio: p.precio }) }}
                         className="text-xs font-semibold bg-brand-purple/15 text-brand-purple-light hover:bg-brand-purple hover:text-white px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
                       >
                         + Sumar

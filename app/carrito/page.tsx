@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { DatosComprador } from '@/types'
 import DireccionesManager, { Direccion } from '@/components/DireccionesManager'
 import MapaDireccion, { DireccionParseada } from '@/components/MapaDireccion'
+import { trackInitiateCheckout } from '@/lib/fbpixel'
 import CuotasMP from '@/components/CuotasMP'
 import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
@@ -300,6 +301,12 @@ function CarritoContent() {
     }
 
     setLoading(true)
+
+    // Meta Pixel: arrancó el checkout.
+    trackInitiateCheckout({
+      value: totalFinal,
+      numItems: items.reduce((s, i) => s + i.cantidad, 0),
+    })
 
     try {
       // variante_id viaja para que el servidor valide y descuente el stock de

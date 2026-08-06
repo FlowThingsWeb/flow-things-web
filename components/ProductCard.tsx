@@ -7,6 +7,7 @@ import { useCartStore } from '@/lib/store'
 import FavoritoButton from '@/components/FavoritoButton'
 import Stars from '@/components/Stars'
 import { formatPrecio } from '@/lib/format'
+import { trackAddToCart } from '@/lib/fbpixel'
 
 interface ProductCardProps {
   producto: Producto
@@ -59,6 +60,7 @@ export default function ProductCard({ producto, variante, rating }: ProductCardP
       imagen_url: imagenUrl,
       stock: stockVal,
     })
+    trackAddToCart({ id: producto.id, nombre, precio: producto.precio })
   }
 
   return (
