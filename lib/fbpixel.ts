@@ -10,14 +10,26 @@
 function fbq(...args: any[]) {
   if (typeof window === 'undefined') return
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const f = (window as any).fbq
-  if (typeof f === 'function') {
+  const call = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const f = (window as any).fbq
+    if (typeof f !== 'function') return false
     try {
       f(...args)
     } catch {
       /* no-op */
     }
+    return true
   }
+  // En cargas completas, el efecto puede correr antes de que el script del
+  // pixel defina window.fbq. Si aún no está, reintentamos un rato corto para
+  // no perder el evento (ej. ViewContent al abrir la ficha).
+  if (call()) return
+  let intentos = 0
+  const iv = setInterval(() => {
+    intentos++
+    if (call() || intentos > 40) clearInterval(iv) // ~10s máximo
+  }, 250)
 }
 
 /** Vio la ficha de un producto. */
