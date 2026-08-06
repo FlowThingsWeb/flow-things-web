@@ -178,9 +178,11 @@ export default function ProductoDetallePage() {
     if (galeriaLen > 0 && imagenActiva >= galeriaLen) setImagenActiva(0)
   }, [galeriaLen, imagenActiva])
 
-  // Meta Pixel: ViewContent al abrir la ficha (una vez por producto).
+  // Meta Pixel: ViewContent al abrir la ficha (una sola vez por producto).
+  const viewTrackedRef = useRef<string | null>(null)
   useEffect(() => {
-    if (producto) {
+    if (producto && viewTrackedRef.current !== producto.id) {
+      viewTrackedRef.current = producto.id
       trackViewContent({ id: producto.id, nombre: producto.nombre, precio: producto.precio })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
