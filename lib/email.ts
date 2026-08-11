@@ -165,5 +165,45 @@ export function buildMedioPago(payment: any): string {
 }
 
 
+// ─── Difusiones: envuelve el contenido en la plantilla de marca ───────────────
+
+/**
+ * Envuelve el HTML de contenido de una difusión en el diseño de marca de Flow
+ * Things (header con logo + área de contenido + footer). El `contenido` es HTML
+ * autoría del admin (confiable) — no se escapa.
+ */
+export function buildDifusionHtml(contenido: string, opts?: { preheader?: string }): string {
+  const preheader = opts?.preheader
+    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(opts.preheader)}</div>`
+    : ''
+  return `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#ede9f7;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+${preheader}
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ede9f7">
+<tr><td align="center" style="padding:36px 16px 48px">
+<table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(80,0,200,0.13)">
+  <tr><td style="background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 60%,#9333ea 100%);padding:28px 40px 24px;text-align:center">
+    <img src="https://flow-things-web.vercel.app/logo-light.png" height="56" alt="Flow Things" style="display:block;margin:0 auto"/>
+  </td></tr>
+  <tr><td style="background:#ffffff;padding:36px 40px;color:#1a0040;font-size:16px;line-height:1.6">
+    ${contenido}
+  </td></tr>
+  <tr><td style="background:#ffffff;padding:0 40px 32px;text-align:center">
+    <a href="https://flowthings.com.ar/productos" style="display:inline-block;background:#7C3AED;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 34px;border-radius:12px">Ver catálogo</a>
+  </td></tr>
+  <tr><td style="background:#ffffff;padding:0 40px 28px;text-align:center;font-size:13px;color:#6b7280">
+    &#x1F4E7; <a href="mailto:contacto@flowthings.com.ar" style="color:#7C3AED;text-decoration:none;font-weight:600">contacto@flowthings.com.ar</a>
+    &nbsp;&#183;&nbsp; &#x1F4AC; <a href="https://wa.me/5491156075633" style="color:#7C3AED;text-decoration:none;font-weight:600">+54 9 11 5607-5633</a>
+  </td></tr>
+  <tr><td style="background:#1e0050;padding:24px 40px;text-align:center">
+    <p style="margin:0;font-size:12px;color:#c4b5fd">&copy; ${new Date().getFullYear()} Flow Things &#183; Librer&#xED;a &amp; Juguer&#xED;a</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`
+}
+
 // ─── Defaults (re-exportados desde email-constants para uso server-side) ──────
 export { DEFAULT_EMAIL_ASUNTO, DEFAULT_EMAIL_CUERPO, DEFAULT_DESPACHO_ASUNTO, DEFAULT_DESPACHO_CUERPO } from './email-constants'
