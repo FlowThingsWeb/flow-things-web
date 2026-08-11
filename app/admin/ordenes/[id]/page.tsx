@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { notFound } from 'next/navigation'
 import DespacharForm from './DespacharForm'
+import EliminarOrdenButton from './EliminarOrdenButton'
 import { formatPrecio } from '@/lib/format'
 
 const fmt = formatPrecio
@@ -178,6 +179,17 @@ export default async function OrdenDetailPage({ params }: { params: Promise<{ id
           emailComprador={comprador.email}
           yaEnviado={yaFueEnviado}
         />
+      )}
+
+      {/* Eliminar orden pendiente (pago nunca aprobado, sin efectos colaterales) */}
+      {orden.estado === 'pending' && (
+        <div className="mt-2 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+          <p className="text-sm text-brand-text-muted mb-3">
+            Esta orden quedó <strong className="text-yellow-400">pendiente</strong> (el pago
+            nunca se aprobó). No descontó stock ni generó factura, así que se puede eliminar.
+          </p>
+          <EliminarOrdenButton id={id} />
+        </div>
       )}
     </div>
   )
