@@ -12,8 +12,8 @@ type Difusion = {
   updated_at: string
 }
 
-type Destinatario = { id: string; email: string; nombre: string; compro: boolean }
-type Segmento = 'todos' | 'compradores' | 'sin_compras'
+type Destinatario = { id: string; email: string; nombre: string; compro: boolean; confirmado: boolean }
+type Segmento = 'todos' | 'compradores' | 'sin_compras' | 'sin_confirmar'
 
 const EMPTY = { titulo: '', asunto: '', cuerpo: '' }
 
@@ -115,9 +115,14 @@ export default function DifusionesPage() {
     const list = base ?? destinatarios
     const set = new Set<string>()
     for (const d of list) {
-      if (s === 'todos' || (s === 'compradores' && d.compro) || (s === 'sin_compras' && !d.compro)) {
-        set.add(d.id)
-      }
+      // "sin_confirmar" es el único que apunta a NO confirmados; el resto solo
+      // a confirmados (para no spamear cuentas sin verificar sin querer).
+      const ok =
+        s === 'sin_confirmar'
+          ? !d.confirmado
+          : d.confirmado &&
+            (s === 'todos' || (s === 'compradores' && d.compro) || (s === 'sin_compras' && !d.compro))
+      if (ok) set.add(d.id)
     }
     setMarcados(set)
   }
@@ -246,7 +251,7 @@ export default function DifusionesPage() {
 
               {/* Segmentos */}
               <div className="flex flex-wrap gap-2">
-                {([['todos', 'Todos'], ['compradores', 'Compradores'], ['sin_compras', 'Sin compras']] as const).map(([s, label]) => (
+                {([['todos', 'Todos'], ['compradores', 'Compradores'], ['sin_compras', 'Sin compras'], ['sin_confirmar', 'Sin confirmar']] as const).map(([s, label]) => (
                   <button key={s} onClick={() => aplicarSegmento(s)}
                     className={`px-3 py-1.5 rounded-lg text-sm border ${segmento === s ? 'border-brand-purple bg-brand-purple/15 text-white' : 'border-brand-border text-brand-text-muted hover:text-white'}`}>
                     {label}
@@ -270,6 +275,7 @@ export default function DifusionesPage() {
                       <span className="block text-xs text-brand-text-muted truncate">{d.email}</span>
                     </span>
                     {d.compro && <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-400">compró</span>}
+                    {!d.confirmado && <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-400">sin confirmar</span>}
                   </label>
                 ))}
               </div>

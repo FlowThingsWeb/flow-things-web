@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   const compradores = new Set((ordenes || []).map((o: { user_id: string }) => o.user_id))
 
   const destinatarios = users
-    .filter((u) => !!u.email && u.email_confirmed_at)
+    .filter((u) => !!u.email)
     .map((u) => ({
       id: u.id,
       email: u.email as string,
@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
         (u.user_metadata?.full_name as string) ||
         (u.email as string).split('@')[0],
       compro: compradores.has(u.id),
+      confirmado: !!u.email_confirmed_at,
     }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
 
