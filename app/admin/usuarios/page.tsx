@@ -122,6 +122,27 @@ export default function AdminUsuariosPage() {
     }
   }
 
+  async function eliminarUsuario(id: string, email: string) {
+    const nOrdenes = detalle?.ordenes?.length ?? 0
+    const aviso = nOrdenes > 0
+      ? `\n\nSus ${nOrdenes} orden(es) se conservan como historial (sin cuenta asociada).`
+      : ''
+    if (!confirm(`¿Eliminar la cuenta de ${email}?${aviso}\n\nEsta acción no se puede deshacer.`)) return
+    try {
+      const res = await fetch(`/api/admin/usuarios/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-secret': ADMIN_SECRET },
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { alert(data.error || 'No se pudo eliminar el usuario.'); return }
+      setUsuarios(prev => prev.filter(u => u.id !== id))
+      setUsuarioSeleccionado(null)
+      setDetalle(null)
+    } catch {
+      alert('Error de conexión.')
+    }
+  }
+
   async function handleBroadcast(e: React.FormEvent) {
     e.preventDefault()
     setBroadcastError('')
@@ -305,6 +326,20 @@ export default function AdminUsuariosPage() {
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Zona peligrosa: eliminar cuenta */}
+                  <div className="mt-6 border-t border-red-500/20 pt-5">
+                    <button
+                      type="button"
+                      onClick={() => eliminarUsuario(detalle.usuario.id, detalle.usuario.email)}
+                      className="text-sm font-medium text-red-400 hover:text-white hover:bg-red-600 border border-red-500/40 hover:border-red-600 px-4 py-2 rounded-lg transition-colors"
+                    >
+                      🗑️ Eliminar usuario
+                    </button>
+                    <p className="text-xs text-brand-text-muted mt-2">
+                      Borra la cuenta y el perfil. Las órdenes se conservan como historial.
+                    </p>
                   </div>
                 </div>
               ) : null}

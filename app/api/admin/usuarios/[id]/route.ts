@@ -44,3 +44,23 @@ export async function GET(
     ordenes: ordenes ?? [],
   })
 }
+
+// DELETE — elimina la cuenta del usuario (auth + perfil). Las órdenes se
+// conservan como historial (quedan con el user_id, sin cuenta asociada).
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const unauth = await verifyAdminToken(request)
+  if (unauth) return unauth
+
+  const { id } = await params
+
+  // Perfil (best-effort; puede no existir).
+  await supabaseAdmin.from('perfiles').delete().eq('user_id', id)
+
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
+}
