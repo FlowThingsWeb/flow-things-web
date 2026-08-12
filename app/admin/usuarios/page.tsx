@@ -19,6 +19,7 @@ interface DetalleUsuario {
     id: string
     email: string
     confirmed: boolean
+    email_confirmed_at: string | null
     created_at: string
     last_sign_in: string | null
     provider: string
@@ -38,6 +39,11 @@ interface DetalleUsuario {
     created_at: string
     items: { nombre: string; cantidad: number; precio: number }[]
   }[]
+  favoritos?: {
+    created_at: string
+    producto: { id: string; nombre: string; slug: string; activo: boolean }
+  }[]
+  mails?: { asunto: string | null; created_at: string }[]
 }
 
 interface BroadcastResult {
@@ -286,7 +292,8 @@ export default function AdminUsuariosPage() {
                           ['Teléfono', detalle.perfil?.telefono || '—'],
                           ['DNI', detalle.perfil?.dni || '—'],
                           ['Nacimiento', formatFecha(detalle.perfil?.fecha_nacimiento ?? null)],
-                          ['Registrado', formatFecha(detalle.usuario.created_at)],
+                          ['Registrado', formatFechaHora(detalle.usuario.created_at)],
+                          ['Email confirmado', detalle.usuario.email_confirmed_at ? formatFechaHora(detalle.usuario.email_confirmed_at) : 'Sin confirmar'],
                           ['Último acceso', formatFechaHora(detalle.usuario.last_sign_in)],
                           ['1ra compra', detalle.perfil?.primer_compra_usada ? 'Usada' : 'Disponible'],
                         ].map(([label, value]) => (
@@ -328,12 +335,50 @@ export default function AdminUsuariosPage() {
                     </div>
                   </div>
 
+                  {/* Favoritos */}
+                  <div className="px-6 pb-2">
+                    <p className="text-xs font-semibold text-brand-text-muted uppercase tracking-wide mb-3">
+                      Favoritos ({detalle.favoritos?.length ?? 0})
+                    </p>
+                    {!detalle.favoritos || detalle.favoritos.length === 0 ? (
+                      <p className="text-sm text-brand-text-muted">Sin favoritos.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {detalle.favoritos.map((f) => (
+                          <span key={f.producto.id} className="text-xs bg-brand-bg-soft border border-brand-border rounded-lg px-2.5 py-1.5 text-brand-text">
+                            ❤️ {f.producto.nombre}
+                            {!f.producto.activo && <span className="ml-1 text-brand-text-muted">(inactivo)</span>}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mails enviados */}
+                  <div className="px-6 pb-2">
+                    <p className="text-xs font-semibold text-brand-text-muted uppercase tracking-wide mb-3">
+                      Mails enviados ({detalle.mails?.length ?? 0})
+                    </p>
+                    {!detalle.mails || detalle.mails.length === 0 ? (
+                      <p className="text-sm text-brand-text-muted">Todavía no se le envió ningún mail (desde que se activó el registro).</p>
+                    ) : (
+                      <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto pr-1">
+                        {detalle.mails.map((m, i) => (
+                          <div key={i} className="flex items-center justify-between gap-3 bg-brand-bg-soft border border-brand-border rounded-lg px-3 py-2">
+                            <span className="text-sm text-brand-text truncate">✉️ {m.asunto || '(sin asunto)'}</span>
+                            <span className="text-xs text-brand-text-muted flex-shrink-0">{formatFechaHora(m.created_at)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Zona peligrosa: eliminar cuenta */}
-                  <div className="mt-6 border-t border-red-500/20 pt-5">
+                  <div className="mx-6 mt-4 border-t border-red-500/20 pt-5">
                     <button
                       type="button"
                       onClick={() => eliminarUsuario(detalle.usuario.id, detalle.usuario.email)}
-                      className="text-sm font-medium text-red-400 hover:text-white hover:bg-red-600 border border-red-500/40 hover:border-red-600 px-4 py-2 rounded-lg transition-colors"
+                      className="text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors"
                     >
                       🗑️ Eliminar usuario
                     </button>

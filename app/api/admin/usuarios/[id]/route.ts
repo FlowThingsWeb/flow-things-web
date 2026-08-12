@@ -31,17 +31,44 @@ export async function GET(
     .eq('user_id', id)
     .order('created_at', { ascending: false })
 
+  const email = authUser.user.email ?? ''
+
+  // Favoritos (con datos del producto)
+  const { data: favoritosRaw } = await supabaseAdmin
+    .from('favoritos')
+    .select('created_at, productos(id, nombre, slug, activo)')
+    .eq('user_id', id)
+    .order('created_at', { ascending: false })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const favoritos = (favoritosRaw ?? []).map((f: any) => ({
+    created_at: f.created_at,
+    producto: Array.isArray(f.productos) ? f.productos[0] : f.productos,
+  })).filter((f) => f.producto)
+
+  // Mails enviados a este usuario (log de emails_enviados)
+  const { data: mails } = email
+    ? await supabaseAdmin
+        .from('emails_enviados')
+        .select('asunto, created_at')
+        .ilike('destinatario', email)
+        .order('created_at', { ascending: false })
+        .limit(200)
+    : { data: [] }
+
   return NextResponse.json({
     usuario: {
       id: authUser.user.id,
-      email: authUser.user.email ?? '',
+      email,
       confirmed: !!authUser.user.email_confirmed_at,
+      email_confirmed_at: authUser.user.email_confirmed_at ?? null,
       created_at: authUser.user.created_at,
       last_sign_in: authUser.user.last_sign_in_at ?? null,
       provider: authUser.user.app_metadata?.provider ?? 'email',
     },
     perfil: perfil ?? null,
     ordenes: ordenes ?? [],
+    favoritos,
+    mails: mails ?? [],
   })
 }
 

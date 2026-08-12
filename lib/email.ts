@@ -1,4 +1,5 @@
 import { formatMonto } from './format'
+import { supabaseAdmin } from './supabaseAdmin'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const nodemailer = require('nodemailer')
 
@@ -74,6 +75,15 @@ export async function sendEmail(params: {
       contentType: a.contentType,
     })),
   })
+
+  // Log del envío para el historial de usuario (best-effort, no bloquea).
+  try {
+    await supabaseAdmin
+      .from('emails_enviados')
+      .insert({ destinatario: params.to, asunto: params.asunto })
+  } catch {
+    /* si falla el log, el mail igual se envió */
+  }
 }
 
 // ─── Builders de HTML dinámico ────────────────────────────────────────────────
