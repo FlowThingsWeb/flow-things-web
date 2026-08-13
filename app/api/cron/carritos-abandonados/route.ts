@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { sendEmail, renderTemplate, escapeHtml } from '@/lib/email'
 import { DEFAULT_CARRITO_ASUNTO, DEFAULT_CARRITO_CUERPO } from '@/lib/email-constants'
 import { formatMonto } from '@/lib/format'
+import { enviarRecordatorioCheckout } from '@/lib/checkout-abandonado'
 
 export const maxDuration = 60
 
@@ -84,5 +85,49 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ candidatos: carritos?.length ?? 0, enviados })
+  // ── Checkouts abandonados: órdenes pendientes con email (invitados incl.) ──
+  // Ventana 1h–72h, sin recordatorio previo, que no hayan comprado después.
+  const ckDesde = new Date(ahora - 72 * 3600_000).toISOString()
+  const ckHasta = new Date(ahora - MIN_HORAS * 3600_000).toISOString()
+
+  const { data: pendientes } = await supabaseAdmin
+    .from('ordenes')
+    .select('id, items, datos_comprador, created_at')
+    .eq('estado', 'pending')
+    .is('recordatorio_carrito_at', null)
+    .gt('created_at', ckDesde)
+    .lt('created_at', ckHasta)
+    .limit(BATCH)
+
+  // Emails que ya concretaron una compra aprobada (para no molestarlos).
+  const { data: aprobadas } = await supabaseAdmin
+    .from('ordenes')
+    .select('datos_comprador, created_at')
+    .eq('estado', 'approved')
+  const ultimaAprobada = new Map<string, string>()
+  for (const o of aprobadas || []) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const em = (o.datos_comprador as any)?.email?.toLowerCase()
+    if (!em) continue
+    const prev = ultimaAprobada.get(em)
+    if (!prev || o.created_at > prev) ultimaAprobada.set(em, o.created_at)
+  }
+
+  let enviadosCk = 0
+  for (const o of pendientes || []) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const em = (o.datos_comprador as any)?.email?.toLowerCase()
+    if (!em) continue
+    const ultima = ultimaAprobada.get(em)
+    if (ultima && ultima > o.created_at) continue // ya compró después
+    const res = await enviarRecordatorioCheckout(o.id)
+    if (res.ok) enviadosCk++
+  }
+
+  return NextResponse.json({
+    candidatos: carritos?.length ?? 0,
+    enviados,
+    checkouts_candidatos: pendientes?.length ?? 0,
+    checkouts_enviados: enviadosCk,
+  })
 }

@@ -13,6 +13,17 @@ type Carrito = {
   ya_compro: boolean
 }
 
+type Checkout = {
+  orden_id: string
+  email: string
+  nombre: string
+  productos: { nombre: string; cantidad: number }[]
+  total: number
+  created_at: string
+  recordatorio_carrito_at: string | null
+  ya_compro: boolean
+}
+
 function fmtPrecio(n: number) {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 }
@@ -32,13 +43,18 @@ export default function CarritosAbandonadosPage() {
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState<string | null>(null)
   const [ocultarComprados, setOcultarComprados] = useState(true)
+  const [checkouts, setCheckouts] = useState<Checkout[]>([])
+  const [enviandoCk, setEnviandoCk] = useState<string | null>(null)
 
   async function cargar() {
     setCargando(true)
     try {
-      const res = await fetch('/api/admin/carritos')
-      const data = await res.json()
-      setCarritos(data.data ?? [])
+      const [rC, rK] = await Promise.all([
+        fetch('/api/admin/carritos'),
+        fetch('/api/admin/checkouts'),
+      ])
+      setCarritos((await rC.json()).data ?? [])
+      setCheckouts((await rK.json()).data ?? [])
     } catch {
       setError('No se pudieron cargar los carritos.')
     } finally {
@@ -46,6 +62,23 @@ export default function CarritosAbandonadosPage() {
     }
   }
   useEffect(() => { cargar() }, [])
+
+  async function enviarCheckout(c: Checkout) {
+    if (!confirm(`¿Enviar "terminá tu compra" a ${c.email}?`)) return
+    setEnviandoCk(c.orden_id)
+    try {
+      const res = await fetch('/api/admin/checkouts/enviar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orden_id: c.orden_id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { alert(data.error || 'No se pudo enviar.'); return }
+      await cargar()
+    } finally {
+      setEnviandoCk(null)
+    }
+  }
 
   async function enviar(c: Carrito) {
     if (!confirm(`¿Enviar recordatorio de carrito a ${c.email}?`)) return
@@ -65,6 +98,7 @@ export default function CarritosAbandonadosPage() {
   }
 
   const visibles = ocultarComprados ? carritos.filter(c => !c.ya_compro) : carritos
+  const visiblesCk = ocultarComprados ? checkouts.filter(c => !c.ya_compro) : checkouts
 
   return (
     <div className="p-6 lg:p-8">
@@ -133,8 +167,66 @@ export default function CarritosAbandonadosPage() {
         </div>
       )}
 
+      {/* Checkouts abandonados (órdenes pendientes con email — invitados incluidos) */}
+      <div className="mt-10">
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-white">Checkouts sin pagar</h2>
+          <p className="text-brand-text-muted mt-1 text-sm">
+            Personas que llegaron al pago y dejaron su email pero no completaron la compra
+            (incluye <strong>invitados sin cuenta</strong>). Podés escribirles para que terminen.
+          </p>
+        </div>
+        {cargando ? (
+          <p className="text-sm text-brand-text-muted">Cargando…</p>
+        ) : visiblesCk.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-brand-border p-8 text-center text-brand-text-muted">
+            No hay checkouts sin pagar.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {visiblesCk.map(c => (
+              <div key={c.orden_id} className={`bg-brand-bg-card border rounded-2xl p-5 ${c.ya_compro ? 'border-green-500/30 opacity-70' : 'border-brand-border'}`}>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-white truncate">{c.nombre || '(sin nombre)'}</p>
+                    <p className="text-xs text-brand-text-muted truncate">{c.email}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-brand-neon font-bold">{fmtPrecio(c.total)}</p>
+                    <p className="text-[11px] text-brand-text-muted">{haceCuanto(c.created_at)}</p>
+                  </div>
+                </div>
+                <div className="text-sm text-brand-text-muted mb-3 space-y-0.5 max-h-32 overflow-y-auto">
+                  {c.productos.map((p, i) => (
+                    <p key={i} className="truncate">• {p.cantidad}× {p.nombre}</p>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[11px]">
+                    {c.ya_compro ? (
+                      <span className="text-green-400">✓ Ya compró después</span>
+                    ) : c.recordatorio_carrito_at ? (
+                      <span className="text-brand-text-muted">Enviado {fmtFecha(c.recordatorio_carrito_at)}</span>
+                    ) : (
+                      <span className="text-yellow-400">Sin recordatorio</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => enviarCheckout(c)}
+                    disabled={enviandoCk === c.orden_id}
+                    className="text-sm font-semibold bg-brand-purple hover:bg-brand-purple-dark disabled:opacity-60 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    {enviandoCk === c.orden_id ? 'Enviando…' : c.recordatorio_carrito_at ? 'Reenviar mail' : 'Enviar mail'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <p className="text-xs text-brand-text-muted mt-6">
-        💡 Igual hay un envío <strong>automático</strong>: a cada carrito inactivo entre 1 h y 48 h se le manda el recordatorio una vez. Acá podés mandarlo (o reenviarlo) a mano.
+        💡 Además hay envío <strong>automático</strong>: a los carritos guardados (1–48 h) y a los checkouts sin pagar (1–72 h) se les manda el recordatorio una vez. Acá podés mandarlo (o reenviarlo) a mano.
       </p>
     </div>
   )
