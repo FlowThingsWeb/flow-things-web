@@ -19,6 +19,7 @@ const HTML_VAR_KEYS = new Set([
   'desglose_items',
   'fila_descuento',
   'tracking_boton',
+  'productos_lista',
 ])
 
 export function renderTemplate(template: string, vars: Record<string, string>): string {
