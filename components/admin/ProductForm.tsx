@@ -70,6 +70,7 @@ function VarianteForm({
   const [imagenUrl,  setImagenUrl]  = useState(initial?.imagen_url || '')
   const [imgPreview, setImgPreview] = useState(initial?.imagen_url || '')
   const [imagenes,   setImagenes]   = useState<string[]>(initial?.imagenes || [])
+  const [descripcion, setDescripcion] = useState(initial?.descripcion || '')
   const [uploading,  setUploading]  = useState(false)
   const [uploadingExtra, setUploadingExtra] = useState(false)
   const [saving,     setSaving]     = useState(false)
@@ -142,6 +143,7 @@ function VarianteForm({
       stock: parseInt(stock) || 0,
       imagen_url: imagenUrl || null,
       imagenes,
+      descripcion: descripcion.trim() || null,
       activo: true,
       ...(initial ? { id: initial.id } : {}),
     }
@@ -216,6 +218,16 @@ function VarianteForm({
           <input type="text" value={sku} onChange={e => setSku(e.target.value)}
             className="input-dark font-mono text-xs" placeholder="COL-ROSA-M" />
         </div>
+      </div>
+
+      {/* Descripción de la variante */}
+      <div>
+        <label className="block text-xs font-medium text-brand-text-muted mb-1">
+          Descripción de esta variante <span className="text-brand-text-light font-normal">(opcional)</span>
+        </label>
+        <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)}
+          rows={2} className="input-dark text-sm resize-y"
+          placeholder="Ej: detalle propio de este color/modelo…" />
       </div>
 
       {/* Imagen de variante */}

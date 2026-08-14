@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   const unauth = await verifyAdminToken(request)
   if (unauth) return unauth
   const body = await request.json()
-  const { producto_id, atributos, sku, stock, imagen_url } = body
+  const { producto_id, atributos, sku, stock, imagen_url, descripcion } = body
 
   if (!producto_id || !atributos) {
     return NextResponse.json({ error: 'producto_id y atributos son requeridos' }, { status: 400 })
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       stock: stock ?? 0,
       imagen_url: imagen_url || null,
       imagenes: imagenes || [],
+      descripcion: descripcion || null,
     }])
     .select()
     .single()

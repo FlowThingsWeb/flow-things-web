@@ -36,7 +36,7 @@ async function getProductos(f: Filtros) {
   let query = supabaseAdmin
     .from('productos')
     .select(
-      '*, categorias(nombre), variantes(id, atributos, stock, imagen_url, imagenes, activo)',
+      '*, categorias(nombre), variantes(id, atributos, sku, stock, imagen_url, imagenes, descripcion, activo)',
     )
 
   const q = f.q?.trim()

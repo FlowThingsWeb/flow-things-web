@@ -502,6 +502,16 @@ export default function ProductoDetallePage() {
             </div>
           )}
 
+          {/* Descripción específica de la variante elegida */}
+          {varianteSeleccionada?.descripcion && (
+            <div className="text-brand-text-muted text-sm leading-relaxed border-t border-brand-border pt-5">
+              <p className="text-xs font-semibold text-brand-text mb-1">
+                {Object.values(varianteSeleccionada.atributos).join(' / ')}
+              </p>
+              <p className="whitespace-pre-line">{varianteSeleccionada.descripcion}</p>
+            </div>
+          )}
+
           {/* ── Variantes ── */}
           {tieneVariantes && (
             <div className="border-t border-brand-border pt-5 space-y-3">
