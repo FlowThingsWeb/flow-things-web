@@ -272,29 +272,15 @@ function VarianteForm({
         </p>
         <div className="flex flex-wrap gap-2">
           {imagenes.map((img, idx) => (
-            <div key={idx} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-brand-border flex-shrink-0">
+            <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-brand-border flex-shrink-0">
               <Image src={img} alt={`Extra ${idx + 1}`} fill className="object-cover" sizes="64px" />
-              {/* Overlay con acciones */}
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5">
-                <div className="flex gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => moveExtra(idx, -1)}
-                    disabled={idx === 0}
-                    className="w-5 h-5 rounded bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center disabled:opacity-30"
-                  >‹</button>
-                  <button
-                    type="button"
-                    onClick={() => moveExtra(idx, 1)}
-                    disabled={idx === imagenes.length - 1}
-                    className="w-5 h-5 rounded bg-white/20 hover:bg-white/40 text-white text-xs flex items-center justify-center disabled:opacity-30"
-                  >›</button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeExtra(idx)}
-                  className="w-5 h-5 rounded bg-red-500/70 hover:bg-red-500 text-white text-xs flex items-center justify-center"
-                >✕</button>
+              <button type="button" onClick={() => removeExtra(idx)} aria-label="Eliminar"
+                className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow">✕</button>
+              <div className="absolute bottom-0.5 inset-x-0.5 flex justify-center gap-0.5">
+                <button type="button" onClick={() => moveExtra(idx, -1)} disabled={idx === 0} aria-label="Izquierda"
+                  className="w-5 h-5 rounded-full bg-black/70 hover:bg-black/90 text-white text-xs flex items-center justify-center disabled:opacity-30">‹</button>
+                <button type="button" onClick={() => moveExtra(idx, 1)} disabled={idx === imagenes.length - 1} aria-label="Derecha"
+                  className="w-5 h-5 rounded-full bg-black/70 hover:bg-black/90 text-white text-xs flex items-center justify-center disabled:opacity-30">›</button>
               </div>
             </div>
           ))}
@@ -663,17 +649,23 @@ export default function ProductForm({ producto, categorias, mode }: ProductFormP
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
               {galeria.map((url, idx) => (
-                <div key={url + idx} className="relative group aspect-square rounded-xl overflow-hidden bg-brand-bg-soft border border-brand-border">
+                <div key={url + idx} className="relative aspect-square rounded-xl overflow-hidden bg-brand-bg-soft border border-brand-border">
                   <Image src={url} alt={`Imagen ${idx + 1}`} fill className="object-cover" sizes="120px" />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
-                    <button type="button" onClick={() => removeGaleriaImage(idx)}
-                      className="w-7 h-7 bg-red-500 hover:bg-red-400 text-white rounded-full flex items-center justify-center text-xs font-bold">✕</button>
-                    <div className="flex gap-1">
-                      <button type="button" onClick={() => moveImage(idx, -1)} disabled={idx === 0}
-                        className="w-6 h-6 bg-white/20 hover:bg-white/30 disabled:opacity-30 text-white rounded-full flex items-center justify-center text-xs">‹</button>
-                      <button type="button" onClick={() => moveImage(idx, 1)} disabled={idx === galeria.length - 1}
-                        className="w-6 h-6 bg-white/20 hover:bg-white/30 disabled:opacity-30 text-white rounded-full flex items-center justify-center text-xs">›</button>
-                    </div>
+                  {idx === 0 && (
+                    <span className="absolute top-1 left-1 bg-brand-purple text-white text-[9px] font-bold px-1.5 py-0.5 rounded">Portada</span>
+                  )}
+                  {/* Eliminar — siempre visible */}
+                  <button type="button" onClick={() => removeGaleriaImage(idx)}
+                    aria-label="Eliminar imagen"
+                    className="absolute top-1 right-1 w-7 h-7 bg-red-600 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md">✕</button>
+                  {/* Mover — siempre visible */}
+                  <div className="absolute bottom-1 inset-x-1 flex justify-center gap-1">
+                    <button type="button" onClick={() => moveImage(idx, -1)} disabled={idx === 0}
+                      aria-label="Mover a la izquierda"
+                      className="w-7 h-7 bg-black/70 hover:bg-black/90 disabled:opacity-30 text-white rounded-full flex items-center justify-center text-sm shadow-md">‹</button>
+                    <button type="button" onClick={() => moveImage(idx, 1)} disabled={idx === galeria.length - 1}
+                      aria-label="Mover a la derecha"
+                      className="w-7 h-7 bg-black/70 hover:bg-black/90 disabled:opacity-30 text-white rounded-full flex items-center justify-center text-sm shadow-md">›</button>
                   </div>
                 </div>
               ))}
