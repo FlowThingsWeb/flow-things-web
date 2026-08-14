@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { sendEmail, renderTemplate, escapeHtml } from '@/lib/email'
+import { sendEmail, renderTemplate, escapeHtml, filaProducto } from '@/lib/email'
 import { DEFAULT_CARRITO_ASUNTO, DEFAULT_CARRITO_CUERPO } from '@/lib/email-constants'
 import { formatMonto } from '@/lib/format'
 
@@ -33,10 +33,8 @@ export async function enviarRecordatorioCarrito(
     const n = escapeHtml(String(it?.producto?.nombre ?? it?.nombre ?? 'Producto'))
     const cant = Number(it?.cantidad) || 1
     const precio = Number(it?.producto?.precio ?? it?.precio ?? 0)
-    return `<tr>
-      <td style="padding:8px 0;font-size:14px;color:#374151">${cant}× ${n}</td>
-      <td style="padding:8px 0;font-size:14px;color:#374151;text-align:right;font-weight:600">${formatMonto(precio * cant)}</td>
-    </tr>`
+    const raw = it?.producto?.imagen_url ?? it?.imagen_url
+    return filaProducto(raw, n, cant, formatMonto(precio * cant), appUrl)
   }).join('')
   const productosLista = `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${filas}</table>`
 

@@ -130,6 +130,31 @@ export function buildFilaDescuento(codigo: string | null, monto: number): string
   </tr>`
 }
 
+/**
+ * Fila de producto para los mails de carrito/checkout abandonado: miniatura +
+ * nombre×cantidad + importe. `rawImg` puede ser URL absoluta o relativa; el
+ * nombre ya viene escapado. Si no hay imagen, muestra un placeholder.
+ */
+export function filaProducto(
+  rawImg: string | null | undefined,
+  nombreEscapado: string,
+  cantidad: number,
+  montoStr: string,
+  appUrl: string,
+): string {
+  const img = rawImg
+    ? (String(rawImg).startsWith('http') ? String(rawImg) : `${appUrl}${rawImg}`)
+    : null
+  const thumb = img
+    ? `<img src="${img}" width="52" height="52" alt="" style="width:52px;height:52px;border-radius:10px;object-fit:cover;display:block;border:1px solid #ede9f7"/>`
+    : `<div style="width:52px;height:52px;border-radius:10px;background:#f3f0ff;text-align:center;line-height:52px;font-size:22px">&#x1F4E6;</div>`
+  return `<tr>
+    <td width="52" style="padding:10px 0;vertical-align:middle">${thumb}</td>
+    <td style="padding:10px 12px;font-size:14px;color:#374151;vertical-align:middle">${cantidad}&times; ${nombreEscapado}</td>
+    <td style="padding:10px 0;font-size:14px;color:#111;text-align:right;font-weight:700;white-space:nowrap;vertical-align:middle">${montoStr}</td>
+  </tr>`
+}
+
 export function buildTrackingBoton(trackingUrl: string, accentColor = '#7C3AED'): string {
   if (!trackingUrl) return ''
   return `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px">
