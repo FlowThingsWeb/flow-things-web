@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin'
+import { buscarUserIdPorEmail } from './auth-users'
 import MercadoPagoConfig, { Payment } from 'mercadopago'
 import { sendTelegram, formatVentaMsg } from './telegram'
 import { emitirFacturaC } from './afip'
@@ -36,6 +37,24 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
   // Error de lectura → lanzamos para que el job reintente (aún no hicimos nada).
   if (error) throw new Error(`No se pudo leer la orden ${ordenId}: ${error.message}`)
   if (!orden?.items) return
+
+  // Auto-vínculo: si la orden es de un invitado (sin user_id) pero el email ya
+  // tiene cuenta, la asociamos. Así aparece en el historial del usuario y corre
+  // la lógica de cupón por-usuario / primera compra de abajo.
+  if (!orden.user_id) {
+    const emailOrden = (orden.datos_comprador?.email ?? '').trim()
+    if (emailOrden) {
+      try {
+        const uid = await buscarUserIdPorEmail(emailOrden)
+        if (uid) {
+          await supabaseAdmin.from('ordenes').update({ user_id: uid }).eq('id', ordenId)
+          orden.user_id = uid
+        }
+      } catch (e) {
+        console.error('[procesar-pago] Error auto-vinculando orden a usuario:', e)
+      }
+    }
+  }
 
   // Datos del pago desde MP (para el medio de pago del email). No es crítico.
   let payment: any = {}
