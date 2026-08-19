@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import ProductCard from '@/components/ProductCard'
 import EditableText from '@/components/EditableText'
@@ -8,16 +9,31 @@ import { Producto } from '@/types'
 import { getConfig } from '@/lib/config'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import HomeCarousel from '@/components/HomeCarousel'
+import TrustBar from '@/components/TrustBar'
 import { armarCarrusel } from '@/lib/carruselHome'
+
+/** Primera foto usable de un producto (la propia o la de alguna variante). */
+function fotoDe(p: Producto): string | null {
+  const varianteConImagen = p.variantes?.find(
+    (v) => v.activo !== false && (v.imagen_url || v.imagenes?.[0]),
+  )
+  return (
+    p.imagen_url ||
+    p.imagenes?.[0] ||
+    varianteConImagen?.imagen_url ||
+    varianteConImagen?.imagenes?.[0] ||
+    null
+  )
+}
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Candidatos del carrusel: todo lo publicable y con stock. El recorte fino
- * (destacados + ofertas fijos, novedades rotando cada pocos días) lo hace
- * `armarCarrusel`.
+ * Todo lo que se puede comprar hoy: activo, con stock y de una categoría no
+ * pausada. De acá salen el carrusel, la foto y el contador de cada categoría
+ * y el total del catálogo, con una sola consulta.
  */
-async function getCandidatosCarrusel(): Promise<Producto[]> {
+async function getProductosPublicables(): Promise<Producto[]> {
   const { data } = await supabaseAdmin
     .from('productos')
     .select(
@@ -26,7 +42,7 @@ async function getCandidatosCarrusel(): Promise<Producto[]> {
     .eq('activo', true)
     .gt('stock', 0)
     .order('created_at', { ascending: false })
-    .limit(60)
+    .limit(300)
 
   return (data || []).filter(
     (p: any) => !CATEGORIAS_PAUSADAS.includes(p.categorias?.slug),
@@ -62,14 +78,42 @@ export default async function HomePage({
   const params = await searchParams
   const editMode = params.editMode === '1'
 
-  const [destacados, categorias, cfg, candidatosCarrusel] = await Promise.all([
+  const [destacados, categorias, cfg, publicables] = await Promise.all([
     getDestacados(),
     getCategorias(),
     getConfig(),
-    getCandidatosCarrusel(),
+    getProductosPublicables(),
   ])
 
-  const slidesCarrusel = armarCarrusel(candidatosCarrusel)
+  const slidesCarrusel = armarCarrusel(publicables)
+
+  // Cada categoría se muestra con una foto real de su mercadería y cuántos
+  // productos tiene disponibles. Una grilla de emojis no da ganas de entrar.
+  const categoriasConFoto = categorias
+    .map((cat) => {
+      const suyos = publicables.filter((p) => p.categoria_id === cat.id)
+      return {
+        ...cat,
+        cantidad: suyos.length,
+        foto: suyos.map(fotoDe).find(Boolean) ?? null,
+      }
+    })
+    .filter((cat) => cat.cantidad > 0)
+
+  const totalCatalogo = publicables.length
+
+  // Novedades: lo último que entró, sin repetir los destacados que ya se
+  // muestran más arriba. Sale de `publicables`, así que no cuesta otra query.
+  const idsDestacados = new Set(destacados.map((p) => p.id))
+  const novedades = publicables
+    .filter((p) => !idsDestacados.has(p.id))
+    .slice(0, 8)
+
+  const envioGratisDesde = Number(
+    cfg.envio_km_activo === '1'
+      ? cfg.envio_km_gratis_desde
+      : cfg.envio_gratis_caba_desde,
+  )
 
   const categoriasIconos: Record<string, string> = {
     libreria: '📚',
@@ -104,6 +148,10 @@ export default async function HomePage({
       {/* Carrusel de productos — primero para que se vea mercadería y un
           botón de comprar sin tener que scrollear. */}
       <HomeCarousel slides={slidesCarrusel} />
+
+      {/* Garantías: contesta envío, cuotas, seguridad y devoluciones antes de
+          que el cliente tenga que ir a buscarlo. */}
+      <TrustBar envioGratisDesde={envioGratisDesde} />
 
       {/* Hero — debajo del carrusel y compacto: sigue estando el mensaje de
           marca, pero ya no se come la pantalla de entrada. */}
@@ -184,19 +232,58 @@ export default async function HomePage({
         <h2 className="text-2xl font-bold text-white mb-8">
           <T k="seccion_categorias_titulo" />
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
-          {categorias.map((cat) => (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
+          {categoriasConFoto.map((cat) => (
             <Link
               key={cat.id}
               href={`/productos?categoria=${cat.slug}`}
-              className="bg-brand-bg-card border border-brand-border rounded-2xl p-6 text-center hover:border-brand-purple hover:shadow-card-hover transition-all hover:-translate-y-1 animate-fade-up opacity-0"
+              className="group relative overflow-hidden rounded-2xl border border-brand-border bg-brand-bg-card hover:border-brand-purple hover:shadow-card-hover transition-all hover:-translate-y-1 animate-fade-up opacity-0"
             >
-              <span className="text-4xl block mb-3">
-                {categoriasIconos[cat.slug] || '📦'}
-              </span>
-              <span className="font-medium text-white text-sm">{cat.nombre}</span>
+              <div className="relative aspect-[16/10] bg-brand-bg-soft">
+                {cat.foto ? (
+                  <Image
+                    src={cat.foto}
+                    alt={cat.nombre}
+                    fill
+                    className="object-cover opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                    sizes="(max-width: 1024px) 50vw, 33vw"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-5xl">
+                      {categoriasIconos[cat.slug] || '📦'}
+                    </span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-4">
+                  <span className="block font-bold text-white text-lg leading-tight">
+                    {cat.nombre}
+                  </span>
+                  <span className="block text-brand-neon text-xs font-semibold mt-0.5">
+                    {cat.cantidad}{' '}
+                    {cat.cantidad === 1 ? 'producto' : 'productos'} · Ver todos →
+                  </span>
+                </div>
+              </div>
             </Link>
           ))}
+
+          {/* Atajo a todo el catálogo, con la misma forma que las categorías */}
+          <Link
+            href="/productos"
+            className="group relative overflow-hidden rounded-2xl border border-brand-purple/50 bg-gradient-card hover:border-brand-purple hover:shadow-card-hover transition-all hover:-translate-y-1 animate-fade-up opacity-0"
+          >
+            <div className="relative aspect-[16/10] flex flex-col items-center justify-center text-center p-4">
+              <span className="text-3xl mb-2" aria-hidden="true">🛍️</span>
+              <span className="font-bold text-white text-lg leading-tight">
+                Ver todo el catálogo
+              </span>
+              <span className="text-brand-neon text-xs font-semibold mt-1">
+                {totalCatalogo} productos disponibles →
+              </span>
+            </div>
+          </Link>
         </div>
       </section>
 
@@ -209,7 +296,7 @@ export default async function HomePage({
             </h2>
             <Link
               href="/productos"
-              className="text-brand-purple hover:text-brand-purple-dark text-sm font-medium transition-colors"
+              className="shrink-0 border border-brand-border hover:border-brand-neon text-white hover:text-brand-neon text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
             >
               <T k="seccion_ver_todos" />
             </Link>
@@ -223,6 +310,69 @@ export default async function HomePage({
           </div>
         </section>
       )}
+
+      {/* Novedades — más mercadería a la vista sin obligar a ir al catálogo */}
+      {novedades.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="flex items-center justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-brand-text">
+                Recién llegados
+              </h2>
+              <p className="text-brand-text-muted text-sm mt-1">
+                Lo último que sumamos al catálogo
+              </p>
+            </div>
+            <Link
+              href="/productos"
+              className="shrink-0 border border-brand-border hover:border-brand-neon text-white hover:text-brand-neon text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+            >
+              Ver más
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 stagger-children">
+            {novedades.map((producto) => (
+              <div key={producto.id} className="animate-fade-up opacity-0">
+                <ProductCard producto={producto} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Cierre: el que llegó hasta acá vio poco catálogo. Se lo ofrecemos
+          entero, con el número real de productos y atajos por categoría. */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="relative overflow-hidden rounded-3xl border border-brand-purple/40 bg-gradient-card p-8 sm:p-12 text-center">
+          <div className="absolute -top-16 -right-10 w-64 h-64 bg-brand-purple/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white">
+              Todavía hay {totalCatalogo} productos para ver
+            </h2>
+            <p className="text-brand-text-muted mt-3 max-w-xl mx-auto">
+              Librería y juguetería con envío a todo el país
+              {envioGratisDesde > 0 ? ', y gratis en CABA por compras grandes' : ''}.
+            </p>
+            <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/productos"
+                className="bg-brand-purple hover:bg-brand-purple-light text-white font-bold px-8 py-4 rounded-2xl transition-all hover:shadow-purple"
+              >
+                Ver todo el catálogo
+              </Link>
+              {categoriasConFoto.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/productos?categoria=${cat.slug}`}
+                  className="border border-brand-border hover:border-brand-neon text-white hover:text-brand-neon font-semibold px-8 py-4 rounded-2xl transition-colors"
+                >
+                  {cat.nombre}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Banner Mercado Pago */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
