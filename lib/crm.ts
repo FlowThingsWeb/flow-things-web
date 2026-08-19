@@ -32,7 +32,7 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
 
   const { data: orden, error } = await supabaseAdmin
     .from('ordenes')
-    .select('id, items, mp_payment_id, estado')
+    .select('id, items, mp_payment_id, estado, total, descuento_monto, datos_comprador')
     .eq('id', ordenId)
     .single()
 
@@ -56,9 +56,20 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
     )
   }
 
+  // Total REAL cobrado (= productos + envío − descuento), para que el CRM no
+  // marque saldo pendiente por la diferencia. El envío y el descuento se mandan
+  // aparte para el detalle.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dc = (orden.datos_comprador as any) ?? {}
+  const envio = Number(dc.envio_costo ?? 0) || 0
+  const descuento = Number(orden.descuento_monto ?? 0) || 0
+
   const payload = {
     orden_id: orden.id,
     mp_payment_id: orden.mp_payment_id ?? null,
+    total: Number(orden.total ?? 0) || 0,
+    envio,
+    descuento,
     items: items.map((i) => ({
       sku: i.sku,
       variante: i.variante_nombre ?? null,
