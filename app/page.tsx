@@ -7,8 +7,31 @@ import EditBar from '@/components/EditBar'
 import { Producto } from '@/types'
 import { getConfig } from '@/lib/config'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
+import HomeCarousel from '@/components/HomeCarousel'
+import { armarCarrusel } from '@/lib/carruselHome'
 
 export const dynamic = 'force-dynamic'
+
+/**
+ * Candidatos del carrusel: todo lo publicable y con stock. El recorte fino
+ * (destacados + ofertas fijos, novedades rotando cada pocos días) lo hace
+ * `armarCarrusel`.
+ */
+async function getCandidatosCarrusel(): Promise<Producto[]> {
+  const { data } = await supabaseAdmin
+    .from('productos')
+    .select(
+      '*, categorias(id, nombre, slug), variantes(id, imagen_url, imagenes, activo)',
+    )
+    .eq('activo', true)
+    .gt('stock', 0)
+    .order('created_at', { ascending: false })
+    .limit(60)
+
+  return (data || []).filter(
+    (p: any) => !CATEGORIAS_PAUSADAS.includes(p.categorias?.slug),
+  )
+}
 
 async function getDestacados(): Promise<Producto[]> {
   const { data } = await supabaseAdmin
@@ -39,11 +62,14 @@ export default async function HomePage({
   const params = await searchParams
   const editMode = params.editMode === '1'
 
-  const [destacados, categorias, cfg] = await Promise.all([
+  const [destacados, categorias, cfg, candidatosCarrusel] = await Promise.all([
     getDestacados(),
     getCategorias(),
     getConfig(),
+    getCandidatosCarrusel(),
   ])
+
+  const slidesCarrusel = armarCarrusel(candidatosCarrusel)
 
   const categoriasIconos: Record<string, string> = {
     libreria: '📚',
@@ -75,26 +101,31 @@ export default async function HomePage({
       {/* Barra de edición — solo en modo editor */}
       {editMode && <EditBar />}
 
-      {/* Hero */}
+      {/* Carrusel de productos — primero para que se vea mercadería y un
+          botón de comprar sin tener que scrollear. */}
+      <HomeCarousel slides={slidesCarrusel} />
+
+      {/* Hero — debajo del carrusel y compacto: sigue estando el mensaje de
+          marca, pero ya no se come la pantalla de entrada. */}
       <section
-        className="relative overflow-hidden bg-gradient-brand min-h-[80vh] flex items-center"
+        className="relative overflow-hidden bg-gradient-brand"
         style={editMode ? { paddingTop: '40px' } : undefined}
       >
         <div className="absolute top-20 right-20 w-96 h-96 bg-brand-purple/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-10 left-10 w-64 h-64 bg-brand-neon/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             {/* Texto */}
             <div>
-              <div className="inline-flex items-center gap-2 bg-brand-bg-soft border border-brand-border px-4 py-2 rounded-full mb-8 animate-fade-up">
+              <div className="inline-flex items-center gap-2 bg-brand-bg-soft border border-brand-border px-4 py-2 rounded-full mb-5 animate-fade-up">
                 <span className="w-2 h-2 rounded-full bg-brand-neon animate-pulse" />
                 <span className="text-brand-text-muted text-sm font-medium">
                   <T k="hero_badge" />
                 </span>
               </div>
 
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 animate-fade-up leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 animate-fade-up leading-tight">
                 <T k="hero_titulo_1" />{' '}
                 <span className="text-gradient-purple">
                   <T k="hero_titulo_2" />
@@ -103,20 +134,20 @@ export default async function HomePage({
                 <T k="hero_titulo_3" />
               </h1>
 
-              <p className="text-brand-text-muted text-lg max-w-xl mb-10 animate-fade-up leading-relaxed">
+              <p className="text-brand-text-muted text-base max-w-xl mb-7 animate-fade-up leading-relaxed">
                 <T k="hero_subtitulo" multiline />
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 animate-fade-up">
                 <Link
                   href="/productos"
-                  className="bg-brand-purple hover:bg-brand-purple-light text-white font-semibold px-8 py-4 rounded-2xl transition-all hover:shadow-purple text-base text-center"
+                  className="bg-brand-purple hover:bg-brand-purple-light text-white font-semibold px-7 py-3.5 rounded-2xl transition-all hover:shadow-purple text-base text-center"
                 >
                   <T k="hero_cta_primario" />
                 </Link>
                 <Link
                   href="/productos?categoria=jugueteria"
-                  className="border border-brand-neon text-brand-neon hover:bg-brand-neon hover:text-black font-semibold px-8 py-4 rounded-2xl transition-all text-base text-center"
+                  className="border border-brand-neon text-brand-neon hover:bg-brand-neon hover:text-black font-semibold px-7 py-3.5 rounded-2xl transition-all text-base text-center"
                 >
                   <T k="hero_cta_secundario" />
                 </Link>
@@ -124,7 +155,7 @@ export default async function HomePage({
             </div>
 
             {/* Banner hero */}
-            <div className="hidden lg:block animate-float">
+            <div className="hidden lg:block">
               <div className="relative rounded-3xl overflow-hidden border border-brand-border shadow-purple">
                 {editMode ? (
                   <EditableImage
@@ -149,7 +180,7 @@ export default async function HomePage({
       </section>
 
       {/* Categorías */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <h2 className="text-2xl font-bold text-white mb-8">
           <T k="seccion_categorias_titulo" />
         </h2>
