@@ -253,6 +253,9 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
               ciudad:     compradorData.ciudad     || '–',
             },
             items: items.map((i: any) => ({
+              // El SKU es el snapshot que guarda /api/checkout: el de la
+              // variante si la hay, si no el del producto.
+              sku:            i.sku || undefined,
               descripcion:    i.nombre,
               cantidad:       i.cantidad,
               precioUnitario: i.precio,

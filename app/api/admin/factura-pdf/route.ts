@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
         ciudad:    c.ciudad     || '–',
         cp:        c.codigo_postal || '–',
       },
-      items: (orden.items as { nombre: string; cantidad: number; precio: number }[]).map((i) => ({
+      items: (orden.items as { nombre: string; cantidad: number; precio: number; sku?: string | null }[]).map((i) => ({
+        sku:            i.sku || undefined,
         descripcion:    i.nombre,
         cantidad:       i.cantidad,
         precioUnitario: i.precio,
