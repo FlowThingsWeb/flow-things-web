@@ -22,6 +22,10 @@ export interface FacturaPDFParams {
   }
   items: { sku?: string; descripcion: string; cantidad: number; precioUnitario: number }[]
   costoEnvio?: number
+  /** Descuento aplicado, en positivo. Se imprime como renglón en negativo. */
+  descuentoMonto?: number
+  /** Código del cupón, para que en la factura se vea de dónde sale el descuento. */
+  codigoDescuento?: string | null
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -87,6 +91,7 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   const MR   = 10    // right margin
   const CW   = W - ML - MR  // content width = 190mm
   const costoEnvio = p.costoEnvio ?? 0
+  const descuentoMonto = p.descuentoMonto ?? 0
   const nroCbte = `${String(p.ptoVenta).padStart(4, '0')}-${String(p.nroComprobante).padStart(8, '0')}`
 
   // Solo el QR — el logo no se embebe como imagen para mantener el PDF pequeño
@@ -240,25 +245,53 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
 
   setBlack(); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
   setBorder()
-  for (const item of efectiveItems) {
-    doc.text(item.sku || '–',                          colSku,  y + 5)
-    doc.text(item.descripcion.substring(0, 48),        colDesc, y + 5)
-    doc.text(String(item.cantidad),                    colQty,  y + 5, { align: 'right' })
-    doc.text(fmtMoneda(item.precioUnitario),            colUp,   y + 5, { align: 'right' })
-    doc.text(fmtMoneda(item.cantidad * item.precioUnitario), colSub, y + 5, { align: 'right' })
+
+  /** Escribe un renglón del detalle y baja el cursor. */
+  const renglon = (
+    sku: string,
+    descripcion: string,
+    cantidad: string,
+    precioUnitario: string,
+    importe: string,
+  ) => {
+    doc.text(sku,             colSku,  y + 5)
+    doc.text(descripcion.substring(0, 48), colDesc, y + 5)
+    doc.text(cantidad,        colQty,  y + 5, { align: 'right' })
+    doc.text(precioUnitario,  colUp,   y + 5, { align: 'right' })
+    doc.text(importe,         colSub,  y + 5, { align: 'right' })
     doc.line(ML, y + rowH, ML + CW, y + rowH)
     y += rowH
   }
 
-  // Costo envío row
-  const envioFmt = fmtMoneda(costoEnvio)
-  doc.text('–',        colSku,  y + 5)
-  doc.text('Costo Envío', colDesc, y + 5)
-  doc.text('–',        colQty,  y + 5, { align: 'right' })
-  doc.text('–',        colUp,   y + 5, { align: 'right' })
-  doc.text(envioFmt,   colSub,  y + 5, { align: 'right' })
-  doc.line(ML, y + rowH, ML + CW, y + rowH)
-  y += rowH
+  // El detalle tiene que cerrar contra el total: productos + envío − descuento.
+  // Antes el envío se imprimía siempre (aunque fuera $0) y el descuento no se
+  // imprimía nunca, así que los renglones no sumaban lo que decía el total.
+  let sumaRenglones = 0
+
+  for (const item of efectiveItems) {
+    const importe = item.cantidad * item.precioUnitario
+    sumaRenglones += importe
+    renglon(
+      item.sku || '–',
+      item.descripcion,
+      String(item.cantidad),
+      fmtMoneda(item.precioUnitario),
+      fmtMoneda(importe),
+    )
+  }
+
+  if (costoEnvio > 0) {
+    sumaRenglones += costoEnvio
+    renglon('–', 'Costo Envío', '–', '–', fmtMoneda(costoEnvio))
+  }
+
+  if (descuentoMonto > 0) {
+    sumaRenglones -= descuentoMonto
+    const etiqueta = p.codigoDescuento
+      ? `Descuento (${p.codigoDescuento})`
+      : 'Descuento'
+    renglon('–', etiqueta, '–', '–', '- ' + fmtMoneda(descuentoMonto))
+  }
 
   // Empty filler rows
   y += rowH * 2
@@ -295,12 +328,17 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   const totR = ML + CW - 3
   const totalFmt = fmtMoneda(p.totalNumerico)
   const letras = 'Importe en Letras: ' + numeroALetras(p.totalNumerico)
+  // El subtotal se imprime desde los renglones, no repitiendo el total: si
+  // alguna vez dejaran de coincidir, se ve en la factura en lugar de quedar
+  // tapado. Con los datos bien, ambos dan lo mismo (factura C, sin IVA
+  // discriminado).
+  const subtotalFmt = fmtMoneda(sumaRenglones)
 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal'); setBlack()
 
   doc.text('Importe Subtotal',         totX, y + 10)
-  doc.text(totalFmt,                   totR, y + 10, { align: 'right' })
+  doc.text(subtotalFmt,                totR, y + 10, { align: 'right' })
   setBorder(); doc.line(totX, y + 12, totR, y + 12)
 
   doc.text('Importe Otros Impuestos',  totX, y + 19)

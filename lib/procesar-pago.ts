@@ -258,6 +258,8 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
               precioUnitario: i.precio,
             })),
             costoEnvio,
+            descuentoMonto,
+            codigoDescuento,
           })
           adjuntos = [{
             filename:    facturaFileName(facturaEmitida.nroComprobante),

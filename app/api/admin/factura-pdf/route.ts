@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   const { data: orden, error } = await supabaseAdmin
     .from('ordenes')
-    .select('total, items, datos_comprador, created_at')
+    .select('total, items, datos_comprador, created_at, descuento_monto, codigo_descuento')
     .eq('id', ordenId)
     .single()
 
@@ -59,6 +59,8 @@ export async function GET(request: NextRequest) {
         precioUnitario: i.precio,
       })),
       costoEnvio: Number(c.envio_costo ?? 0),
+      descuentoMonto: Number(orden.descuento_monto ?? 0),
+      codigoDescuento: orden.codigo_descuento ?? null,
     })
 
     const buffer = Buffer.from(pdfBase64, 'base64')
