@@ -123,63 +123,69 @@ export function nombresAlternativos(nombre: string, max = 3): string[] {
  * @param limite Caracteres útiles antes del " | Flow Things" del template.
  */
 export function tituloSeo(nombre: string, limite = 52): string {
-  let t = nombre
-    .replace(/[!¡]+/g, '')           // "NUEVO!!!" → "NUEVO"
-    .replace(/\s*-\s*/g, ' - ')      // guiones parejos
+  const limpio = nombre
+    .replace(/[!¡]+/g, '')
+    .replace(/\s*-\s*/g, ' - ')
     .replace(/\s{2,}/g, ' ')
     .trim()
 
-  // Los nombres repiten la categoría al principio y en el medio
-  // ("Slime - SURPRISE MERMAID - Slime Pote..."). Se saca la repetición.
-  const partes = t.split(' - ')
-  const vistas = new Set<string>()
-  const unicas = partes.filter((p) => {
-    const clave = normalizar(p)
-    if (!clave) return false
-    if (vistas.has(clave)) return false
-    // Si una parte posterior ya contiene una anterior, sobra.
-    for (const v of vistas) {
-      if (clave.includes(v) && v.length > 4) return false
-    }
-    vistas.add(clave)
-    return true
+  let partes = limpio.split(' - ').filter((p) => p.trim().length > 0)
+
+  // Los nombres del proveedor repiten la categoría: "Slime - BAG SLIME -
+  // Slime En Bolsa Reutilizable - 6 Colores". Se descarta el segmento CORTO
+  // que ya está contenido en otro más largo, nunca al revés: quedarse con
+  // "Slime" y tirar "Slime En Bolsa Reutilizable" borra justamente las
+  // palabras con las que la gente busca el producto.
+  partes = partes.filter((p, i) => {
+    const a = normalizar(p)
+    return !partes.some((otra, j) => {
+      if (i === j) return false
+      const b = normalizar(otra)
+      if (a === b) return j < i // duplicado exacto: se queda el primero
+      return b.includes(a) && b.length > a.length
+    })
   })
-  t = unicas.join(' - ')
 
-  if (t.length <= limite) return t
+  const unir = (xs: string[]) => xs.join(' - ')
+  if (unir(partes).length <= limite) return unir(partes)
 
-  // Lo que distingue a un producto de sus hermanos está al FINAL: "EN CAJA
-  // MEDIANA" vs "CHICA", "HAIR'IFFIC MINI" vs "SQUISHY". Recortar por el
-  // final dejaba títulos idénticos entre productos distintos, que para
-  // Google es tan malo como que sean largos. Se conserva la última parte y
-  // se rellena desde el principio con lo que entre.
-  if (unicas.length > 1) {
-    const cola = unicas[unicas.length - 1]
-    const frente: string[] = []
-    let largo = cola.length
-    for (const p of unicas.slice(0, -1)) {
-      if (largo + p.length + 3 > limite) break
-      frente.push(p)
-      largo += p.length + 3
+  // Todavía largo: se van soltando los segmentos MÁS CORTOS del medio, que
+  // son los que menos información aportan ("6 Colores", "En Caja"). El
+  // primero y el último se protegen: uno trae la marca y el otro es el que
+  // distingue al producto de sus hermanos.
+  const trabajo = [...partes]
+  while (unir(trabajo).length > limite && trabajo.length > 2) {
+    let idx = 1
+    for (let i = 1; i < trabajo.length - 1; i++) {
+      if (trabajo[i].length < trabajo[idx].length) idx = i
     }
-    if (frente.length > 0) return limpiarCola([...frente, cola].join(' - '))
-    // Ni la primera parte entra junto con la cola: se recorta la primera y
-    // se le pega la cola igual, para no perder el diferenciador.
-    // Cortar SIEMPRE en palabra completa: "UNICORN DREA" se lee como un
-    // error de la página, no como un título.
+    // Si el segmento del medio es MÁS largo que el último, el que sobra es
+    // el último. Sin esto, "Slime - SURPRISE MERMAID - Slime Pote
+    // C/Sorpresa - 12 Sirenas" terminaba en "SURPRISE MERMAID - 12 Sirenas":
+    // un producto de slime cuyo título no dice "slime".
+    const ultimo = trabajo.length - 1
+    if (trabajo[idx].length > trabajo[ultimo].length) idx = ultimo
+    trabajo.splice(idx, 1)
+  }
+  if (unir(trabajo).length <= limite) return limpiarCola(unir(trabajo))
+
+  // Ni con dos segmentos entra: se recorta el primero en palabra completa y
+  // se conserva el último entero.
+  if (trabajo.length > 1) {
+    const cola = trabajo[trabajo.length - 1]
     const espacio = Math.max(12, limite - cola.length - 3)
-    let inicio = unicas[0]
+    let inicio = trabajo[0]
     if (inicio.length > espacio) {
       const cortado = inicio.slice(0, espacio)
-      const ultimoEspacio = cortado.lastIndexOf(' ')
-      inicio = ultimoEspacio > 3 ? cortado.slice(0, ultimoEspacio) : unicas[0].split(' ')[0]
+      const sp = cortado.lastIndexOf(' ')
+      inicio = sp > 3 ? cortado.slice(0, sp) : inicio.split(' ')[0]
     }
     return `${limpiarCola(inicio)} - ${cola}`
   }
 
-  const recorte = t.slice(0, limite)
-  const porPalabra = recorte.slice(0, recorte.lastIndexOf(' ')).trim() || recorte.trim()
-  return limpiarCola(porPalabra)
+  const recorte = unir(trabajo).slice(0, limite)
+  const sp = recorte.lastIndexOf(' ')
+  return limpiarCola(sp > 0 ? recorte.slice(0, sp) : recorte)
 }
 
 /**
