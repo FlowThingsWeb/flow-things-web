@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { unstable_cache } from 'next/cache'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
@@ -9,6 +10,60 @@ import { Producto, Variante } from '@/types'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 
 const PAGE_SIZE = 24
+
+const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
+
+/**
+ * Título y descripción por categoría.
+ *
+ * Esta página no tenía NINGUNA metadata: buscadores y asistentes veían el
+ * catálogo entero y las vistas por categoría con el mismo título genérico del
+ * layout. Son las páginas que compiten por "juguetería online" y "librería
+ * online", así que cada una necesita decir de qué es.
+ */
+const COPY_CATEGORIA: Record<string, { titulo: string; desc: string }> = {
+  jugueteria: {
+    titulo: 'Juguetería online — Juguetes con envío a todo el país',
+    desc: 'Comprá juguetes online en Argentina: juegos didácticos, peluches, muñecos y juegos de mesa. Envío a todo el país y hasta 12 cuotas.',
+  },
+  libreria: {
+    titulo: 'Librería online — Útiles escolares y artículos de librería',
+    desc: 'Comprá artículos de librería online en Argentina: cuadernos, carpetas, canoplas y útiles escolares. Envío a todo el país y hasta 12 cuotas.',
+  },
+}
+
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const { categoria, q } = await searchParams
+
+  if (q) {
+    return {
+      title: `"${q}" — Buscar en Flow Things`,
+      description: `Resultados para "${q}" en juguetería, librería y regalería. Envío a todo el país.`,
+      // Las búsquedas no aportan nada al índice y generan URLs infinitas.
+      robots: { index: false, follow: true },
+    }
+  }
+
+  const copy = categoria ? COPY_CATEGORIA[categoria] : undefined
+  if (copy) {
+    return {
+      title: copy.titulo,
+      description: copy.desc,
+      alternates: { canonical: `${BASE}/productos?categoria=${categoria}` },
+      openGraph: { title: copy.titulo, description: copy.desc, url: `${BASE}/productos?categoria=${categoria}` },
+    }
+  }
+
+  const titulo = 'Catálogo — Juguetería, librería y regalería online'
+  const desc =
+    'Todo el catálogo de Flow Things: juguetes, útiles escolares, juegos didácticos y regalos. Envío a todo el país y hasta 12 cuotas.'
+  return {
+    title: titulo,
+    description: desc,
+    alternates: { canonical: `${BASE}/productos` },
+    openGraph: { title: titulo, description: desc, url: `${BASE}/productos` },
+  }
+}
 
 // La consulta trae todo el catálogo activo y filtra en JS, así que NO depende
 // de los parámetros: una sola entrada de caché sirve a todas las categorías,

@@ -3,23 +3,29 @@ import './globals.css'
 import { getConfig } from '@/lib/config'
 import { AuthProvider } from '@/lib/auth-context'
 import UserShell from '@/components/UserShell'
+import SeoJsonLd from '@/components/SeoJsonLd'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar'),
   title: {
-    default: 'Flow Things — Librería & Juguetería',
+    default: 'Flow Things — Juguetería, Librería y Regalería online en Argentina',
     template: '%s | Flow Things',
   },
   description:
-    'Descubrí los mejores productos de librería y juguetería en Flow Things. Útiles escolares, juegos, juguetes y mucho más con envío a todo el país.',
-  keywords: ['librería', 'juguetería', 'útiles escolares', 'juguetes', 'flow things'],
+    'Juguetería, librería y regalería online en Argentina. Juguetes, útiles escolares, juegos didácticos y regalos, con envío a todo el país y hasta 12 cuotas.',
+  keywords: [
+    'juguetería online', 'juguetería online argentina', 'librería online',
+    'regalería online', 'comprar juguetes online', 'útiles escolares online',
+    'juegos didácticos', 'regalos', 'flow things',
+  ],
   openGraph: {
     type: 'website',
     locale: 'es_AR',
     url: 'https://flowthings.com.ar',
     siteName: 'Flow Things',
-    title: 'Flow Things — Librería & Juguetería',
-    description: 'Los mejores productos de librería y juguetería',
+    title: 'Flow Things — Juguetería, Librería y Regalería online',
+    description:
+      'Juguetes, útiles escolares, juegos didácticos y regalos con envío a todo el país.',
   },
 }
 
@@ -70,6 +76,9 @@ export default async function RootLayout({
             dangerouslySetInnerHTML={{ __html: sanitizeCss(cfg.design_overrides) }}
           />
         )}
+        {/* Datos estructurados del negocio: qué es Flow Things, dónde está y
+            qué vende. Es lo que leen buscadores y asistentes. */}
+        <SeoJsonLd />
       </head>
       <body>
         <AuthProvider>

@@ -6,7 +6,7 @@ const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').re
 async function getProducto(slug: string) {
   const { data } = await supabaseAdmin
     .from('productos')
-    .select('nombre, descripcion, precio, imagen_url, imagenes, stock, slug, variantes(imagen_url, imagenes, activo)')
+    .select('nombre, descripcion, precio, imagen_url, imagenes, stock, slug, sku, categorias(nombre), variantes(imagen_url, imagenes, activo)')
     .eq('slug', slug)
     .eq('activo', true)
     .maybeSingle()
@@ -18,6 +18,8 @@ async function getProducto(slug: string) {
     imagenes: string[] | null
     stock: number
     slug: string
+    sku: string | null
+    categorias: { nombre: string } | null
     variantes: { imagen_url: string | null; imagenes: string[] | null; activo: boolean }[] | null
   } | null
 }
@@ -76,21 +78,50 @@ export default async function ProductoLayout({
   const { slug } = await params
   const p = await getProducto(slug)
 
+  // Product + BreadcrumbList. Los campos extra (sku, categoría, condición,
+  // vendedor, devoluciones) son los que Google pide para mostrar el resultado
+  // enriquecido con precio y disponibilidad, y los que un asistente necesita
+  // para poder decir "está a tanto y hay stock".
+  const categoriaNombre = (p?.categorias as { nombre: string } | null)?.nombre
   const jsonLd = p
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'Product',
-        name: p.nombre,
-        description: p.descripcion || undefined,
-        image: imagenDe(p) || undefined,
-        offers: {
-          '@type': 'Offer',
-          price: p.precio,
-          priceCurrency: 'ARS',
-          availability: p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-          url: `${BASE}/productos/${slug}`,
+    ? [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: p.nombre,
+          description: p.descripcion || undefined,
+          image: imagenDe(p) || undefined,
+          sku: p.sku || undefined,
+          category: categoriaNombre || undefined,
+          brand: { '@type': 'Brand', name: 'Flow Things' },
+          offers: {
+            '@type': 'Offer',
+            price: p.precio,
+            priceCurrency: 'ARS',
+            availability: p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+            itemCondition: 'https://schema.org/NewCondition',
+            url: `${BASE}/productos/${slug}`,
+            seller: { '@type': 'Organization', name: 'Flow Things', url: BASE },
+            hasMerchantReturnPolicy: {
+              '@type': 'MerchantReturnPolicy',
+              applicableCountry: 'AR',
+              returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+              merchantReturnDays: 10,
+              returnMethod: 'https://schema.org/ReturnByMail',
+              returnFees: 'https://schema.org/FreeReturn',
+            },
+          },
         },
-      }
+        {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Inicio', item: BASE },
+            { '@type': 'ListItem', position: 2, name: 'Catálogo', item: `${BASE}/productos` },
+            { '@type': 'ListItem', position: 3, name: p.nombre },
+          ],
+        },
+      ]
     : null
 
   return (
