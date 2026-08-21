@@ -8,6 +8,7 @@ import SortSelect from '@/components/SortSelect'
 import Link from 'next/link'
 import { Producto, Variante } from '@/types'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
+import { contieneConSinonimos, normalizar } from '@/lib/sinonimos'
 
 const PAGE_SIZE = 24
 
@@ -118,15 +119,18 @@ async function getProductos(categoria?: string, q?: string): Promise<CatalogItem
 
   // Filter each card individually — a variant card only matches if THAT variant has the term
   if (q?.trim()) {
-    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    const words = normalizar(q).split(/\s+/).filter(Boolean)
     return items.filter(({ producto, variante }) => {
-      const haystack = [
+      const haystack = normalizar([
         producto.nombre,
         producto.descripcion ?? '',
         // Only this specific variant's attributes, not all variants of the product
         ...(variante ? Object.values(variante.atributos) : []),
-      ].join(' ').toLowerCase()
-      return words.every(w => haystack.includes(w))
+      ].join(' '))
+      // Con sinónimos y sin tildes: "cartuchera" encuentra las canoplas, y
+      // "portalapices" encuentra "Portalápices". Antes exigía la palabra
+      // exacta y el producto quedaba invisible en el propio sitio.
+      return words.every(w => contieneConSinonimos(haystack, w))
     })
   }
 

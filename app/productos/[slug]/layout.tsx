@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { nombresAlternativos } from '@/lib/sinonimos'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
@@ -51,8 +52,18 @@ export async function generateMetadata({
   const p = await getProducto(slug)
   if (!p) return { title: 'Producto no encontrado' }
 
-  const descripcion = (p.descripcion || `Comprá ${p.nombre} en Flow Things con envío a todo el país.`).slice(0, 160)
   const img = imagenDe(p)
+
+  // El catálogo usa el nombre del proveedor ("Canopla"), pero la gente busca
+  // "cartuchera". Si la ficha nunca dice esa palabra, no aparece en esa
+  // búsqueda por más que el producto exista. Se nombra UNA vez, en la
+  // descripción, de forma natural — no repetido para engañar al buscador.
+  const alternativos = nombresAlternativos(p.nombre)
+  const tambienConocido = alternativos[0]
+  const base = p.descripcion || `Comprá ${p.nombre} en Flow Things con envío a todo el país.`
+  const descripcion = (
+    tambienConocido ? `${base} También podés buscarlo como ${tambienConocido}.` : base
+  ).slice(0, 160)
 
   return {
     title: p.nombre,
@@ -93,6 +104,10 @@ export default async function ProductoLayout({
           image: imagenDe(p) || undefined,
           sku: p.sku || undefined,
           category: categoriaNombre || undefined,
+          // Nombres con los que también se lo busca (canopla → cartuchera).
+          ...(nombresAlternativos(p.nombre).length
+            ? { alternateName: nombresAlternativos(p.nombre) }
+            : {}),
           brand: { '@type': 'Brand', name: 'Flow Things' },
           offers: {
             '@type': 'Offer',
