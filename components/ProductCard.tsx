@@ -9,8 +9,6 @@ import Stars from '@/components/Stars'
 import { formatPrecio } from '@/lib/format'
 import { trackAddToCart } from '@/lib/fbpixel'
 
-/** Desde cuántas unidades para abajo se avisa que queda poco. */
-const UMBRAL_POCAS_UNIDADES = 3
 
 interface ProductCardProps {
   producto: Producto
@@ -40,9 +38,9 @@ export default function ProductCard({ producto, variante, rating }: ProductCardP
     null
   const stockVal   = variante ? variante.stock : producto.stock
   const sinStock   = stockVal === 0
-  // Urgencia real, sobre el stock que efectivamente hay. Nada de contadores
-  // inventados: si dice "últimas 2", quedan 2.
-  const pocasUnidades = stockVal > 0 && stockVal <= UMBRAL_POCAS_UNIDADES
+  // Solo cuando queda UNA. Avisar "Quedan 2" o "Quedan 3" llenaba media
+  // grilla de badges y el aviso dejaba de leerse como urgencia.
+  const ultimaUnidad = stockVal === 1
 
   const varLabel   = variante
     ? Object.values(variante.atributos).join(' / ')
@@ -106,9 +104,9 @@ export default function ProductCard({ producto, variante, rating }: ProductCardP
           )}
         </div>
 
-        {pocasUnidades && (
+        {ultimaUnidad && (
           <span className="absolute bottom-2 left-2 bg-black/75 backdrop-blur text-brand-neon text-[11px] font-bold px-2 py-1 rounded-full border border-brand-neon/40">
-            {stockVal === 1 ? '¡Última unidad!' : `Quedan ${stockVal}`}
+            ¡Última unidad!
           </span>
         )}
 

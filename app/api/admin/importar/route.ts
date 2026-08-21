@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     ['• Para un producto con variantes, repetís el mismo SKU en varias filas (una por combinación).'],
     ['• Los campos obligatorios son: nombre, sku, precio, categoria.'],
     ['• Si hay variantes: completá atributo_1_tipo, atributo_1_valor y variante_sku.'],
-    ['• Categorías disponibles: libreria, jugueteria, utiles-escolares, juegos-de-mesa'],
+    ['• Categorías disponibles: libreria, jugueteria'],
     ['• destacado: SI o NO'],
     ['• activo: SI o NO (vacío = SI por defecto)'],
     [''],

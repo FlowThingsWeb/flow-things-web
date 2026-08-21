@@ -80,7 +80,7 @@ const DEFAULTS: ConfigMap = {
   hero_titulo_1: 'Todo lo que',
   hero_titulo_2: 'imaginás',
   hero_titulo_3: 'en un solo lugar',
-  hero_subtitulo: 'Útiles, juguetes, libros y mucho más. Los mejores productos para aprender, crear y jugar, con envío a todo el país.',
+  hero_subtitulo: 'Juguetes, librería y regalos. Los mejores productos para aprender, crear y jugar, con envío a todo el país.',
   hero_cta_primario: 'Ver catálogo completo',
   hero_cta_secundario: 'Explorar juguetería',
   hero_banner_url: '/banner.png',

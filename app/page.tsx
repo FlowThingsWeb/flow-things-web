@@ -123,7 +123,6 @@ export default async function HomePage({
   const categoriasIconos: Record<string, string> = {
     libreria: '📚',
     jugueteria: '🧸',
-    'utiles-escolares': '✏️',
     'juegos-de-mesa': '🎲',
   }
 

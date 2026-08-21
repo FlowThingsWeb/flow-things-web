@@ -26,7 +26,6 @@ export default function Footer({ cfg }: FooterProps) {
     { href: '/productos', key: 'footer_link_catalogo' },
     { href: '/productos?categoria=libreria', key: 'footer_link_libreria' },
     { href: '/productos?categoria=jugueteria', key: 'footer_link_jugueteria' },
-    { href: '/productos?categoria=utiles-escolares', key: 'footer_link_utiles' },
   ]
 
   return (

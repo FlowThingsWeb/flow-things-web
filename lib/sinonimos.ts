@@ -18,22 +18,33 @@
 
 /** Grupos de términos equivalentes. Todos los de un grupo se implican entre sí. */
 const GRUPOS: string[][] = [
-  ['canopla', 'cartuchera', 'estuche', 'portalapices', 'portalápices'],
-  ['cuaderno', 'cuaderno escolar'],
-  ['carpeta', 'carpeta escolar'],
-  ['block', 'anotador', 'bloc'],
-  ['separadores', 'separadores de materia'],
-  ['etiquetas', 'etiquetas escolares'],
-  ['peluche', 'muñeco de peluche', 'plush'],
-  ['muñeco', 'figura', 'figurita'],
-  ['bloques', 'ladrillos', 'set de construccion', 'set de construcción', 'bloques armables'],
-  ['gemas', 'gemas autoadhesivas', 'stickers', 'calcomanias', 'calcomanías'],
-  ['masa', 'plastilina', 'masa moldeable'],
+  // Cada grupo sale de palabras que EXISTEN en el catálogo, cruzadas con el
+  // término con el que la gente las busca. Se usan palabras sueltas y no
+  // frases: la búsqueda compara palabra por palabra, así que "arena kinetica"
+  // como una sola entrada nunca matchearía.
+  ['canopla', 'cartuchera', 'estuche', 'portalapices'],
+  ['plush', 'peluche'],
+  ['airbrush', 'aerografo', 'soplador'],
+  ['arena', 'kinetica', 'cinetica'],
+  ['construccion', 'armar', 'armable', 'bloques', 'ladrillos'],
+  ['diorama', 'maqueta'],
+  ['posavasos', 'apoyavasos'],
+  ['llavero', 'colgante'],
+  ['estilista', 'peluqueria', 'peinados'],
+  ['cosmetica', 'maquillaje'],
+  ['pupa', 'paleta'],
+  ['masa', 'plastilina'],
   ['slime', 'moco'],
-  ['maquillaje', 'cosmetica', 'cosmética', 'make up'],
-  ['organizador', 'cartuchera organizador'],
-  ['juego de mesa', 'juego de mesa familiar'],
+  ['gemas', 'stickers', 'calcomanias', 'autoadhesivas'],
+  ['muñeco', 'figura', 'juguete'],
+  ['set', 'kit'],
+  ['caja', 'box'],
+  ['cuaderno', 'anotador'],
+  ['block', 'bloc'],
+  ['carpeta', 'bibliorato'],
+  ['separadores', 'divisores'],
   ['mochila', 'morral'],
+  ['cristal', 'esfera'],
 ]
 
 /** Quita tildes y pasa a minúscula, para comparar sin sorpresas. */
@@ -45,7 +56,10 @@ export function normalizar(texto: string): string {
     .trim()
 }
 
-// término normalizado → set de equivalentes normalizados
+// término normalizado → set de equivalentes normalizados.
+// Se acumula: un término puede pertenecer a más de un grupo ("bloques" está
+// en construcción y también es sinónimo de ladrillos). Si se sobrescribiera,
+// el término se quedaría solo con el último grupo y perdería equivalencias.
 const MAPA = new Map<string, Set<string>>()
 for (const grupo of GRUPOS) {
   const norm = grupo.map(normalizar)
