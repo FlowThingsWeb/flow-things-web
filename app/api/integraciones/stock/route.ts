@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { timingSafeEqual } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
@@ -122,6 +123,10 @@ export async function POST(request: NextRequest) {
   if (sinMapear.length > 0) {
     console.warn('[integraciones/stock] sin mapear:', sinMapear)
   }
+
+  // El catálogo del sitio sale de caché; sin esto, un cambio de stock podía
+  // tardar hasta un minuto en verse. Con el tag se ve en la próxima visita.
+  if (actualizados.length > 0) revalidateTag('catalogo')
 
   return NextResponse.json({
     ok: true,

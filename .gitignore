@@ -45,3 +45,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*
+
+# Material de trabajo (fotos de proveedor, certificados). Pesa GB y no es
+# codigo: no va al repo.
+PANTASY/

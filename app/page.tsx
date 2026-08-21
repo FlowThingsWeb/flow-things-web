@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { unstable_cache } from 'next/cache'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import ProductCard from '@/components/ProductCard'
 import EditableText from '@/components/EditableText'
@@ -26,14 +27,18 @@ function fotoDe(p: Producto): string | null {
   )
 }
 
-export const dynamic = 'force-dynamic'
+// La página se sigue renderizando por request (usa searchParams para el modo
+// editor), pero los datos del catálogo salen de caché en vez de pegarle a
+// Supabase en cada visita. Se invalida sola cada 60s y, ni bien el CRM empuja
+// stock o entra una venta, por tag ('catalogo'). El visitante ve lo mismo.
+const CACHE = { revalidate: 60, tags: ['catalogo'] }
 
 /**
  * Todo lo que se puede comprar hoy: activo, con stock y de una categoría no
  * pausada. De acá salen el carrusel, la foto y el contador de cada categoría
  * y el total del catálogo, con una sola consulta.
  */
-async function getProductosPublicables(): Promise<Producto[]> {
+const getProductosPublicables = unstable_cache(async (): Promise<Producto[]> => {
   const { data } = await supabaseAdmin
     .from('productos')
     .select(
@@ -47,9 +52,9 @@ async function getProductosPublicables(): Promise<Producto[]> {
   return (data || []).filter(
     (p: any) => !CATEGORIAS_PAUSADAS.includes(p.categorias?.slug),
   )
-}
+}, ['home-publicables'], CACHE)
 
-async function getDestacados(): Promise<Producto[]> {
+const getDestacados = unstable_cache(async (): Promise<Producto[]> => {
   const { data } = await supabaseAdmin
     .from('productos')
     .select(
@@ -63,12 +68,12 @@ async function getDestacados(): Promise<Producto[]> {
   return (data || [])
     .filter((p: any) => !CATEGORIAS_PAUSADAS.includes(p.categorias?.slug))
     .slice(0, 8)
-}
+}, ['home-destacados'], CACHE)
 
-async function getCategorias() {
+const getCategorias = unstable_cache(async () => {
   const { data } = await supabaseAdmin.from('categorias').select('*')
   return (data || []).filter((c: any) => !CATEGORIAS_PAUSADAS.includes(c.slug))
-}
+}, ['home-categorias'], CACHE)
 
 export default async function HomePage({
   searchParams,

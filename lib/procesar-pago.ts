@@ -12,6 +12,7 @@ import { sendWhatsApp, DEFAULT_WPP_MENSAJE } from './whatsapp'
 import { formatMonto } from './format'
 import { enqueueJob } from './jobs'
 import { crmHabilitado } from './crm'
+import { revalidateTag } from 'next/cache'
 
 const paymentClient = new Payment(new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! }))
 
@@ -89,6 +90,10 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
       console.error(`[procesar-pago] Error decrementando stock para producto ${item.id}:`, stockErr.message)
     }
   }
+
+  // El catálogo del sitio sale de caché: hay que invalidarlo para que el stock
+  // recién descontado se vea en la próxima visita y no en un minuto.
+  revalidateTag('catalogo')
 
   // ─── Informar la venta al CRM (canal 'tienda') ──────────────────────────────
   // Va como job aparte: si el CRM está caído reintenta solo, sin volver a

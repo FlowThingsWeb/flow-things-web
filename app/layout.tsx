@@ -4,8 +4,6 @@ import { getConfig } from '@/lib/config'
 import { AuthProvider } from '@/lib/auth-context'
 import UserShell from '@/components/UserShell'
 
-export const dynamic = 'force-dynamic'
-
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar'),
   title: {

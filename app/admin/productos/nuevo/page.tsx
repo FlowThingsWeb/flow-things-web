@@ -2,6 +2,11 @@ import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import ProductForm from '@/components/admin/ProductForm'
 
+// Datos de admin: nunca cachear. Antes lo cubría el force-dynamic del layout
+// raíz, que se quitó para que el sitio público pueda cachear.
+export const dynamic = 'force-dynamic'
+
+
 interface PageProps {
   searchParams: Promise<{ id?: string }>
 }

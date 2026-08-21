@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { unstable_cache } from 'next/cache'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import ProductCard from '@/components/ProductCard'
 import SearchInput from '@/components/SearchInput'
@@ -8,6 +9,11 @@ import { Producto, Variante } from '@/types'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 
 const PAGE_SIZE = 24
+
+// La consulta trae todo el catálogo activo y filtra en JS, así que NO depende
+// de los parámetros: una sola entrada de caché sirve a todas las categorías,
+// búsquedas y ordenamientos.
+const CACHE = { revalidate: 60, tags: ['catalogo'] }
 
 interface PageProps {
   searchParams: Promise<{ categoria?: string; q?: string; orden?: string; page?: string }>
@@ -19,15 +25,17 @@ export type CatalogItem = {
 }
 
 
-async function getProductos(categoria?: string, q?: string): Promise<CatalogItem[]> {
-  let query = supabaseAdmin
+const getCatalogoCompleto = unstable_cache(async (): Promise<Producto[]> => {
+  const { data } = await supabaseAdmin
     .from('productos')
     .select('*, categorias(id, nombre, slug), variantes(*)')
     .eq('activo', true)
     .order('created_at', { ascending: false })
+  return (data || []) as Producto[]
+}, ['catalogo-completo'], CACHE)
 
-  const { data } = await query
-  let productos: Producto[] = data || []
+async function getProductos(categoria?: string, q?: string): Promise<CatalogItem[]> {
+  let productos: Producto[] = await getCatalogoCompleto()
 
   // Excluir categorías pausadas
   productos = productos.filter(

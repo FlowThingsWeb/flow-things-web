@@ -4,6 +4,11 @@ import DespacharForm from './DespacharForm'
 import EliminarOrdenButton from './EliminarOrdenButton'
 import { formatPrecio } from '@/lib/format'
 
+// Datos de admin: nunca cachear. Antes lo cubría el force-dynamic del layout
+// raíz, que se quitó para que el sitio público pueda cachear.
+export const dynamic = 'force-dynamic'
+
+
 const fmt = formatPrecio
 
 function fmtFecha(s: string) {
