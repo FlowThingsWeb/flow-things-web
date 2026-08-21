@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { nombresAlternativos } from '@/lib/sinonimos'
+import { nombresAlternativos, tituloSeo } from '@/lib/sinonimos'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
@@ -66,7 +66,10 @@ export async function generateMetadata({
   ).slice(0, 160)
 
   return {
-    title: p.nombre,
+    // El <title> va recortado: Google muestra ~60 caracteres y los nombres
+    // del proveedor pasan largo. El nombre completo sigue en la página, en
+    // el H1 y en og:title.
+    title: tituloSeo(p.nombre),
     description: descripcion,
     alternates: { canonical: `${BASE}/productos/${slug}` },
     openGraph: {

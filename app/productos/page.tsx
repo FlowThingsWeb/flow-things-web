@@ -51,7 +51,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       title: copy.titulo,
       description: copy.desc,
       alternates: { canonical: `${BASE}/productos?categoria=${categoria}` },
-      openGraph: { title: copy.titulo, description: copy.desc, url: `${BASE}/productos?categoria=${categoria}` },
+      openGraph: {
+        title: copy.titulo, description: copy.desc,
+        url: `${BASE}/productos?categoria=${categoria}`,
+        // Al declarar openGraph propio se pisa el del layout raíz, y estas
+        // páginas quedaban sin imagen al compartirlas.
+        images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+      },
     }
   }
 
@@ -62,7 +68,10 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     title: titulo,
     description: desc,
     alternates: { canonical: `${BASE}/productos` },
-    openGraph: { title: titulo, description: desc, url: `${BASE}/productos` },
+    openGraph: {
+      title: titulo, description: desc, url: `${BASE}/productos`,
+      images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    },
   }
 }
 
