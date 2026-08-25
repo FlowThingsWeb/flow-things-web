@@ -209,7 +209,7 @@ export default async function HomePage({
                   <T k="hero_cta_primario" />
                 </Link>
                 <Link
-                  href="/productos?categoria=jugueteria"
+                  href="/categoria/jugueteria"
                   className="border border-brand-neon text-brand-neon hover:bg-brand-neon hover:text-black font-semibold px-7 py-3.5 rounded-2xl transition-all text-base text-center"
                 >
                   <T k="hero_cta_secundario" />
@@ -251,7 +251,7 @@ export default async function HomePage({
           {categoriasConFoto.map((cat) => (
             <Link
               key={cat.id}
-              href={`/productos?categoria=${cat.slug}`}
+              href={`/categoria/${cat.slug}`}
               className="group relative overflow-hidden rounded-2xl border border-brand-border bg-brand-bg-card hover:border-brand-purple hover:shadow-card-hover transition-all hover:-translate-y-1 animate-fade-up opacity-0"
             >
               <div className="relative aspect-[16/10] bg-brand-bg-soft">
@@ -386,7 +386,7 @@ export default async function HomePage({
               {categoriasConFoto.map((cat) => (
                 <Link
                   key={cat.id}
-                  href={`/productos?categoria=${cat.slug}`}
+                  href={`/categoria/${cat.slug}`}
                   className="border border-brand-border hover:border-brand-neon text-white hover:text-brand-neon font-semibold px-8 py-4 rounded-2xl transition-colors"
                 >
                   {cat.nombre}

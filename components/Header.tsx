@@ -31,8 +31,8 @@ export default function Header({ cfg }: HeaderProps) {
 
   const allNavLinks = [
     { href: '/productos', key: 'header_nav_catalogo', slug: null },
-    { href: '/productos?categoria=libreria', key: 'header_nav_libreria', slug: 'libreria' },
-    { href: '/productos?categoria=jugueteria', key: 'header_nav_jugueteria', slug: 'jugueteria' },
+    { href: '/categoria/libreria', key: 'header_nav_libreria', slug: 'libreria' },
+    { href: '/categoria/jugueteria', key: 'header_nav_jugueteria', slug: 'jugueteria' },
   ]
   const navLinks = allNavLinks.filter(l => !l.slug || !CATEGORIAS_PAUSADAS.includes(l.slug))
 

@@ -24,8 +24,8 @@ export default function Footer({ cfg }: FooterProps) {
 
   const tiendaLinks = [
     { href: '/productos', key: 'footer_link_catalogo' },
-    { href: '/productos?categoria=libreria', key: 'footer_link_libreria' },
-    { href: '/productos?categoria=jugueteria', key: 'footer_link_jugueteria' },
+    { href: '/categoria/libreria', key: 'footer_link_libreria' },
+    { href: '/categoria/jugueteria', key: 'footer_link_jugueteria' },
   ]
 
   return (

@@ -9,7 +9,7 @@ const OPCIONES = [
   { value: 'nombre', label: 'Nombre (A-Z)' },
 ]
 
-export default function SortSelect() {
+export default function SortSelect({ basePath = '/productos' }: { basePath?: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const actual = searchParams.get('orden') || 'nuevo'
@@ -19,7 +19,9 @@ export default function SortSelect() {
     if (value === 'nuevo') params.delete('orden')
     else params.set('orden', value)
     params.delete('page') // volver a la primera página al reordenar
-    router.push(`/productos${params.toString() ? `?${params.toString()}` : ''}`)
+    // Ordenar no debe sacarte de la URL de la categoría: es la que tiene la
+    // palabra clave y la que Google indexa.
+    router.push(`${basePath}${params.toString() ? `?${params.toString()}` : ''}`)
   }
 
   return (

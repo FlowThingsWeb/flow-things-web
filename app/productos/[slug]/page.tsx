@@ -270,7 +270,7 @@ export default function ProductoDetallePage() {
           <>
             <span>/</span>
             <Link
-              href={`/productos?categoria=${(producto.categorias as any).slug}`}
+              href={`/categoria/${(producto.categorias as any).slug}`}
               className="hover:text-brand-purple transition-colors"
             >
               {(producto.categorias as any).nombre}
@@ -454,7 +454,7 @@ export default function ProductoDetallePage() {
         <div className="space-y-6">
           {producto.categorias && (
             <Link
-              href={`/productos?categoria=${(producto.categorias as any).slug}`}
+              href={`/categoria/${(producto.categorias as any).slug}`}
               className="text-brand-purple text-sm font-medium hover:underline"
             >
               {(producto.categorias as any).nombre}

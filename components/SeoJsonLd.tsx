@@ -26,13 +26,14 @@ export default async function SeoJsonLd() {
 
   const redes = [cfg.footer_instagram].filter(Boolean)
 
-  // La dirección sale de `envio_km_origen` (el punto desde donde despachan).
-  const direccionRaw = (cfg.envio_km_origen || '').trim()
-  const calle = direccionRaw ? direccionRaw.split(',')[0].trim() : null
-
+  // Tienda online, sin local a la calle: se declara como OnlineStore y NO se
+  // publica la dirección de despacho. Poner una dirección sin atención al
+  // público invita a que alguien se presente a comprar, y a Google a evaluar
+  // el negocio como local físico cuando no lo es. Lo que sí importa acá es la
+  // zona a la que se entrega.
   const tienda: Record<string, unknown> = {
     '@context': 'https://schema.org',
-    '@type': 'Store',
+    '@type': 'OnlineStore',
     '@id': `${BASE}/#tienda`,
     name: nombre,
     description: descripcion,
@@ -42,29 +43,38 @@ export default async function SeoJsonLd() {
     priceRange: '$$',
     currenciesAccepted: 'ARS',
     paymentAccepted: 'Mercado Pago, Tarjeta de crédito, Tarjeta de débito, Transferencia',
-    areaServed: { '@type': 'Country', name: 'Argentina' },
+    // Dónde entrega, de lo más chico a lo más grande: es lo que responde
+    // "juguetería que envíe a mi zona".
+    areaServed: [
+      { '@type': 'City', name: 'Ciudad Autónoma de Buenos Aires' },
+      { '@type': 'AdministrativeArea', name: 'Gran Buenos Aires' },
+      { '@type': 'AdministrativeArea', name: 'Provincia de Buenos Aires' },
+      { '@type': 'Country', name: 'Argentina' },
+    ],
     ...(redes.length ? { sameAs: redes } : {}),
-    ...(calle
-      ? {
-          address: {
-            '@type': 'PostalAddress',
-            streetAddress: calle,
-            addressLocality: 'Ciudad Autónoma de Buenos Aires',
-            addressRegion: 'CABA',
-            addressCountry: 'AR',
-          },
-        }
-      : {}),
     // Qué vende, en los términos con los que la gente lo busca.
     knowsAbout: [
       'juguetería',
+      'juguetería online',
       'librería',
+      'librería online',
       'regalería',
       'juguetes',
       'útiles escolares',
       'juegos didácticos',
+      'juegos de mesa',
       'regalos',
     ],
+    // El catálogo, declarado como tal: enlaza las páginas que compiten por
+    // cada término.
+    hasOfferCatalog: {
+      '@type': 'OfferCatalog',
+      name: 'Catálogo Flow Things',
+      itemListElement: [
+        { '@type': 'OfferCatalog', name: 'Juguetería', url: `${BASE}/categoria/jugueteria` },
+        { '@type': 'OfferCatalog', name: 'Librería', url: `${BASE}/categoria/libreria` },
+      ],
+    },
   }
 
   // Declara el buscador interno: permite que un asistente arme un link de

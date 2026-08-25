@@ -36,9 +36,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const categoriasUrls: MetadataRoute.Sitemap = (categorias || [])
     .filter((c: any) => !CATEGORIAS_PAUSADAS.includes(c.slug))
     .map((c: any) => ({
-      url: `${BASE}/productos?categoria=${c.slug}`,
+      url: `${BASE}/categoria/${c.slug}`,
       changeFrequency: 'weekly' as const,
-      priority: 0.6,
+      // Son las páginas que compiten por "juguetería online" y "librería
+      // online": pesan más que una ficha suelta.
+      priority: 0.9,
     }))
 
   return [...estaticas, ...productosUrls, ...categoriasUrls]
