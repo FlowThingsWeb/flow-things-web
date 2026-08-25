@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminToken } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { generarYSubirDerivadas } from '@/lib/imagen-derivadas'
 
 export async function POST(request: NextRequest) {
   const unauth = await verifyAdminToken(request)
@@ -37,28 +38,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    const path = `productos/${fileName}`
+    const base = `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    const { error } = await supabaseAdmin.storage
-      .from('productos')
-      .upload(path, buffer, {
-        contentType: file.type,
-        upsert: false,
-      })
+    // Los GIF pueden ser animados: sharp se quedaría con el primer cuadro, así
+    // que van tal cual. El loader deja pasar sin tocar todo lo que no sea una
+    // derivada, así que siguen mostrándose bien.
+    if (ext === 'gif') {
+      const path = `productos/${base}.gif`
+      const { error } = await supabaseAdmin.storage
+        .from('productos')
+        .upload(path, buffer, { contentType: file.type, upsert: false })
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      const { data: { publicUrl: urlGif } } = supabaseAdmin.storage
+        .from('productos')
+        .getPublicUrl(path)
+
+      return NextResponse.json({ url: urlGif, path })
     }
 
-    const { data: { publicUrl } } = supabaseAdmin.storage
-      .from('productos')
-      .getPublicUrl(path)
+    // El resto se guarda solo como derivadas (200/640/1280 en webp). No
+    // guardamos el original: el cliente ya lo comprime a 1600px antes de
+    // subirlo y el master de 1280 cubre hasta el lightbox.
+    const { url: publicUrl, paths } = await generarYSubirDerivadas(buffer, base)
 
-    return NextResponse.json({ url: publicUrl, path })
+    return NextResponse.json({ url: publicUrl, paths })
   } catch {
     return NextResponse.json({ error: 'Error al subir el archivo' }, { status: 500 })
   }
