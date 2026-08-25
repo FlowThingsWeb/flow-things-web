@@ -49,22 +49,6 @@ const nextConfig = {
       },
     ]
   },
-  async redirects() {
-    return [
-      {
-        // Las categorías pasaron a tener URL propia. La vieja
-        // /productos?categoria=jugueteria manda a /categoria/jugueteria, que es
-        // la que Google indexa. Con `missing` se deja pasar la búsqueda dentro
-        // de una categoría (?categoria=x&q=...), que sigue viviendo en
-        // /productos y va con noindex.
-        source: '/productos',
-        has: [{ type: 'query', key: 'categoria', value: '(?<cat>.*)' }],
-        missing: [{ type: 'query', key: 'q' }],
-        destination: '/categoria/:cat',
-        permanent: true,
-      },
-    ]
-  },
   images: {
     // Loader propio: el optimizador de Vercel no se usa. Cobra una
     // transformación por combo único (imagen, ancho, calidad, formato) y el

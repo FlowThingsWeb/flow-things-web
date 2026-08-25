@@ -2,7 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl
+
+  // Las categorías se mudaron de /productos?categoria=x a /categoria/x. El
+  // redirect se hace acá y no en next.config porque ahí el parámetro viejo
+  // viaja con la redirección y la URL nueva termina en
+  // /categoria/jugueteria?categoria=jugueteria.
+  //
+  // La búsqueda dentro de una categoría (?q=) sigue viviendo en /productos:
+  // esas URLs van con noindex y no tiene sentido darles ruta propia.
+  if (pathname === '/productos' && searchParams.has('categoria') && !searchParams.has('q')) {
+    const destino = new URL(`/categoria/${searchParams.get('categoria')}`, request.url)
+    // Se conservan orden y página, que sí son del catálogo.
+    for (const clave of ['orden', 'page']) {
+      const valor = searchParams.get(clave)
+      if (valor) destino.searchParams.set(clave, valor)
+    }
+    return NextResponse.redirect(destino, 301)
+  }
 
   if (pathname.startsWith('/admin')) {
     // Detectar si hay una sesión de usuario normal activa
@@ -41,5 +58,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/productos'],
 }
