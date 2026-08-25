@@ -390,7 +390,7 @@ export default async function HomePage({
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="bg-brand-purple/20 border border-brand-purple rounded-xl px-4 py-2 text-sm font-semibold text-brand-purple">
+            <div className="bg-brand-purple/20 border border-brand-purple rounded-xl px-4 py-2 text-sm font-semibold text-white">
               Mercado Pago
             </div>
             <div className="bg-brand-bg-soft border border-brand-border rounded-xl px-4 py-2 text-sm text-brand-text-muted">

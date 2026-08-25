@@ -130,7 +130,7 @@ export default function ProductCard({ producto, variante, rating }: ProductCardP
         {rating && rating.cantidad > 0 && (
           <div className="flex items-center gap-1 mt-1.5">
             <Stars value={rating.promedio} size={13} />
-            <span className="text-xs text-brand-text-light">({rating.cantidad})</span>
+            <span className="text-xs text-brand-text-muted">({rating.cantidad})</span>
           </div>
         )}
 
@@ -143,14 +143,14 @@ export default function ProductCard({ producto, variante, rating }: ProductCardP
               {formatPrecio(producto.precio)}
             </p>
             {tieneDescuento && (
-              <p className="text-brand-text-light text-xs line-through truncate">
+              <p className="text-brand-text-muted text-xs line-through truncate">
                 {formatPrecio(producto.precio_anterior!)}
               </p>
             )}
             {/* Cuotas: renglón estático (sin fetch) para no disparar N
                 llamadas a MP desde la grilla. El detalle exacto (sin interés /
                 monto por cuota) va en la ficha y el carrito. */}
-            <p className="text-brand-text-light text-[11px]">
+            <p className="text-brand-text-muted text-[11px]">
               Hasta 12 cuotas
             </p>
           </div>

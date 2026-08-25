@@ -52,7 +52,7 @@ export default function Footer({ cfg }: FooterProps) {
               <span className="font-bold text-white tracking-wide flex items-center gap-1">
                 <ET k="header_nombre_1" className="text-white" />
                 {' '}
-                <ET k="header_nombre_2" className="text-brand-purple" />
+                <ET k="header_nombre_2" className="text-brand-purple-light" />
               </span>
             </div>
             <p className="text-brand-text-muted text-sm leading-relaxed">
@@ -112,11 +112,11 @@ export default function Footer({ cfg }: FooterProps) {
             </h3>
             <ul className="space-y-3 text-sm text-brand-text-muted">
               <li className="flex items-center gap-2">
-                <span className="text-brand-purple">✉</span>
+                <span className="text-brand-purple-light">✉</span>
                 <ET k="footer_email" />
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-brand-purple">📱</span>
+                <span className="text-brand-purple-light">📱</span>
                 <ET k="footer_telefono" />
               </li>
             </ul>
@@ -184,7 +184,7 @@ export default function Footer({ cfg }: FooterProps) {
         </div>
 
         <div className="border-t border-brand-border mt-6 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-brand-text-light text-xs">
+          <p className="text-brand-text-muted text-xs">
             © {new Date().getFullYear()} {cfg.sitio_nombre}.{' '}
             <ET k="footer_copyright" />
           </p>

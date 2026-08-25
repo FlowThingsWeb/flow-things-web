@@ -71,12 +71,12 @@ export default function Header({ cfg }: HeaderProps) {
               <span className="font-bold text-lg text-white tracking-wide flex items-center gap-1">
                 <ET k="header_nombre_1" className="text-white" />
                 {' '}
-                <ET k="header_nombre_2" className="text-brand-purple" />
+                <ET k="header_nombre_2" className="text-brand-purple-light" />
               </span>
             ) : (
               <Link href="/" className="font-bold text-lg text-white hover:text-brand-neon transition-colors tracking-wide">
                 {cfg.header_nombre_1}{' '}
-                <span className="text-brand-purple">{cfg.header_nombre_2}</span>
+                <span className="text-brand-purple-light">{cfg.header_nombre_2}</span>
               </Link>
             )}
           </div>
@@ -125,6 +125,7 @@ export default function Header({ cfg }: HeaderProps) {
             {/* Hamburger mobile */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Abrir menú"
               className="md:hidden p-2 text-brand-text-muted"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">

@@ -151,7 +151,7 @@ export default function HomeCarousel({ slides }: { slides: SlideCarrusel[] }) {
 
         {/* Puntos */}
         {slides.length > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-5 flex-wrap">
+          <div className="flex items-center justify-center gap-1 mt-4 flex-wrap">
             {slides.map((slide, i) => (
               <button
                 key={slide.producto.id}
@@ -159,12 +159,20 @@ export default function HomeCarousel({ slides }: { slides: SlideCarrusel[] }) {
                 onClick={() => irA(i)}
                 aria-label={`Ir al producto ${i + 1} de ${slides.length}`}
                 aria-current={i === indice}
-                className={`h-2 rounded-full transition-all ${
-                  i === indice
-                    ? 'w-7 bg-brand-neon'
-                    : 'w-2 bg-brand-border hover:bg-brand-text-light'
-                }`}
-              />
+                // El botón mide 24x24 (mínimo táctil accesible) aunque el
+                // punto que se ve sea chico: antes el área tocable era de
+                // 8x8 px y en celular era casi imposible acertarle.
+                className="grid h-6 w-6 place-items-center"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`block h-2 rounded-full transition-all ${
+                    i === indice
+                      ? 'w-6 bg-brand-neon'
+                      : 'w-2 bg-brand-border hover:bg-brand-text-light'
+                  }`}
+                />
+              </button>
             ))}
           </div>
         )}
@@ -262,7 +270,7 @@ function Slide({
               {formatPrecio(producto.precio)}
             </span>
             {descuento !== null && (
-              <span className="text-brand-text-light text-lg line-through">
+              <span className="text-brand-text-muted text-lg line-through">
                 {formatPrecio(producto.precio_anterior!)}
               </span>
             )}

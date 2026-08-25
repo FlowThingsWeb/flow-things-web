@@ -15,7 +15,7 @@ export default function LegalPageShell({
       <header className="border-b border-brand-border">
         <div className="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between">
           <Link href="/" className="text-xl font-bold text-white">
-            Flow <span className="text-brand-purple">Things</span>
+            Flow <span className="text-brand-purple-light">Things</span>
           </Link>
           <Link href="/" className="text-sm text-brand-text-muted hover:text-brand-text transition-colors">
             ← Volver al sitio

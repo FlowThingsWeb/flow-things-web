@@ -8,6 +8,13 @@ import Script from 'next/script'
  *
  * Nota CSP: googletagmanager.com y connect.facebook.net están habilitados en
  * script-src (next.config.js).
+ *
+ * Los Script van con lazyOnload y no con la estrategia por defecto: los dos
+ * juntos pesan 398 KB (GTM + Meta) y arrancaban justo cuando la página
+ * intentaba pintar, llevándose el hilo principal. En Lighthouse eso se veía
+ * como 3,4 s de "render delay" sobre un LCP de 7,1 s. Con lazyOnload se
+ * cargan cuando el navegador queda libre: los eventos se siguen registrando,
+ * apenas unos instantes más tarde.
  */
 export default function Analytics() {
   const ga = process.env.NEXT_PUBLIC_GA_ID
@@ -19,9 +26,9 @@ export default function Analytics() {
         <>
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${ga}`}
-            strategy="afterInteractive"
+            strategy="lazyOnload"
           />
-          <Script id="ga4-init" strategy="afterInteractive">
+          <Script id="ga4-init" strategy="lazyOnload">
             {`
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
@@ -33,7 +40,7 @@ export default function Analytics() {
       )}
 
       {pixel && (
-        <Script id="meta-pixel" strategy="afterInteractive">
+        <Script id="meta-pixel" strategy="lazyOnload">
           {`
             !function(f,b,e,v,n,t,s)
             {if(f.fbq)return;n=f.fbq=function(){n.callMethod?

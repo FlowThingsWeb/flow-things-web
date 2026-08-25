@@ -102,7 +102,7 @@ export default function ProductReviews({ productoId }: { productoId: string }) {
           >
             {enviando ? 'Enviando...' : 'Publicar reseña'}
           </button>
-          <p className="text-xs text-brand-text-light">Solo podés reseñar productos que compraste.</p>
+          <p className="text-xs text-brand-text-muted">Solo podés reseñar productos que compraste.</p>
         </form>
       ) : (
         <p className="text-sm text-brand-text-muted mb-6">
@@ -119,7 +119,7 @@ export default function ProductReviews({ productoId }: { productoId: string }) {
             <div key={r.id} className="border-b border-brand-border pb-5 last:border-0">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <span className="text-sm font-semibold text-brand-text">{r.nombre}</span>
-                <span className="text-xs text-brand-text-light">{formatFecha(r.created_at)}</span>
+                <span className="text-xs text-brand-text-muted">{formatFecha(r.created_at)}</span>
               </div>
               <Stars value={r.rating} size={14} />
               {r.comentario && <p className="text-sm text-brand-text-muted mt-2 leading-relaxed">{r.comentario}</p>}

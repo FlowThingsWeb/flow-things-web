@@ -261,7 +261,7 @@ export default function CartDrawer({ gratisCaba = 40000, gratisAmba = 60000, gra
                 {formatPrecio(totalAmount)}
               </span>
             </div>
-            <p className="text-xs text-brand-text-light">
+            <p className="text-xs text-brand-text-muted">
               Descuentos calculados al finalizar la compra
             </p>
             {totalAmount > 0 && (
