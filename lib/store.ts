@@ -13,6 +13,13 @@ function cartKey(productoId: string, varianteId?: string): string {
 interface CartState {
   items: ItemCarrito[]
   isOpen: boolean
+  /**
+   * true cuando el carrito guardado en el navegador ya se cargó.
+   *
+   * Arranca en false y coincide con lo que renderiza el servidor, que no
+   * tiene forma de conocer el carrito. Ver `skipHydration` más abajo.
+   */
+  hidratado: boolean
   addItem: (producto: Producto, varianteId?: string) => void
   removeItem: (productoId: string, varianteId?: string) => void
   updateCantidad: (productoId: string, cantidad: number, varianteId?: string) => void
@@ -29,6 +36,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       isOpen: false,
+      hidratado: false,
 
       addItem: (producto, varianteId) => {
         const items = get().items
@@ -93,6 +101,25 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'flow-things-cart',
+      /**
+       * El carrito NO se carga solo al arrancar.
+       *
+       * Por defecto zustand lee localStorage antes del primer render del
+       * navegador, así que quien tenía algo en el carrito veía el contador con
+       * items mientras el servidor había mandado el HTML con el carrito vacío.
+       * React detectaba la diferencia, descartaba el HTML del servidor y
+       * volvía a dibujar toda la página en el navegador: se pagaba el costo
+       * del render dos veces, en cada visita.
+       *
+       * Ahora la carga la dispara CarritoHidratador después del primer
+       * render, cuando ya no hay nada que comparar.
+       */
+      skipHydration: true,
+      // El flag no se guarda: se recalcula en cada carga.
+      partialize: (state) => ({ items: state.items, isOpen: state.isOpen }) as CartState,
+      onRehydrateStorage: () => () => {
+        useCartStore.setState({ hidratado: true })
+      },
     }
   )
 )

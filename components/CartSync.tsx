@@ -17,13 +17,17 @@ import { ItemCarrito } from '@/types'
 
 export default function CartSync() {
   const { user } = useAuth()
-  const { items } = useCartStore()
+  const { items, hidratado } = useCartStore()
   const prevUserIdRef = useRef<string | null>(null)
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLoadFromDb = useRef(false)
 
   // Al hacer login, cargar carrito guardado y mergear
   useEffect(() => {
+    // Hasta que el carrito del navegador no está cargado, el local se ve
+    // vacío: mergear contra eso duplicaría lo que ya tiene el visitante.
+    if (!hidratado) return
+
     const prevId = prevUserIdRef.current
     prevUserIdRef.current = user?.id ?? null
 
@@ -64,11 +68,13 @@ export default function CartSync() {
     }
 
     loadCart()
-  }, [user])
+  }, [user, hidratado])
 
   // Al cambiar items, guardar en DB (debounced)
   useEffect(() => {
-    if (!user || !didLoadFromDb.current) return
+    // Sin el carrito cargado, `items` está vacío y el upsert borraría el
+    // carrito guardado del usuario.
+    if (!user || !hidratado || !didLoadFromDb.current) return
 
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current)
 
@@ -87,7 +93,7 @@ export default function CartSync() {
     return () => {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current)
     }
-  }, [user, items])
+  }, [user, items, hidratado])
 
   return null
 }
