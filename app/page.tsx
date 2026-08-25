@@ -9,6 +9,7 @@ import EditBar from '@/components/EditBar'
 import { Producto } from '@/types'
 import { getConfig } from '@/lib/config'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
+import { blurDe, getMapaBlur, imagenDeProducto } from '@/lib/blur'
 import HomeCarousel from '@/components/HomeCarousel'
 import TrustBar from '@/components/TrustBar'
 import { armarCarrusel } from '@/lib/carruselHome'
@@ -83,14 +84,24 @@ export default async function HomePage({
   const params = await searchParams
   const editMode = params.editMode === '1'
 
-  const [destacados, categorias, cfg, publicables] = await Promise.all([
+  const [destacados, categorias, cfg, publicables, mapaBlur] = await Promise.all([
     getDestacados(),
     getCategorias(),
     getConfig(),
     getProductosPublicables(),
+    getMapaBlur(),
   ])
 
   const slidesCarrusel = armarCarrusel(publicables)
+
+  // Blur sólo de lo que la home muestra: el mapa completo son 205 KB que se
+  // quedan en el server.
+  const blursCarrusel = Object.fromEntries(
+    slidesCarrusel.flatMap((s) => {
+      const blur = blurDe(mapaBlur, imagenDeProducto(s.producto))
+      return blur ? [[s.producto.id, blur]] : []
+    }),
+  )
 
   // Cada categoría se muestra con una foto real de su mercadería y cuántos
   // productos tiene disponibles. Una grilla de emojis no da ganas de entrar.
@@ -151,7 +162,7 @@ export default async function HomePage({
 
       {/* Carrusel de productos — primero para que se vea mercadería y un
           botón de comprar sin tener que scrollear. */}
-      <HomeCarousel slides={slidesCarrusel} />
+      <HomeCarousel slides={slidesCarrusel} blurs={blursCarrusel} />
 
       {/* Garantías: contesta envío, cuotas, seguridad y devoluciones antes de
           que el cliente tenga que ir a buscarlo. */}
@@ -251,6 +262,8 @@ export default async function HomePage({
                     fill
                     className="object-cover opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
                     sizes="(max-width: 1024px) 50vw, 33vw"
+                    placeholder={blurDe(mapaBlur, cat.foto) ? 'blur' : 'empty'}
+                    blurDataURL={blurDe(mapaBlur, cat.foto)}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -308,7 +321,10 @@ export default async function HomePage({
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 stagger-children">
             {destacados.map((producto) => (
               <div key={producto.id} className="animate-fade-up opacity-0">
-                <ProductCard producto={producto} />
+                <ProductCard
+                  producto={producto}
+                  blurDataURL={blurDe(mapaBlur, imagenDeProducto(producto))}
+                />
               </div>
             ))}
           </div>
@@ -337,7 +353,10 @@ export default async function HomePage({
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 stagger-children">
             {novedades.map((producto) => (
               <div key={producto.id} className="animate-fade-up opacity-0">
-                <ProductCard producto={producto} />
+                <ProductCard
+                  producto={producto}
+                  blurDataURL={blurDe(mapaBlur, imagenDeProducto(producto))}
+                />
               </div>
             ))}
           </div>

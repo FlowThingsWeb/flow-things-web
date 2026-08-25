@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { Producto, Variante } from '@/types'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import { contieneConSinonimos, normalizar } from '@/lib/sinonimos'
+import { blurDe, getMapaBlur, imagenDeProducto } from '@/lib/blur'
 
 const PAGE_SIZE = 24
 
@@ -176,7 +177,10 @@ export default async function ProductosPage({ searchParams }: PageProps) {
     getCategorias(),
   ])
 
-  const ratings = await getRatings([...new Set(items.map((i) => i.producto.id))])
+  const [ratings, mapaBlur] = await Promise.all([
+    getRatings([...new Set(items.map((i) => i.producto.id))]),
+    getMapaBlur(),
+  ])
 
   const categoriaActiva = categorias.find(
     (c) => c.slug === params.categoria
@@ -286,6 +290,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
                     rating={ratings.get(producto.id) ?? null}
                     // Primera fila en desktop, dos en mobile: se ven al entrar.
                     prioridad={i < 4}
+                    blurDataURL={blurDe(mapaBlur, imagenDeProducto(producto, variante))}
                   />
                 ))}
               </div>

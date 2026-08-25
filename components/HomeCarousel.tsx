@@ -34,7 +34,14 @@ const ETIQUETAS: Record<SlideCarrusel['etiqueta'], { texto: string; clase: strin
  * elasticidad) y no hay que emular gestos a mano. Los botones y los puntos
  * solo hacen scrollTo.
  */
-export default function HomeCarousel({ slides }: { slides: SlideCarrusel[] }) {
+export default function HomeCarousel({
+  slides,
+  blurs = {},
+}: {
+  slides: SlideCarrusel[]
+  /** Placeholder difuminado por id de producto (ver lib/blur.ts). */
+  blurs?: Record<string, string>
+}) {
   const pistaRef = useRef<HTMLDivElement>(null)
   const [indice, setIndice] = useState(0)
   const [pausado, setPausado] = useState(false)
@@ -113,6 +120,7 @@ export default function HomeCarousel({ slides }: { slides: SlideCarrusel[] }) {
               <Slide
                 key={slide.producto.id}
                 slide={slide}
+                blurDataURL={blurs[slide.producto.id]}
                 activo={i === indice}
                 esPrimero={i === 0}
                 onAgregar={() => {
@@ -183,11 +191,13 @@ export default function HomeCarousel({ slides }: { slides: SlideCarrusel[] }) {
 
 function Slide({
   slide,
+  blurDataURL,
   activo,
   esPrimero,
   onAgregar,
 }: {
   slide: SlideCarrusel
+  blurDataURL?: string
   activo: boolean
   /** Solo la primera foto se precarga: es la que entra en el LCP. */
   esPrimero: boolean
@@ -233,6 +243,8 @@ function Slide({
               priority={esPrimero}
               className="object-cover group-hover:scale-105 transition-transform duration-500"
               sizes="(max-width: 768px) 100vw, 45vw"
+              placeholder={blurDataURL ? 'blur' : 'empty'}
+              blurDataURL={blurDataURL}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">

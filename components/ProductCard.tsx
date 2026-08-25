@@ -7,6 +7,7 @@ import { useCartStore } from '@/lib/store'
 import FavoritoButton from '@/components/FavoritoButton'
 import Stars from '@/components/Stars'
 import { formatPrecio } from '@/lib/format'
+import { imagenDeProducto } from '@/lib/blur'
 import { trackAddToCart } from '@/lib/fbpixel'
 
 
@@ -20,28 +21,18 @@ interface ProductCardProps {
    * arrancaban recién después de que el browser resuelve el layout.
    */
   prioridad?: boolean
+  /** Miniatura difusa en base64 que se ve mientras baja la imagen real. */
+  blurDataURL?: string
 }
 
-export default function ProductCard({ producto, variante, rating, prioridad }: ProductCardProps) {
+export default function ProductCard({ producto, variante, rating, prioridad, blurDataURL }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem)
 
-  // Primera variante activa que tenga alguna imagen. Sirve de red de
-  // seguridad para productos que no cargaron imagen principal y tienen las
-  // fotos sólo en sus variantes (si no, la card salía con el 📦).
-  const varianteConImagen = producto.variantes?.find(
-    (v) => v.activo !== false && (v.imagen_url || v.imagenes?.[0]),
-  )
-
   // Imagen en cascada: variante propia → galería variante → imagen producto
-  // → galería producto → imagen de alguna variante del producto
-  const imagenUrl =
-    variante?.imagen_url ||
-    variante?.imagenes?.[0] ||
-    producto.imagen_url ||
-    producto.imagenes?.[0] ||
-    varianteConImagen?.imagen_url ||
-    varianteConImagen?.imagenes?.[0] ||
-    null
+  // → galería producto → imagen de alguna variante. La lógica vive en
+  // lib/blur para que el server pueda resolver la misma imagen y mandar el
+  // blur que corresponde.
+  const imagenUrl = imagenDeProducto(producto, variante)
   const stockVal   = variante ? variante.stock : producto.stock
   const sinStock   = stockVal === 0
   // Solo cuando queda UNA. Avisar "Quedan 2" o "Quedan 3" llenaba media
@@ -85,6 +76,8 @@ export default function ProductCard({ producto, variante, rating, prioridad }: P
             className="object-cover group-hover:scale-105 transition-transform duration-500"
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
             priority={prioridad}
+            placeholder={blurDataURL ? 'blur' : 'empty'}
+            blurDataURL={blurDataURL}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
