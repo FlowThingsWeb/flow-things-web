@@ -34,6 +34,48 @@ export const BUCKET = 'productos'
 /** Calidad webp. 80 es el punto donde deja de notarse la diferencia. */
 const CALIDAD_WEBP = 80
 
+/** Ancho del placeholder difuminado. 12px pesa ~150 bytes en base64. */
+const ANCHO_BLUR = 12
+
+/** Mapa de placeholders que lee el server (ver lib/blur.ts). */
+const PATH_BLUR = `${CARPETA_DERIVADAS}/blur.json`
+
+/**
+ * Agrega el blur de una imagen recién subida al mapa.
+ *
+ * El mapa es un único JSON, así que hay que leerlo y reescribirlo entero. Si
+ * dos imágenes se suben en el mismo instante, la segunda escritura puede pisar
+ * la primera y esa imagen queda sin blur hasta la próxima corrida de
+ * scripts/generar-blur.mjs. Es la peor consecuencia posible —se ve el gris de
+ * siempre mientras carga— y no justifica una tabla aparte con su propio
+ * bloqueo.
+ *
+ * Nunca tira: que falle el placeholder no puede voltear la carga del producto.
+ */
+async function agregarAlMapaBlur(buffer: Buffer, base: string): Promise<void> {
+  try {
+    const chico = await sharp(buffer)
+      .resize({ width: ANCHO_BLUR })
+      .webp({ quality: 40 })
+      .toBuffer()
+
+    const { data } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(PATH_BLUR)
+    const r = await fetch(`${data.publicUrl}?v=${Date.now()}`, { cache: 'no-store' })
+    const mapa: Record<string, string> = r.ok ? await r.json() : {}
+
+    mapa[base] = `data:image/webp;base64,${chico.toString('base64')}`
+
+    await supabaseAdmin.storage.from(BUCKET).upload(PATH_BLUR, JSON.stringify(mapa), {
+      contentType: 'application/json',
+      upsert: true,
+      // Corto: este archivo sí cambia con cada imagen nueva.
+      cacheControl: '300',
+    })
+  } catch (err) {
+    console.error('blur de', base, err)
+  }
+}
+
 /**
  * Genera las derivadas de un buffer y las sube a Supabase.
  *
@@ -68,6 +110,8 @@ export async function generarYSubirDerivadas(
     if (error) throw new Error(`No se pudo subir ${path}: ${error.message}`)
     paths.push(path)
   }
+
+  await agregarAlMapaBlur(buffer, base)
 
   const { data } = supabaseAdmin.storage
     .from(BUCKET)

@@ -6,8 +6,10 @@
  * primer frame en vez de un rectángulo gris. El mapa completo lo genera
  * scripts/generar-blur.mjs y vive en `derivadas/blur.json`.
  *
- * Se lee una vez por hora y queda cacheado: son ~300 KB que nunca llegan al
- * browser, porque cada página inyecta sólo los blurs de lo que muestra.
+ * Se relee cada 5 minutos y queda cacheado: son ~200 KB que nunca llegan al
+ * browser, porque cada página inyecta sólo los blurs de lo que muestra. Las
+ * imágenes que se suben desde el panel entran solas al mapa (ver
+ * lib/imagen-derivadas.ts); scripts/generar-blur.mjs lo reconstruye entero.
  */
 import { Producto, Variante } from '@/types'
 
@@ -17,7 +19,7 @@ export type MapaBlur = Record<string, string>
 
 export async function getMapaBlur(): Promise<MapaBlur> {
   try {
-    const r = await fetch(URL_BLUR, { next: { revalidate: 3600 } })
+    const r = await fetch(URL_BLUR, { next: { revalidate: 300 } })
     if (!r.ok) return {}
     return (await r.json()) as MapaBlur
   } catch {
