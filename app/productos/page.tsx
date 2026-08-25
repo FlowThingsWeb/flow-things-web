@@ -278,12 +278,14 @@ export default async function ProductosPage({ searchParams }: PageProps) {
           ) : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                {visibles.map(({ producto, variante }) => (
+                {visibles.map(({ producto, variante }, i) => (
                   <ProductCard
                     key={variante ? `${producto.id}-${variante.id}` : producto.id}
                     producto={producto}
                     variante={variante}
                     rating={ratings.get(producto.id) ?? null}
+                    // Primera fila en desktop, dos en mobile: se ven al entrar.
+                    prioridad={i < 4}
                   />
                 ))}
               </div>

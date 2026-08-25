@@ -24,6 +24,12 @@ const ANCHOS = [200, 640, 1280]
 const MASTER = ANCHOS[ANCHOS.length - 1]
 const BUCKET = 'productos'
 const CALIDAD = 80
+/**
+ * Un año e immutable. El nombre de una derivada lleva timestamp y ancho, así
+ * que su contenido nunca cambia. Sin este header, Storage responde `no-cache`:
+ * el CDN no la guarda y el browser la vuelve a pedir en cada visita.
+ */
+const CACHE_DERIVADAS = 'public, max-age=31536000, immutable'
 
 const args = process.argv.slice(2)
 const DRY = args.includes('--dry')
@@ -103,7 +109,13 @@ async function subir(path, buffer) {
   await conReintento(async () => {
     const r = await fetch(`${URL_SB}/storage/v1/object/${BUCKET}/${path}`, {
       method: 'POST',
-      headers: { ...cabeceras, 'Content-Type': 'image/webp', 'x-upsert': 'true' },
+      headers: {
+        ...cabeceras,
+        'Content-Type': 'image/webp',
+        'x-upsert': 'true',
+        // Ver CACHE_DERIVADAS: sin esto Storage sirve `no-cache`.
+        'cache-control': CACHE_DERIVADAS,
+      },
       body: buffer,
     })
     if (!r.ok) throw new Error(`subir ${path}: ${r.status} ${await r.text()}`)

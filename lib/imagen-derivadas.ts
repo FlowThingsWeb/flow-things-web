@@ -56,9 +56,14 @@ export async function generarYSubirDerivadas(
     const salida = await destino.webp({ quality: CALIDAD_WEBP }).toBuffer()
     const path = `${CARPETA_DERIVADAS}/${base}-${ancho}.webp`
 
-    const { error } = await supabaseAdmin.storage
-      .from(BUCKET)
-      .upload(path, salida, { contentType: 'image/webp', upsert: true })
+    const { error } = await supabaseAdmin.storage.from(BUCKET).upload(path, salida, {
+      contentType: 'image/webp',
+      upsert: true,
+      // Un año e immutable: el nombre lleva timestamp y ancho, así que el
+      // contenido de una derivada nunca cambia. Sin esto Storage responde
+      // `no-cache` y el CDN vuelve al origen en cada scroll.
+      cacheControl: `${60 * 60 * 24 * 365}`,
+    })
 
     if (error) throw new Error(`No se pudo subir ${path}: ${error.message}`)
     paths.push(path)

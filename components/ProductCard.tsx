@@ -14,9 +14,15 @@ interface ProductCardProps {
   producto: Producto
   variante?: Variante | null
   rating?: { promedio: number; cantidad: number } | null
+  /**
+   * Para las primeras tarjetas de la grilla: las carga ya, sin esperar al
+   * lazy loading. Son las que el visitante ve apenas entra, y con lazy
+   * arrancaban recién después de que el browser resuelve el layout.
+   */
+  prioridad?: boolean
 }
 
-export default function ProductCard({ producto, variante, rating }: ProductCardProps) {
+export default function ProductCard({ producto, variante, rating, prioridad }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem)
 
   // Primera variante activa que tenga alguna imagen. Sirve de red de
@@ -78,6 +84,7 @@ export default function ProductCard({ producto, variante, rating }: ProductCardP
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-500"
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            priority={prioridad}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
