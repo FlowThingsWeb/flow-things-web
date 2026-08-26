@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { sendEmail } from '@/lib/email'
+import { getConfig } from '@/lib/config'
 import {
   CONFIG_WEB_DEFAULT,
   calcularPrecioWeb,
+  zonasDesdeConfig,
   type AjustePrecio,
   type ConfigPreciosWeb,
 } from '@/lib/precios-web'
@@ -115,10 +117,18 @@ export async function GET(request: NextRequest) {
   const dry = new URL(request.url).searchParams.get('dry') === '1'
 
   try {
-    const [costos, ventas] = await Promise.all([
+    const [costos, ventas, cfgSitio] = await Promise.all([
       traerCostosDelCrm(),
       ventasWebPorSku(CONFIG_WEB_DEFAULT.dias_ventana_ventas),
+      getConfig(),
     ])
+
+    // Las zonas salen de la configuración real de envíos, así un cambio de
+    // tarifa se refleja en los precios sin tocar código.
+    const cfg: ConfigPreciosWeb = {
+      ...CONFIG_WEB_DEFAULT,
+      zonas: zonasDesdeConfig(cfgSitio as Record<string, string | undefined>),
+    }
     const costoPorSku = new Map(costos.map(c => [c.sku, c]))
 
     const { data: productos } = await supabaseAdmin
@@ -136,6 +146,7 @@ export async function GET(request: NextRequest) {
           { id: p.id, sku: p.sku, nombre: p.nombre, precio: Number(p.precio) },
           costo.costo_con_iva,
           ventas.get(p.sku) ?? 0,
+          cfg,
         ),
       )
     }
@@ -155,7 +166,7 @@ export async function GET(request: NextRequest) {
       await sendEmail({
         to: process.env.ADMIN_EMAIL,
         asunto: `Tienda: ${aCambiar.length} precio(s) actualizados${dry ? ' (simulación)' : ''}`,
-        cuerpo: armarMail(ajustes, aCambiar, CONFIG_WEB_DEFAULT),
+        cuerpo: armarMail(ajustes, aCambiar, cfg),
       })
     }
 

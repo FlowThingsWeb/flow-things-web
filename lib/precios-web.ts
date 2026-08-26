@@ -57,11 +57,10 @@ export const CONFIG_WEB_DEFAULT: ConfigPreciosWeb = {
   // Una venta en la última semana alcanza para dejar el precio quieto.
   dias_ventana_ventas: 7,
   ventas_minimas: 1,
-  // Los mismos valores que cobra la tienda hoy, por zona.
+  // Valores de respaldo. En producción se arman desde la configuración real
+  // de la tienda con zonasDesdeConfig().
   zonas: [
-    { nombre: "CABA", costo: 7500, gratis_desde: 45000 },
-    { nombre: "GBA", costo: 15000, gratis_desde: 65000 },
-    { nombre: "AMBA", costo: 20000, gratis_desde: 90000 },
+    { nombre: "Cercanía (CABA/AMBA)", costo: 14000, gratis_desde: 45000 },
     { nombre: "Buenos Aires", costo: 30000, gratis_desde: 130000 },
     { nombre: "Interior", costo: 40000, gratis_desde: 175000 },
   ],
@@ -77,6 +76,47 @@ export const CONFIG_WEB_DEFAULT: ConfigPreciosWeb = {
  * vendas a donde vendas. Con dos órdenes en la web no hay historial para
  * ponderar por zona real; cuando lo haya, esto se puede afinar.
  */
+/**
+ * Arma las zonas de costeo desde la configuración real de la tienda.
+ *
+ * CABA y AMBA no tienen tarifa plana: se cobra por distancia, base más un
+ * monto por kilómetro, con un radio máximo. Para costear se toma el peor caso
+ * dentro de ese radio —el envío más lejano que la tienda acepta—, porque el
+ * precio se fija antes de saber a qué dirección va a ir el paquete.
+ *
+ * Las zonas lejanas sí tienen tarifa plana y se usan tal cual.
+ */
+export function zonasDesdeConfig(cfg: Record<string, string | undefined>): ZonaEnvio[] {
+  const num = (v: string | undefined, def = 0) => Number(v) || def;
+  const zonas: ZonaEnvio[] = [];
+
+  if (cfg.envio_km_activo === "1") {
+    const base = num(cfg.envio_km_base);
+    const porKm = num(cfg.envio_km_por_km);
+    const radio = num(cfg.envio_km_radio_max);
+    zonas.push({
+      nombre: `Cercanía (hasta ${radio} km)`,
+      costo: base + porKm * radio,
+      gratis_desde: num(cfg.envio_km_gratis_desde, 45000),
+    });
+  }
+
+  zonas.push(
+    {
+      nombre: "Provincia de Buenos Aires",
+      costo: num(cfg.envio_precio_bsas ?? cfg.envio_precio_gba, 30000),
+      gratis_desde: num(cfg.envio_gratis_bsas_desde ?? cfg.envio_gratis_gba_desde, 130000),
+    },
+    {
+      nombre: "Interior",
+      costo: num(cfg.envio_precio_interior, 40000),
+      gratis_desde: num(cfg.envio_gratis_interior_desde, 175000),
+    },
+  );
+
+  return zonas;
+}
+
 export function costoEnvioDe(precio: number, zonas: ZonaEnvio[]): number {
   return zonas.reduce(
     (peor, z) => (precio >= z.gratis_desde && z.costo > peor ? z.costo : peor),
