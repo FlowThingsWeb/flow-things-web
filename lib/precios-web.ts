@@ -194,9 +194,13 @@ export function calcularPrecioWeb(
     }
   }
 
-  // Cambiar el precio por dos pesos no aporta y ensucia el historial.
+  // Cambiar el precio por dos pesos no aporta y ensucia el historial. Pero la
+  // tolerancia no puede tapar un margen por debajo del piso: ahí se corrige
+  // aunque el ajuste sea chico, que es justamente el caso de los productos que
+  // quedaron a uno o dos puntos del mínimo.
   const cambio = Math.abs(precioNuevo - producto.precio) / producto.precio;
-  const cambia = cambio >= cfg.tolerancia;
+  const bajoPiso = margenActual < cfg.margen_min;
+  const cambia = cambio > 0 && (bajoPiso || cambio >= cfg.tolerancia);
   if (!cambia) precioNuevo = producto.precio;
 
   return {
