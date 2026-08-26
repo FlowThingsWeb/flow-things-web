@@ -1,0 +1,35 @@
+# Ajusta los precios de la tienda según el costo de reposición del CRM.
+#
+# Semanal y no diario: el costo sólo cambia cuando entra una compra nueva, y
+# mover precios todos los días confunde a quien está mirando un producto.
+#
+# Va por GitHub Actions y no por Vercel porque el plan Hobby permite pocos
+# crons; tampoco por n8n, cuyo plan gratuito ya consume el workflow de ML.
+#
+# Secretos que usa:
+#   - CRON_SECRET (el mismo del resto de los crons de la web)
+
+name: Ajustar precios de la tienda
+
+on:
+  schedule:
+    # Lunes a las 8 de la mañana (11 UTC).
+    - cron: "0 11 * * 1"
+  workflow_dispatch:
+    inputs:
+      simulacion:
+        description: "Calcular y avisar sin cambiar precios"
+        type: boolean
+        default: true
+
+jobs:
+  ajustar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recalcular precios
+        run: |
+          DRY=""
+          if [ "${{ inputs.simulacion }}" = "true" ]; then DRY="?dry=1"; fi
+          curl -sS --fail \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://flowthings.com.ar/api/cron/ajustar-precios$DRY"
