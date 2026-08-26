@@ -30,6 +30,8 @@ jobs:
         run: |
           DRY=""
           if [ "${{ inputs.simulacion }}" = "true" ]; then DRY="?dry=1"; fi
-          curl -sS --fail \
+          # -L porque el dominio sin www redirige, y --fail sin seguir el
+          # redirect daría error 22 sin haber llegado al endpoint.
+          curl -sSL --fail \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "https://flowthings.com.ar/api/cron/ajustar-precios$DRY"
+            "https://www.flowthings.com.ar/api/cron/ajustar-precios$DRY"
