@@ -115,7 +115,10 @@ export async function GET(request: NextRequest) {
   const dry = new URL(request.url).searchParams.get('dry') === '1'
 
   try {
-    const [costos, ventas] = await Promise.all([traerCostosDelCrm(), ventasWebPorSku(60)])
+    const [costos, ventas] = await Promise.all([
+      traerCostosDelCrm(),
+      ventasWebPorSku(CONFIG_WEB_DEFAULT.dias_ventana_ventas),
+    ])
     const costoPorSku = new Map(costos.map(c => [c.sku, c]))
 
     const { data: productos } = await supabaseAdmin

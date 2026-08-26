@@ -15,10 +15,11 @@
 export type ZonaEnvio = { nombre: string; costo: number; gratis_desde: number };
 
 /**
- * Plan de cuotas sin interés: el recargo lo paga la tienda, no el comprador,
- * y sólo se aplica a partir de cierto monto de compra.
+ * Un escalón del plan de cuotas sin interés: a partir de cierto monto se
+ * habilitan más cuotas, y cuantas más cuotas, más caro le sale a la tienda.
+ * El recargo lo paga la tienda, no el comprador.
  */
-export type PlanCuotas = { cuotas: number; costo: number; desde: number };
+export type EscalonCuotas = { cuotas: number; costo: number; desde: number };
 
 export type ConfigPreciosWeb = {
   /** Margen mínimo sobre el costo con IVA, ya descontados cobro y envío. */
@@ -28,10 +29,15 @@ export type ConfigPreciosWeb = {
   /** Comisión de Mercado Pago sobre el precio. */
   comision_cobro: number;
   /**
-   * Plan de cuotas sin interés activo en la cuenta de Mercado Pago. Su costo
-   * se suma a la comisión cuando la compra supera el mínimo del plan.
+   * Escalones de cuotas sin interés activos en la cuenta de Mercado Pago. Se
+   * aplica el más alto que el monto alcance: se asume que el comprador elige
+   * el máximo de cuotas disponible, que es lo más caro para la tienda.
    */
-  plan_cuotas: PlanCuotas | null;
+  escalones_cuotas: EscalonCuotas[];
+  /** Ventana para considerar que un producto "se está vendiendo". */
+  dias_ventana_ventas: number;
+  /** Cuántas unidades tiene que haber vendido en esa ventana para no tocarlo. */
+  ventas_minimas: number;
   /** Zonas con sus costos y umbrales de envío gratis. */
   zonas: ZonaEnvio[];
   /** Diferencia mínima para molestarse en cambiar el precio. */
@@ -42,9 +48,15 @@ export const CONFIG_WEB_DEFAULT: ConfigPreciosWeb = {
   margen_min: 0.2,
   margen_objetivo: 0.4,
   comision_cobro: 0.0149,
-  // Plan activo hoy en la cuenta: hasta 6 cuotas sin interés, 18,69% a cargo
-  // de la tienda, para compras desde $311.000.
-  plan_cuotas: { cuotas: 6, costo: 0.1869, desde: 311000 },
+  // Planes activos hoy en la cuenta de Mercado Pago, de menor a mayor monto.
+  escalones_cuotas: [
+    { cuotas: 2, costo: 0.0779, desde: 95000 },
+    { cuotas: 3, costo: 0.1049, desde: 115000 },
+    { cuotas: 6, costo: 0.1869, desde: 311000 },
+  ],
+  // Una venta en la última semana alcanza para dejar el precio quieto.
+  dias_ventana_ventas: 7,
+  ventas_minimas: 1,
   // Los mismos valores que cobra la tienda hoy, por zona.
   zonas: [
     { nombre: "CABA", costo: 7500, gratis_desde: 45000 },
@@ -119,10 +131,13 @@ export function calcularPrecioWeb(
    * productos que juntos superen el mínimo, el costo real puede ser mayor que
    * el calculado.
    */
+  const escalonDe = (precio: number): EscalonCuotas | null =>
+    [...cfg.escalones_cuotas]
+      .sort((a, b) => a.desde - b.desde)
+      .reduce<EscalonCuotas | null>((alcanzado, e) => (precio >= e.desde ? e : alcanzado), null);
+
   const comisionDe = (precio: number) =>
-    cfg.plan_cuotas && precio >= cfg.plan_cuotas.desde
-      ? cfg.comision_cobro + cfg.plan_cuotas.costo
-      : cfg.comision_cobro;
+    cfg.comision_cobro + (escalonDe(precio)?.costo ?? 0);
 
   // El envío depende del precio y el precio del envío. Con cinco umbrales, una
   // pasada no basta: se itera hasta que el precio deja de moverse.
@@ -142,7 +157,7 @@ export function calcularPrecioWeb(
   const piso = precioParaMargen(cfg.margen_min);
   const objetivo = precioParaMargen(cfg.margen_objetivo);
   const margenActual = margenDe(producto.precio);
-  const vendio = unidadesVendidas > 0;
+  const vendio = unidadesVendidas >= cfg.ventas_minimas;
 
   let precioNuevo: number;
   let nota: string;
@@ -155,7 +170,7 @@ export function calcularPrecioWeb(
   } else if (vendio) {
     // Vende y deja margen: el precio ya está validado por el mercado.
     precioNuevo = producto.precio;
-    nota = `Vendió ${unidadesVendidas} unidad(es) y deja ${(margenActual * 100).toFixed(0)}%: no se toca`;
+    nota = `Vendió ${unidadesVendidas} unidad(es) en ${cfg.dias_ventana_ventas} días y deja ${(margenActual * 100).toFixed(0)}%: no se toca`;
   } else if (margenActual > cfg.margen_objetivo) {
     precioNuevo = aCentena(objetivo);
     nota = `Sin ventas y con ${(margenActual * 100).toFixed(0)}%: se baja al objetivo`;
@@ -165,20 +180,17 @@ export function calcularPrecioWeb(
   }
 
   /**
-   * Justo arriba del mínimo de cuotas sin interés se pierde plata: cruzarlo
-   * suma de golpe el costo del plan (hoy 18,69 puntos). Cuando el precio cae
-   * apenas por encima, conviene quedarse abajo — lo mismo que pasa con los
-   * umbrales de envío gratis.
+   * Cada escalón de cuotas es un acantilado: cruzarlo suma su costo de golpe
+   * (7,79, 10,49 o 18,69 puntos). Cuando el precio cae apenas por encima de
+   * uno, conviene quedarse abajo — lo mismo que pasa con los umbrales de envío.
    */
-  if (cfg.plan_cuotas && precioNuevo >= cfg.plan_cuotas.desde) {
-    const justoDebajo = Math.floor((cfg.plan_cuotas.desde - 1) / 100) * 100;
-    const gananciaArriba =
-      precioNuevo * (1 - comisionDe(precioNuevo)) - envioDe(precioNuevo) - costoConIva;
-    const gananciaAbajo =
-      justoDebajo * (1 - comisionDe(justoDebajo)) - envioDe(justoDebajo) - costoConIva;
-    if (gananciaAbajo > gananciaArriba && margenDe(justoDebajo) >= cfg.margen_min) {
+  const escalonActual = escalonDe(precioNuevo);
+  if (escalonActual) {
+    const justoDebajo = Math.floor((escalonActual.desde - 1) / 100) * 100;
+    const ganancia = (p: number) => p * (1 - comisionDe(p)) - envioDe(p) - costoConIva;
+    if (ganancia(justoDebajo) > ganancia(precioNuevo) && margenDe(justoDebajo) >= cfg.margen_min) {
       precioNuevo = justoDebajo;
-      nota += `. Se queda bajo los ${cfg.plan_cuotas.desde.toLocaleString("es-AR")} de las cuotas sin interés: cruzarlo cuesta ${(cfg.plan_cuotas.costo * 100).toFixed(1)} puntos`;
+      nota += `. Se queda bajo los ${escalonActual.desde.toLocaleString("es-AR")} de las ${escalonActual.cuotas} cuotas sin interés: cruzarlo cuesta ${(escalonActual.costo * 100).toFixed(2)} puntos`;
     }
   }
 
