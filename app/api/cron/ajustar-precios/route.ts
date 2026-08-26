@@ -38,12 +38,21 @@ type CostoCrm = {
 async function traerCostosDelCrm(): Promise<CostoCrm[]> {
   const url = process.env.CRM_URL
   const secreto = process.env.CRM_SECRET
-  if (!url || !secreto) throw new Error('Faltan CRM_URL o CRM_SECRET')
+  // Mensajes distintos por causa: el 90% de las fallas acá es una variable de
+  // entorno que falta o un secreto que no coincide, y conviene saber cuál.
+  if (!url) throw new Error('Falta la variable CRM_URL en la web')
+  if (!secreto) throw new Error('Falta la variable CRM_SECRET en la web')
 
   const r = await fetch(`${url}/api/integraciones/costos-por-sku`, {
     headers: { Authorization: `Bearer ${secreto}` },
     cache: 'no-store',
   })
+  if (r.status === 401) {
+    throw new Error('El CRM rechazó la credencial: CRM_SECRET no coincide con WEB_SECRET del CRM')
+  }
+  if (r.status === 404) {
+    throw new Error(`El CRM no tiene el endpoint (¿CRM_URL mal?): ${url}`)
+  }
   if (!r.ok) throw new Error(`El CRM respondió ${r.status}`)
   const data = await r.json()
   return (data.resultados ?? []) as CostoCrm[]
