@@ -5,6 +5,7 @@ import { getConfig } from '@/lib/config'
 import {
   CONFIG_WEB_DEFAULT,
   calcularPrecioWeb,
+  recomendarUmbrales,
   zonasDesdeConfig,
   type AjustePrecio,
   type ConfigPreciosWeb,
@@ -83,6 +84,8 @@ async function ventasWebPorSku(dias: number): Promise<Map<string, number>> {
 const money = (n: number) => '$' + Math.round(n).toLocaleString('es-AR')
 
 function armarMail(ajustes: AjustePrecio[], aplicados: AjustePrecio[], cfg: ConfigPreciosWeb) {
+  // Con los precios ya calculados se ve si algún umbral quedó mal ubicado.
+  const sugerencias = recomendarUmbrales(ajustes.map(a => a.precio_nuevo), cfg)
   const suben = aplicados.filter(a => a.direccion === 'sube').length
   const bajan = aplicados.filter(a => a.direccion === 'baja').length
 
@@ -111,7 +114,20 @@ ${aplicados.length === 0 ? '<p>No hubo cambios: todos los precios están dentro 
 <tr><th>Producto</th><th>Costo c/IVA</th><th>Comisión</th><th>Envío</th><th>Antes</th><th>Ahora</th><th>Margen</th><th>Ganancia</th><th></th></tr>
 ${filas}</table>`}
 <p style="color:#888">El envío se calcula con la zona más cara entre las que ya superaron su umbral de envío gratis,
-así el margen mínimo se cumple sin importar a dónde se venda.</p>`
+así el margen mínimo se cumple sin importar a dónde se venda.</p>
+${sugerencias.length === 0 ? '' : `
+<h3>Umbrales que convendría revisar</h3>
+<p>Justo por encima de cada umbral hay una zona donde se pierde plata: el producto activa el beneficio
+—envío gratis o cuotas— y su costo se lo come, sin que el precio de más alcance a compensarlo.</p>
+<table border="1" cellpadding="6" cellspacing="0" style="font-size:14px">
+<tr><th>Umbral</th><th>Hoy</th><th>Sugerido</th><th>Productos ahí</th><th>Costo si se vende uno de cada uno</th></tr>
+${sugerencias.map(s => `<tr><td>${s.nombre}</td><td>${money(s.umbral_actual)}</td>
+<td><b>${money(s.umbral_sugerido)}</b></td><td>${s.productos_afectados}</td>
+<td>${money(s.plata_en_juego)}</td></tr>`).join('')}
+</table>
+<ul>${sugerencias.map(s => `<li>${s.detalle}</li>`).join('')}</ul>
+<p style="color:#888">Subir el umbral deja esos productos fuera del beneficio: recupera margen, pero también
+saca el gancho comercial. La decisión es tuya.</p>`}`
 }
 
 export async function GET(request: NextRequest) {

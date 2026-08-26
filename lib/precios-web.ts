@@ -101,7 +101,25 @@ export function zonasDesdeConfig(cfg: Record<string, string | undefined>): ZonaE
     });
   }
 
+  // Todas las zonas con tarifa plana, incluidas las que sirven de respaldo
+  // cuando el cálculo por distancia no aplica (dirección no ubicable o fuera
+  // del radio). Un envío a CABA que cae al respaldo también lo paga la tienda.
   zonas.push(
+    {
+      nombre: "CABA (tarifa de respaldo)",
+      costo: num(cfg.envio_precio_caba, 8000),
+      gratis_desde: num(cfg.envio_gratis_caba_desde, 45000),
+    },
+    {
+      nombre: "AMBA",
+      costo: num(cfg.envio_precio_amba ?? cfg.envio_precio_gba, 20000),
+      gratis_desde: num(cfg.envio_gratis_amba_desde ?? cfg.envio_gratis_gba_desde, 90000),
+    },
+    {
+      nombre: "GBA",
+      costo: num(cfg.envio_precio_gba, 15000),
+      gratis_desde: num(cfg.envio_gratis_gba_desde, 65000),
+    },
     {
       nombre: "Provincia de Buenos Aires",
       costo: num(cfg.envio_precio_bsas ?? cfg.envio_precio_gba, 30000),
@@ -114,7 +132,15 @@ export function zonasDesdeConfig(cfg: Record<string, string | undefined>): ZonaE
     },
   );
 
-  return zonas;
+  // Sin duplicados: si dos zonas cuestan lo mismo desde el mismo monto, una
+  // sola alcanza para el costeo.
+  const vistas = new Set<string>();
+  return zonas.filter((z) => {
+    const clave = `${z.costo}::${z.gratis_desde}`;
+    if (vistas.has(clave)) return false;
+    vistas.add(clave);
+    return true;
+  });
 }
 
 export function costoEnvioDe(precio: number, zonas: ZonaEnvio[]): number {
@@ -264,4 +290,82 @@ export function calcularPrecioWeb(
       precioNuevo > producto.precio ? "sube" : precioNuevo < producto.precio ? "baja" : "igual",
     nota,
   };
+}
+
+export type SugerenciaUmbral = {
+  tipo: "envio" | "cuotas";
+  nombre: string;
+  umbral_actual: number;
+  umbral_sugerido: number;
+  productos_afectados: number;
+  plata_en_juego: number;
+  detalle: string;
+};
+
+/**
+ * ¿Conviene mover los umbrales de envío gratis o de cuotas sin interés?
+ *
+ * Cada umbral crea una zona muerta justo por encima: un producto a $46.000
+ * cruza los $45.000 de envío gratis y la tienda paga el envío entero, con lo
+ * que termina dejando menos que uno de $44.000. Cuando hay varios productos
+ * ahí arriba, subir el umbral recupera esa plata sin tocar ningún precio.
+ *
+ * El umbral sugerido deja fuera a todos los afectados: se pone justo por
+ * encima del más caro del grupo.
+ */
+export function recomendarUmbrales(
+  precios: number[],
+  cfg: ConfigPreciosWeb = CONFIG_WEB_DEFAULT,
+): SugerenciaUmbral[] {
+  const sugerencias: SugerenciaUmbral[] = [];
+  // Hasta acá el costo de cruzar todavía no se compensó con el precio de más.
+  const ANCHO_ZONA_MUERTA = 1.35;
+
+  for (const zona of cfg.zonas) {
+    const afectados = precios.filter(
+      (p) => p >= zona.gratis_desde && p < zona.gratis_desde * ANCHO_ZONA_MUERTA,
+    );
+    if (afectados.length === 0) continue;
+
+    const masCaro = Math.max(...afectados);
+    sugerencias.push({
+      tipo: "envio",
+      nombre: zona.nombre,
+      umbral_actual: zona.gratis_desde,
+      umbral_sugerido: Math.ceil((masCaro + 1000) / 1000) * 1000,
+      productos_afectados: afectados.length,
+      // Suma del envío de todos los afectados: lo que costaría vender uno de
+      // cada uno. Sirve para ordenar por dónde hay más plata en juego.
+      plata_en_juego: afectados.length * zona.costo,
+      detalle:
+        `${afectados.length} producto(s) entre ${zona.gratis_desde.toLocaleString("es-AR")} y ` +
+        `${Math.round(masCaro).toLocaleString("es-AR")} activan el envío gratis de ${zona.nombre} ` +
+        `y la tienda paga ${zona.costo.toLocaleString("es-AR")} en cada venta`,
+    });
+  }
+
+  for (const escalon of cfg.escalones_cuotas) {
+    const afectados = precios.filter(
+      (p) => p >= escalon.desde && p < escalon.desde * ANCHO_ZONA_MUERTA,
+    );
+    if (afectados.length === 0) continue;
+
+    const masCaro = Math.max(...afectados);
+    const costoPromedio = afectados.reduce((suma, p) => suma + p * escalon.costo, 0);
+    sugerencias.push({
+      tipo: "cuotas",
+      nombre: `${escalon.cuotas} cuotas sin interés`,
+      umbral_actual: escalon.desde,
+      umbral_sugerido: Math.ceil((masCaro + 1000) / 1000) * 1000,
+      productos_afectados: afectados.length,
+      plata_en_juego: Math.round(costoPromedio),
+      detalle:
+        `${afectados.length} producto(s) entre ${escalon.desde.toLocaleString("es-AR")} y ` +
+        `${Math.round(masCaro).toLocaleString("es-AR")} habilitan ${escalon.cuotas} cuotas ` +
+        `y cuestan ${(escalon.costo * 100).toFixed(2)}% extra por venta`,
+    });
+  }
+
+  // Primero donde hay más plata en juego.
+  return sugerencias.sort((a, b) => b.plata_en_juego - a.plata_en_juego);
 }
