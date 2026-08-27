@@ -429,15 +429,36 @@ export function calcularPrecioWeb(
   let conflictoMl = false;
   if (precioMl != null && precioMl > 0 && precioNuevo > precioMl) {
     const tope = Math.floor(precioMl / 100) * 100;
-    if (tope >= piso || !cfg.respetar_piso_sobre_ml) {
+    const pisoRedondeado = aCentena(piso);
+    const ml = Math.round(precioMl).toLocaleString("es-AR");
+
+    if (margenDe(tope) >= cfg.margen_min) {
       precioNuevo = tope;
-      nota = `Se topea en ${tope.toLocaleString("es-AR")} para no quedar más cara que Mercado Libre (${Math.round(precioMl).toLocaleString("es-AR")})`;
+      nota = `Se topea en ${tope.toLocaleString("es-AR")} para no quedar más cara que Mercado Libre (${ml})`;
+    } else if (pisoRedondeado <= tope) {
+      /**
+       * El techo se puede cumplir, pero no vendiendo justo a ese precio.
+       *
+       * El margen no crece parejo con el precio: si el techo de ML cae apenas
+       * por encima de un umbral de envío gratis o de cuotas, vender a ese
+       * precio activa el beneficio y su costo se come más de lo que suma el
+       * precio de más. Quedarse en el piso respeta el techo y el margen a la
+       * vez.
+       */
+      precioNuevo = pisoRedondeado;
+      nota =
+        `Mercado Libre está a ${ml}, pero a ese precio la web deja ` +
+        `${(margenDe(tope) * 100).toFixed(0)}%: se baja al piso para respetar el techo sin perder margen`;
+    } else if (!cfg.respetar_piso_sobre_ml) {
+      conflictoMl = true;
+      precioNuevo = tope;
+      nota = `Se topea en ${tope.toLocaleString("es-AR")} por Mercado Libre, con el margen por debajo del piso`;
     } else {
       // ML por debajo del piso de la web, que ya es el mínimo para no perder
       // plata. Bajar más sería vender a pérdida en los dos canales.
       conflictoMl = true;
-      precioNuevo = aCentena(piso);
-      nota = `Mercado Libre está a ${Math.round(precioMl).toLocaleString("es-AR")}, por debajo del piso de la web (${aCentena(piso).toLocaleString("es-AR")}): se deja el piso y hay que revisar la publicación`;
+      precioNuevo = pisoRedondeado;
+      nota = `Mercado Libre está a ${ml}, por debajo del piso de la web (${pisoRedondeado.toLocaleString("es-AR")}): se deja el piso y hay que revisar la publicación`;
     }
   }
 
