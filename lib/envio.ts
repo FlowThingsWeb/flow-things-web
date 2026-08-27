@@ -122,13 +122,13 @@ export function ubicacionCoincide(
   const esperaBA = declarado.provincia === 'Buenos Aires'
 
   if (esperaCABA && !esCABA(geo.provincia)) {
-    return { ok: false, motivo: `declaró CABA y resolvió "${geo.provincia}"` }
+    return { ok: false, motivo: `provincia: declaró CABA y resolvió "${geo.provincia}"` }
   }
   if (esperaBA && !esProvinciaBA(geo.provincia)) {
-    return { ok: false, motivo: `declaró Buenos Aires y resolvió "${geo.provincia}"` }
+    return { ok: false, motivo: `provincia: declaró Buenos Aires y resolvió "${geo.provincia}"` }
   }
   if (geo.parcial) {
-    return { ok: false, motivo: 'Google marcó la dirección como coincidencia parcial' }
+    return { ok: false, motivo: `partial_match (resolvió "${geo.localidad ?? ''}" / "${geo.partido ?? ''}" CP ${geo.codigo_postal ?? '-'})` }
   }
 
   const cpDeclarado = parseCP(declarado.codigoPostal)
@@ -141,7 +141,7 @@ export function ubicacionCoincide(
     if (!coincideNombre) {
       return {
         ok: false,
-        motivo: `CP ${cpDeclarado} vs ${cpResuelto} y localidad "${declarado.localidad ?? ''}" vs "${geo.localidad ?? geo.partido ?? ''}"`,
+        motivo: `cp+localidad: CP ${cpDeclarado} vs ${cpResuelto} y localidad "${declarado.localidad ?? ''}" vs "${geo.localidad ?? geo.partido ?? ''}"`,
       }
     }
   }
@@ -169,6 +169,12 @@ export interface OpcionEnvio {
   km: number | null
   tiempo_estimado: string
   descripcion: string | null
+  /**
+   * Por qué no se cotizó por cercanía y se cayó a tarifa plana. Sirve para
+   * responder "¿por qué a este cliente le salió más caro el envío?" sin tener
+   * que reproducir el caso: sólo habla de la dirección que mandó el llamador.
+   */
+  motivo_fallback?: string
 }
 
 /**
@@ -186,6 +192,7 @@ export async function calcularEnvio(
 
   const cfg = await getConfig()
   const zona = getZonaEnvio(provincia, codigoPostal)
+  let motivoFallback: string | undefined
 
   // Compat: el valor viejo 'gba' (cuando toda la provincia era una sola zona)
   // se usa como fallback para AMBA y Resto BA hasta que se configuren aparte.
@@ -215,7 +222,10 @@ export async function calcularEnvio(
     if (geo && veredicto && !veredicto.ok) {
       // Cae a tarifa plana, que es la conservadora: cobrar de menos por una
       // dirección mal resuelta lo paga la tienda entero.
+      motivoFallback = veredicto.motivo
       console.warn('[envio] geocodificación descartada:', veredicto.motivo, '—', destinoStr)
+    } else if (!geo) {
+      motivoFallback = 'no se pudo geocodificar la dirección'
     }
 
     const km =
@@ -294,5 +304,6 @@ export async function calcularEnvio(
     km:              null,
     tiempo_estimado: opcion.tiempo,
     descripcion:     esGratis ? '¡Envío gratis por superar el mínimo!' : null,
+    ...(motivoFallback ? { motivo_fallback: motivoFallback } : {}),
   }
 }
