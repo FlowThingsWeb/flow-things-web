@@ -3,7 +3,7 @@
  * Centralizar aquí evita que la lógica de precios se duplique.
  */
 import { getConfig } from '@/lib/config'
-import { distanciaManejoKm } from '@/lib/google-maps'
+import { distanciaManejoKm, geocodificar, type UbicacionGeo } from '@/lib/google-maps'
 
 export type ZonaEnvio = 'caba' | 'amba' | 'bsas' | 'interior'
 
@@ -74,6 +74,81 @@ export function getZonaEnvio(provincia: string, codigoPostal?: string | null): Z
   return 'interior'
 }
 
+/** Sin acentos, minúsculas, sin ruido: para comparar nombres de lugares. */
+function normalizar(s: string | null | undefined): string {
+  return String(s ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\bpartido de\b|\bciudad de\b|\bcdad\.?\b/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+const esCABA = (provincia: string | null) => normalizar(provincia).includes('autonoma')
+const esProvinciaBA = (provincia: string | null) => {
+  const n = normalizar(provincia)
+  return n.includes('buenos aires') && !n.includes('autonoma')
+}
+
+/**
+ * ¿La dirección que resolvió Google es la que declaró el comprador?
+ *
+ * Distance Matrix acepta texto libre y resuelve lo más parecido que encuentra,
+ * sin avisar. En el conurbano eso es una trampa: media docena de calles se
+ * llaman igual en todos los partidos, así que "Av. San Martín 2000, Florencio
+ * Varela" resolvía a la Av. San Martín de CABA y cotizaba un envío de 35 km
+ * como si fuera de 3, con la tienda comiéndose la diferencia.
+ *
+ * Se rechaza —y se cae a la tarifa plana de la zona, que es la conservadora—
+ * cuando hay evidencia de que resolvió otro lugar:
+ *
+ *   1. Provincia distinta. Es el caso grave: CABA y provincia son
+ *      jurisdicciones separadas y confundirlas cambia la tarifa entera.
+ *   2. `partial_match`: Google mismo avisa que no pudo matchear la dirección.
+ *   3. Código postal distinto Y nombre de localidad que tampoco coincide. Dos
+ *      señales independientes en contra; una sola puede ser un CP mal tipeado
+ *      o una diferencia de nomenclatura, y no alcanza para cobrar de más.
+ *
+ * Al revés no se rechaza: si falta el dato no se asume lo peor, porque una
+ * validación demasiado estricta le cobra tarifa plana a un cliente de CABA que
+ * tenía la dirección bien.
+ */
+export function ubicacionCoincide(
+  geo: UbicacionGeo,
+  declarado: { provincia: string; localidad?: string | null; codigoPostal?: string | null },
+): { ok: true } | { ok: false; motivo: string } {
+  const esperaCABA = declarado.provincia === 'CABA'
+  const esperaBA = declarado.provincia === 'Buenos Aires'
+
+  if (esperaCABA && !esCABA(geo.provincia)) {
+    return { ok: false, motivo: `declaró CABA y resolvió "${geo.provincia}"` }
+  }
+  if (esperaBA && !esProvinciaBA(geo.provincia)) {
+    return { ok: false, motivo: `declaró Buenos Aires y resolvió "${geo.provincia}"` }
+  }
+  if (geo.parcial) {
+    return { ok: false, motivo: 'Google marcó la dirección como coincidencia parcial' }
+  }
+
+  const cpDeclarado = parseCP(declarado.codigoPostal)
+  const cpResuelto = parseCP(geo.codigo_postal)
+  if (cpDeclarado !== null && cpResuelto !== null && cpDeclarado !== cpResuelto) {
+    const dicho = normalizar(declarado.localidad)
+    const candidatos = [geo.localidad, geo.partido].map(normalizar).filter(Boolean)
+    const coincideNombre =
+      dicho.length > 2 && candidatos.some((c) => c.includes(dicho) || dicho.includes(c))
+    if (!coincideNombre) {
+      return {
+        ok: false,
+        motivo: `CP ${cpDeclarado} vs ${cpResuelto} y localidad "${declarado.localidad ?? ''}" vs "${geo.localidad ?? geo.partido ?? ''}"`,
+      }
+    }
+  }
+
+  return { ok: true }
+}
+
 export interface OpcionEnvio {
   id: string
   nombre: string
@@ -117,8 +192,8 @@ export async function calcularEnvio(
   const num = (v: string | undefined, def: number) => Number(v) || def
 
   // ── Envío por cercanía (km): reemplaza CABA/AMBA cuando está activo ──
-  // Si falla (sin key, dirección no ubicable, o fuera de radio) cae a la
-  // tarifa plana de la zona (el bloque de abajo).
+  // Si falla (sin key, dirección no ubicable, resuelta en otra jurisdicción, o
+  // fuera de radio) cae a la tarifa plana de la zona (el bloque de abajo).
   if (
     (zona === 'caba' || zona === 'amba') &&
     cfg.envio_km_activo === '1' &&
@@ -128,7 +203,26 @@ export async function calcularEnvio(
     const destinoStr = [destino.direccion, destino.localidad, provincia, codigoPostal, 'Argentina']
       .filter((s) => s && String(s).trim())
       .join(', ')
-    const km = await distanciaManejoKm(cfg.envio_km_origen, destinoStr)
+
+    // Geocodificar primero y recién después medir: así se puede verificar que
+    // Google resolvió la jurisdicción declarada antes de creerle la distancia,
+    // y la medición sale contra coordenadas exactas en vez de texto ambiguo.
+    const geo = await geocodificar(destinoStr)
+    const veredicto = geo
+      ? ubicacionCoincide(geo, { provincia, localidad: destino.localidad, codigoPostal })
+      : null
+
+    if (geo && veredicto && !veredicto.ok) {
+      // Cae a tarifa plana, que es la conservadora: cobrar de menos por una
+      // dirección mal resuelta lo paga la tienda entero.
+      console.warn('[envio] geocodificación descartada:', veredicto.motivo, '—', destinoStr)
+    }
+
+    const km =
+      geo && veredicto?.ok
+        ? await distanciaManejoKm(cfg.envio_km_origen, `${geo.lat},${geo.lng}`)
+        : null
+
     if (km != null) {
       const radioMax = num(cfg.envio_km_radio_max, 0)
       if (radioMax <= 0 || km <= radioMax) {

@@ -9,6 +9,80 @@
  */
 
 const DM_URL = 'https://maps.googleapis.com/maps/api/distancematrix/json'
+const GEO_URL = 'https://maps.googleapis.com/maps/api/geocode/json'
+
+/** Una dirección ya resuelta por Google, con de dónde dice que es. */
+export interface UbicacionGeo {
+  lat: number
+  lng: number
+  /** administrative_area_level_1: la provincia (o CABA). */
+  provincia: string | null
+  /** administrative_area_level_2: el partido, en provincia de Buenos Aires. */
+  partido: string | null
+  localidad: string | null
+  codigo_postal: string | null
+  /**
+   * Google avisa así que no pudo matchear la dirección tal cual se la pasaron
+   * y devolvió lo más parecido que encontró. Para cotizar un envío eso no
+   * sirve: "lo más parecido" puede estar en otro partido.
+   */
+  parcial: boolean
+}
+
+/**
+ * Resuelve una dirección de texto a coordenadas, devolviendo además de dónde
+ * dice Google que es.
+ *
+ * Existe porque Distance Matrix acepta texto pero no informa qué entendió: le
+ * pasás "Av. San Martín 2000, Florencio Varela" y te devuelve 3 km sin
+ * aclarar que resolvió la Av. San Martín de CABA. Geocodificar primero deja
+ * verificar la jurisdicción antes de creerle a la distancia.
+ */
+export async function geocodificar(direccion: string): Promise<UbicacionGeo | null> {
+  const key = process.env.GOOGLE_MAPS_API_KEY
+  if (!key || !direccion?.trim()) return null
+
+  const url =
+    `${GEO_URL}?address=${encodeURIComponent(direccion)}` +
+    `&region=ar&language=es&key=${key}`
+
+  try {
+    const res = await fetch(url, { cache: 'no-store' })
+    if (!res.ok) {
+      console.error('[google-maps] geocode HTTP', res.status)
+      return null
+    }
+    const data = await res.json()
+    if (data.status !== 'OK' || !data.results?.[0]) {
+      // ZERO_RESULTS es un resultado válido: la dirección no existe.
+      if (data.status !== 'ZERO_RESULTS') {
+        console.error('[google-maps] geocode status', data.status, data.error_message ?? '')
+      }
+      return null
+    }
+
+    const r = data.results[0]
+    const loc = r.geometry?.location
+    if (typeof loc?.lat !== 'number' || typeof loc?.lng !== 'number') return null
+
+    const comp = (tipo: string): string | null =>
+      (r.address_components ?? []).find((c: { types: string[] }) => c.types?.includes(tipo))
+        ?.long_name ?? null
+
+    return {
+      lat: loc.lat,
+      lng: loc.lng,
+      provincia: comp('administrative_area_level_1'),
+      partido: comp('administrative_area_level_2'),
+      localidad: comp('locality') ?? comp('sublocality') ?? null,
+      codigo_postal: comp('postal_code'),
+      parcial: r.partial_match === true,
+    }
+  } catch (err) {
+    console.error('[google-maps] geocode error', err instanceof Error ? err.message : err)
+    return null
+  }
+}
 
 /**
  * Distancia de manejo (en km) entre dos direcciones/coordenadas, vía Google
