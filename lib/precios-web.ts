@@ -15,6 +15,30 @@
 export type ZonaEnvio = { nombre: string; costo: number; gratis_desde: number };
 
 /**
+ * La tarifa por cercanía no es un precio: es una fórmula. Se cobra una base
+ * más un monto por kilómetro de manejo, hasta un radio máximo; más lejos de
+ * ese radio el pedido cae a la tarifa plana de la zona.
+ *
+ * Guardarla como fórmula y no como un número suelto es lo que permite costear
+ * con la distancia que se despacha de verdad en vez de asumir siempre el
+ * extremo del radio, que es el envío más caro que la tienda llega a aceptar y
+ * casi nunca el que sale.
+ */
+export type TarifaKm = {
+  base: number;
+  por_km: number;
+  radio_max: number;
+  gratis_desde: number;
+};
+
+/** Lo que sale un envío por cercanía a esa distancia, con el radio como tope. */
+export function costoKmDe(t: TarifaKm, km: number): number {
+  const efectivo = Math.min(Math.max(km, 0), t.radio_max);
+  // Mismo redondeo a $100 que aplica lib/envio.ts al cobrarlo.
+  return Math.round((t.base + t.por_km * efectivo) / 100) * 100;
+}
+
+/**
  * Un escalón del plan de cuotas sin interés: a partir de cierto monto se
  * habilitan más cuotas, y cuantas más cuotas, más caro le sale a la tienda.
  * El recargo lo paga la tienda, no el comprador.
@@ -58,7 +82,7 @@ export const CONFIG_WEB_DEFAULT: ConfigPreciosWeb = {
   dias_ventana_ventas: 7,
   ventas_minimas: 1,
   // Valores de respaldo. En producción se arman desde la configuración real
-  // de la tienda con zonasDesdeConfig().
+  // de la tienda con costeoDesdeConfig().
   zonas: [
     { nombre: "Cercanía (CABA/AMBA)", costo: 14000, gratis_desde: 45000 },
     { nombre: "Buenos Aires", costo: 30000, gratis_desde: 130000 },
@@ -68,42 +92,98 @@ export const CONFIG_WEB_DEFAULT: ConfigPreciosWeb = {
 };
 
 /**
- * Cuánto puede costarle el envío a la tienda a ese precio, en el peor caso.
- *
- * Cada zona tiene su umbral: a $50.000 el envío es gratis para CABA (y lo paga
- * la tienda) pero el cliente del interior todavía lo paga. Se toma la zona más
- * cara entre las que ya superaron su umbral, así el margen mínimo se cumple
- * vendas a donde vendas. Con dos órdenes en la web no hay historial para
- * ponderar por zona real; cuando lo haya, esto se puede afinar.
+ * Percentil de una lista de números (0..1). Con lista vacía devuelve null.
  */
+function percentil(valores: number[], p: number): number | null {
+  if (valores.length === 0) return null;
+  const orden = [...valores].sort((a, b) => a - b);
+  const i = Math.min(orden.length - 1, Math.ceil(p * orden.length) - 1);
+  return orden[Math.max(0, i)];
+}
+
+/** Muestras mínimas para creerle al historial en vez del peor caso teórico. */
+export const MUESTRAS_KM_MINIMAS = 8;
+
+export type CosteoEnvio = {
+  zonas: ZonaEnvio[];
+  tarifa_km: TarifaKm | null;
+  /** Distancia con la que se costeó el envío por cercanía. */
+  km_costeo: number | null;
+  /** De dónde salió esa distancia, para poder auditar el precio. */
+  fuente_km: "radio máximo" | "historial de envíos" | "configurado a mano" | "sin cercanía";
+  muestras_km: number;
+};
+
 /**
- * Arma las zonas de costeo desde la configuración real de la tienda.
+ * Arma el costeo de envío desde la configuración real de la tienda.
  *
- * CABA y AMBA no tienen tarifa plana: se cobra por distancia, base más un
- * monto por kilómetro, con un radio máximo. Para costear se toma el peor caso
- * dentro de ese radio —el envío más lejano que la tienda acepta—, porque el
- * precio se fija antes de saber a qué dirección va a ir el paquete.
+ * Las zonas lejanas tienen tarifa plana y se usan tal cual. CABA y AMBA no:
+ * ahí se cobra por distancia, y esa parte variable es la que hay que estimar.
  *
- * Las zonas lejanas sí tienen tarifa plana y se usan tal cual.
+ * Cómo se elige la distancia de costeo, en orden:
+ *
+ *   1. `envio_km_costeo` si está seteado a mano en la configuración.
+ *   2. El percentil 90 de los envíos por cercanía ya despachados, si hay al
+ *      menos MUESTRAS_KM_MINIMAS. Cubre 9 de cada 10 pedidos reales.
+ *   3. El radio máximo. Es el peor caso y sube el precio de todo lo que pasa
+ *      el umbral, pero sin historial es lo único defendible.
+ *
+ * El paso 2 es el que importa: el local está en Chacarita y casi ningún envío
+ * de CABA llega a los 20 km del radio, así que costear siempre en el extremo
+ * infla los precios contra un envío que rara vez sale.
  */
-export function zonasDesdeConfig(cfg: Record<string, string | undefined>): ZonaEnvio[] {
+export function costeoDesdeConfig(
+  cfg: Record<string, string | undefined>,
+  kmObservados: number[] = [],
+): CosteoEnvio {
   const num = (v: string | undefined, def = 0) => Number(v) || def;
   const zonas: ZonaEnvio[] = [];
 
+  let tarifaKm: TarifaKm | null = null;
+  let kmCosteo: number | null = null;
+  let fuente: CosteoEnvio["fuente_km"] = "sin cercanía";
+
   if (cfg.envio_km_activo === "1") {
-    const base = num(cfg.envio_km_base);
-    const porKm = num(cfg.envio_km_por_km);
-    const radio = num(cfg.envio_km_radio_max);
-    zonas.push({
-      nombre: `Cercanía (hasta ${radio} km)`,
-      costo: base + porKm * radio,
+    tarifaKm = {
+      base: num(cfg.envio_km_base),
+      por_km: num(cfg.envio_km_por_km),
+      radio_max: num(cfg.envio_km_radio_max, 20),
       gratis_desde: num(cfg.envio_km_gratis_desde, 45000),
+    };
+
+    const manual = Number(cfg.envio_km_costeo);
+    const p90 = percentil(kmObservados, 0.9);
+
+    if (manual > 0) {
+      kmCosteo = Math.min(manual, tarifaKm.radio_max);
+      fuente = "configurado a mano";
+    } else if (p90 != null && kmObservados.length >= MUESTRAS_KM_MINIMAS) {
+      kmCosteo = Math.min(p90, tarifaKm.radio_max);
+      fuente = "historial de envíos";
+    } else {
+      kmCosteo = tarifaKm.radio_max;
+      fuente = "radio máximo";
+    }
+
+    zonas.push({
+      nombre: `Cercanía (costeado a ${kmCosteo.toFixed(1)} km)`,
+      costo: costoKmDe(tarifaKm, kmCosteo),
+      gratis_desde: tarifaKm.gratis_desde,
     });
   }
 
-  // Todas las zonas con tarifa plana, incluidas las que sirven de respaldo
-  // cuando el cálculo por distancia no aplica (dirección no ubicable o fuera
-  // del radio). Un envío a CABA que cae al respaldo también lo paga la tienda.
+  /**
+   * Las cuatro zonas de tarifa plana que realmente cobra lib/envio.ts.
+   *
+   * CABA y AMBA quedan igual aunque la cercanía esté activa: son el respaldo
+   * cuando la dirección no se puede ubicar o cae fuera del radio, y en AMBA
+   * la tarifa plana es más cara que cualquier envío por km, así que manda ella.
+   *
+   * Ojo: acá NO va ninguna zona "GBA". `envio_precio_gba` es un valor viejo de
+   * cuando toda la provincia era una sola zona; hoy sólo sobrevive como
+   * fallback de AMBA y Resto BA, que ya tienen su propia tarifa. Tratarlo como
+   * zona propia inventaba un escalón de $15.000 que nadie cobra.
+   */
   zonas.push(
     {
       nombre: "CABA (tarifa de respaldo)",
@@ -114,11 +194,6 @@ export function zonasDesdeConfig(cfg: Record<string, string | undefined>): ZonaE
       nombre: "AMBA",
       costo: num(cfg.envio_precio_amba ?? cfg.envio_precio_gba, 20000),
       gratis_desde: num(cfg.envio_gratis_amba_desde ?? cfg.envio_gratis_gba_desde, 90000),
-    },
-    {
-      nombre: "GBA",
-      costo: num(cfg.envio_precio_gba, 15000),
-      gratis_desde: num(cfg.envio_gratis_gba_desde, 65000),
     },
     {
       nombre: "Provincia de Buenos Aires",
@@ -135,14 +210,71 @@ export function zonasDesdeConfig(cfg: Record<string, string | undefined>): ZonaE
   // Sin duplicados: si dos zonas cuestan lo mismo desde el mismo monto, una
   // sola alcanza para el costeo.
   const vistas = new Set<string>();
-  return zonas.filter((z) => {
+  const unicas = zonas.filter((z) => {
     const clave = `${z.costo}::${z.gratis_desde}`;
     if (vistas.has(clave)) return false;
     vistas.add(clave);
     return true;
   });
+
+  return {
+    zonas: unicas,
+    tarifa_km: tarifaKm,
+    km_costeo: kmCosteo,
+    fuente_km: fuente,
+    muestras_km: kmObservados.length,
+  };
 }
 
+/** Atajo cuando sólo hacen falta las zonas. */
+export function zonasDesdeConfig(
+  cfg: Record<string, string | undefined>,
+  kmObservados: number[] = [],
+): ZonaEnvio[] {
+  return costeoDesdeConfig(cfg, kmObservados).zonas;
+}
+
+/**
+ * Escalones de cuotas sin interés desde la configuración.
+ *
+ * Los mínimos se editan en el panel de admin (`cuotas_sin_interes`) y tienen
+ * que coincidir con los de Mercado Pago. El costo de cada plan no está en ese
+ * JSON, así que se toma del escalón equivalente en la config de precios.
+ */
+export function escalonesDesdeConfig(
+  cfg: Record<string, string | undefined>,
+  base: EscalonCuotas[] = CONFIG_WEB_DEFAULT.escalones_cuotas,
+): EscalonCuotas[] {
+  try {
+    const planes = JSON.parse(cfg.cuotas_sin_interes ?? "[]") as { cuotas: number; min: number }[];
+    if (!Array.isArray(planes) || planes.length === 0) return base;
+    return planes
+      .map((p) => {
+        const conocido = base.find((e) => e.cuotas === Number(p.cuotas));
+        // Un plan nuevo sin costo conocido se ignora: costear en 0 sería peor
+        // que no verlo, porque daría un margen inflado.
+        if (!conocido) return null;
+        return { ...conocido, desde: Number(p.min) || conocido.desde };
+      })
+      .filter((e): e is EscalonCuotas => e !== null)
+      .sort((a, b) => a.desde - b.desde);
+  } catch {
+    return base;
+  }
+}
+
+/**
+ * Cuánto le cuesta el envío a la tienda a ese precio, tomando la zona más cara
+ * entre las que ya cruzaron su umbral de envío gratis.
+ *
+ * Cada zona tiene su propio umbral: a $50.000 el envío ya es gratis para
+ * cercanía (y lo paga la tienda) pero el cliente del interior todavía lo paga.
+ * Mirar la peor zona alcanzada hace que el margen mínimo se cumpla vendas a
+ * donde vendas, sin saber de antemano a qué dirección va el paquete.
+ *
+ * Es deliberadamente conservador: mientras no haya historial para ponderar por
+ * zona real, cobra de más antes que de menos.
+ */
 export function costoEnvioDe(precio: number, zonas: ZonaEnvio[]): number {
   return zonas.reduce(
     (peor, z) => (precio >= z.gratis_desde && z.costo > peor ? z.costo : peor),

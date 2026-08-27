@@ -36,6 +36,8 @@ export default function EnviosAdminPage() {
     por_km: '400',
     gratis_desde: '40000',
     radio_max: '20',
+    // Vacío = el pricing costea con el radio máximo o con el historial.
+    costeo: '',
     nombre: 'Envío a domicilio',
     tiempo: 'Coordinamos el día de entrega',
   })
@@ -88,6 +90,7 @@ export default function EnviosAdminPage() {
           por_km: cfg.envio_km_por_km || '400',
           gratis_desde: cfg.envio_km_gratis_desde || '40000',
           radio_max: cfg.envio_km_radio_max || '20',
+          costeo: cfg.envio_km_costeo ?? '',
           nombre: cfg.envio_km_nombre || 'Envío a domicilio',
           tiempo: cfg.envio_km_tiempo || 'Coordinamos el día de entrega',
         })
@@ -126,6 +129,7 @@ export default function EnviosAdminPage() {
         envio_km_por_km: km.por_km,
         envio_km_gratis_desde: km.gratis_desde,
         envio_km_radio_max: km.radio_max,
+        envio_km_costeo: km.costeo,
         envio_km_nombre: km.nombre,
         envio_km_tiempo: km.tiempo,
       }
@@ -247,6 +251,25 @@ export default function EnviosAdminPage() {
               onChange={e => setKm({ ...km, radio_max: e.target.value })}
               className="input-dark w-full" placeholder="20" />
             <p className="text-xs text-brand-text-light mt-1">Más lejos → tarifa plana. 0 = sin límite.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Distancia de costeo (km)
+            </label>
+            <input type="number" min="0" value={km.costeo}
+              onChange={e => setKm({ ...km, costeo: e.target.value })}
+              className="input-dark w-full" placeholder="automático" />
+            {Number(km.costeo) > 0 && km.base && km.por_km
+              ? <p className="text-xs text-brand-neon mt-1">
+                  El ajuste de precios va a descontar{' '}
+                  {formatPrecio(String(
+                    Math.round((Number(km.base) + Number(km.por_km) * Math.min(Number(km.costeo), Number(km.radio_max) || Infinity)) / 100) * 100
+                  ))}{' '}por envío
+                </p>
+              : <p className="text-xs text-brand-text-light mt-1">
+                  Vacío = automático: usa el percentil 90 de los envíos ya despachados, o el radio máximo
+                  mientras no haya suficientes. No cambia lo que paga el cliente, sólo cómo se calculan los precios.
+                </p>}
           </div>
           <div>
             <label className="block text-xs font-medium text-brand-text-muted mb-1.5">

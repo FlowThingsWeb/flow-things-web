@@ -4,11 +4,14 @@ import { sendEmail } from '@/lib/email'
 import { getConfig } from '@/lib/config'
 import {
   CONFIG_WEB_DEFAULT,
+  MUESTRAS_KM_MINIMAS,
   calcularPrecioWeb,
+  costeoDesdeConfig,
+  escalonesDesdeConfig,
   recomendarUmbrales,
-  zonasDesdeConfig,
   type AjustePrecio,
   type ConfigPreciosWeb,
+  type CosteoEnvio,
 } from '@/lib/precios-web'
 
 export const maxDuration = 60
@@ -75,7 +78,7 @@ async function ventasWebPorSku(dias: number): Promise<Map<string, number>> {
   const porSku = new Map<string, number>()
   for (const orden of data ?? []) {
     // Sólo cuentan las ventas cobradas.
-    if (!['pagado', 'aprobado', 'approved', 'completado'].includes(String(orden.estado).toLowerCase())) {
+    if (!ESTADOS_COBRADOS.includes(String(orden.estado).toLowerCase())) {
       continue
     }
     for (const item of (orden.items ?? []) as { sku?: string; cantidad?: number }[]) {
@@ -86,9 +89,42 @@ async function ventasWebPorSku(dias: number): Promise<Map<string, number>> {
   return porSku
 }
 
+/** Estados en los que la venta se considera cobrada. */
+const ESTADOS_COBRADOS = ['pagado', 'aprobado', 'approved', 'completado']
+
+/**
+ * Distancias de los envíos por cercanía ya despachados.
+ *
+ * Es lo que le permite al costeo dejar de asumir el peor caso: en vez de
+ * cobrar todos los productos como si cada envío fuera al borde del radio, se
+ * usa el percentil 90 de lo que realmente se despachó. Sólo cuentan las
+ * órdenes cobradas y sólo las que se cobraron por distancia (las de tarifa
+ * plana no tienen km).
+ */
+async function kmDespachados(dias: number): Promise<number[]> {
+  const desde = new Date(Date.now() - dias * 86_400_000).toISOString()
+  const { data } = await supabaseAdmin
+    .from('ordenes')
+    .select('datos_comprador, estado')
+    .gte('created_at', desde)
+
+  const kms: number[] = []
+  for (const orden of data ?? []) {
+    if (!ESTADOS_COBRADOS.includes(String(orden.estado).toLowerCase())) continue
+    const km = Number((orden.datos_comprador as { envio_km?: number } | null)?.envio_km)
+    if (Number.isFinite(km) && km > 0) kms.push(km)
+  }
+  return kms
+}
+
 const money = (n: number) => '$' + Math.round(n).toLocaleString('es-AR')
 
-function armarMail(ajustes: AjustePrecio[], aplicados: AjustePrecio[], cfg: ConfigPreciosWeb) {
+function armarMail(
+  ajustes: AjustePrecio[],
+  aplicados: AjustePrecio[],
+  cfg: ConfigPreciosWeb,
+  costeo: CosteoEnvio,
+) {
   // Con los precios ya calculados se ve si algún umbral quedó mal ubicado.
   const sugerencias = recomendarUmbrales(ajustes.map(a => a.precio_nuevo), cfg)
   const suben = aplicados.filter(a => a.direccion === 'sube').length
@@ -118,8 +154,33 @@ ${aplicados.length === 0 ? '<p>No hubo cambios: todos los precios están dentro 
 <table border="1" cellpadding="6" cellspacing="0" style="font-size:14px">
 <tr><th>Producto</th><th>Costo c/IVA</th><th>Comisión</th><th>Envío</th><th>Antes</th><th>Ahora</th><th>Margen</th><th>Ganancia</th><th></th></tr>
 ${filas}</table>`}
-<p style="color:#888">El envío se calcula con la zona más cara entre las que ya superaron su umbral de envío gratis,
-así el margen mínimo se cumple sin importar a dónde se venda.</p>
+<h3>Cómo se costeó el envío</h3>
+<p>Se toma la zona más cara entre las que ya superaron su umbral de envío gratis, así el margen mínimo
+se cumple sin importar a dónde se venda.</p>
+<table border="1" cellpadding="6" cellspacing="0" style="font-size:14px">
+<tr><th>Zona</th><th>Le cuesta a la tienda</th><th>Gratis desde</th></tr>
+${[...cfg.zonas]
+  .sort((a, b) => a.gratis_desde - b.gratis_desde)
+  .map(z => `<tr><td>${z.nombre}</td><td>${money(z.costo)}</td><td>${money(z.gratis_desde)}</td></tr>`)
+  .join('')}
+</table>
+${!costeo.tarifa_km ? '' : `
+<p style="font-size:14px">CABA y AMBA no tienen tarifa plana: se cobra
+<b>${money(costeo.tarifa_km.base)} + ${money(costeo.tarifa_km.por_km)} por km</b>,
+hasta ${costeo.tarifa_km.radio_max} km. Para poner precio hay que elegir una distancia, porque el precio
+se fija antes de saber a dónde va el paquete.</p>
+<p style="font-size:14px">Esta corrida costeó a <b>${costeo.km_costeo?.toFixed(1)} km</b>
+(${money(cfg.zonas.find(z => z.nombre.startsWith('Cercanía'))?.costo ?? 0)} por envío),
+según <b>${costeo.fuente_km}</b>${
+  costeo.fuente_km === 'historial de envíos'
+    ? ` — percentil 90 de ${costeo.muestras_km} envíos despachados`
+    : costeo.fuente_km === 'radio máximo'
+      ? `. Hay ${costeo.muestras_km} envío(s) por cercanía registrados y hacen falta ${MUESTRAS_KM_MINIMAS}
+         para usar el historial: mientras tanto se cobra el peor caso, que infla el precio de todo lo que
+         pasa los ${money(costeo.tarifa_km.gratis_desde)}. Si querés forzar una distancia, seteá
+         <code>envio_km_costeo</code> en la configuración`
+      : ' (config <code>envio_km_costeo</code>)'
+}.</p>`}
 ${sugerencias.length === 0 ? '' : `
 <h3>Umbrales que convendría revisar</h3>
 <p>Justo por encima de cada umbral hay una zona donde se pierde plata: el producto activa el beneficio
@@ -147,17 +208,25 @@ export async function GET(request: NextRequest) {
   const dry = new URL(request.url).searchParams.get('dry') === '1'
 
   try {
-    const [costos, ventas, cfgSitio] = await Promise.all([
+    const [costos, ventas, kms, cfgSitio] = await Promise.all([
       traerCostosDelCrm(),
       ventasWebPorSku(CONFIG_WEB_DEFAULT.dias_ventana_ventas),
+      // Ventana larga a propósito: el costeo por distancia necesita volumen,
+      // no actualidad, y las tarifas no cambian de una semana a la otra.
+      kmDespachados(180),
       getConfig(),
     ])
 
-    // Las zonas salen de la configuración real de envíos, así un cambio de
-    // tarifa se refleja en los precios sin tocar código.
+    // Envíos y cuotas salen de la configuración real de la tienda, así un
+    // cambio de tarifa o de mínimo se refleja en los precios sin tocar código.
+    // La parte variable (el envío por km) se costea con lo que se despachó de
+    // verdad cuando hay historial suficiente, y con el radio máximo si no.
+    const sitio = cfgSitio as Record<string, string | undefined>
+    const costeo: CosteoEnvio = costeoDesdeConfig(sitio, kms)
     const cfg: ConfigPreciosWeb = {
       ...CONFIG_WEB_DEFAULT,
-      zonas: zonasDesdeConfig(cfgSitio as Record<string, string | undefined>),
+      zonas: costeo.zonas,
+      escalones_cuotas: escalonesDesdeConfig(sitio),
     }
     const costoPorSku = new Map(costos.map(c => [c.sku, c]))
 
@@ -196,7 +265,7 @@ export async function GET(request: NextRequest) {
       await sendEmail({
         to: process.env.ADMIN_EMAIL,
         asunto: `Tienda: ${aCambiar.length} precio(s) actualizados${dry ? ' (simulación)' : ''}`,
-        cuerpo: armarMail(ajustes, aCambiar, cfg),
+        cuerpo: armarMail(ajustes, aCambiar, cfg, costeo),
       })
     }
 
@@ -204,6 +273,20 @@ export async function GET(request: NextRequest) {
       revisados: ajustes.length,
       cambiados: aCambiar.length,
       simulacion: dry,
+      // Con qué costeo de envío salieron estos precios. Sin esto no hay forma
+      // de saber, mirando el resultado, si un precio subió por el costo del
+      // producto o por la distancia que se asumió.
+      envio: {
+        km_costeo: costeo.km_costeo,
+        fuente_km: costeo.fuente_km,
+        envios_registrados: costeo.muestras_km,
+        muestras_necesarias: MUESTRAS_KM_MINIMAS,
+        zonas: costeo.zonas.map(z => ({
+          zona: z.nombre,
+          costo: z.costo,
+          gratis_desde: z.gratis_desde,
+        })),
+      },
       detalle: aCambiar.map(a => ({
         sku: a.sku,
         de: a.precio_actual,

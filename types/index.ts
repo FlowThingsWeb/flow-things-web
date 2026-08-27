@@ -68,6 +68,10 @@ export interface DatosComprador {
   envio_tipo?: string | null
   envio_nombre?: string | null
   envio_costo?: number
+  /** Lo que le costó el envío a la tienda, aunque el cliente no lo haya pagado. */
+  envio_costo_tienda?: number
+  /** Distancia de manejo, sólo en envíos cobrados por cercanía. */
+  envio_km?: number
   // Datos de factura AFIP (persistidos tras emitir CAE)
   factura_cae?: string
   factura_nro?: number

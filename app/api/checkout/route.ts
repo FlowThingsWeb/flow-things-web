@@ -158,6 +158,12 @@ export async function POST(request: NextRequest) {
     let costoEnvio = 0
     let envioNombreFinal = envio_nombre ?? null
     let envioTipoFinal   = envio_tipo ?? null
+    // Lo que sale el envío de bolsillo de la tienda y a qué distancia fue.
+    // Cuando el envío es gratis `costoEnvio` queda en 0 y sin esto no quedaría
+    // registro de la plata que se fue: es lo que el pricing necesita para
+    // costear con despachos reales en vez del peor caso teórico.
+    let costoEnvioTienda = 0
+    let envioKm: number | null = null
 
     if (envio_tipo && comprador.provincia) {
       if (envio_tipo === 'retiro') {
@@ -173,6 +179,8 @@ export async function POST(request: NextRequest) {
         })
         if (opcion) {
           costoEnvio       = opcion.precio
+          costoEnvioTienda = opcion.costo_tienda
+          envioKm          = opcion.km
           envioNombreFinal = opcion.nombre
           envioTipoFinal   = opcion.id
         }
@@ -193,7 +201,13 @@ export async function POST(request: NextRequest) {
           datos_comprador: {
             ...comprador,
             ...(envioTipoFinal
-              ? { envio_tipo: envioTipoFinal, envio_nombre: envioNombreFinal, envio_costo: costoEnvio }
+              ? {
+                  envio_tipo: envioTipoFinal,
+                  envio_nombre: envioNombreFinal,
+                  envio_costo: costoEnvio,
+                  envio_costo_tienda: costoEnvioTienda,
+                  ...(envioKm != null ? { envio_km: envioKm } : {}),
+                }
               : {}),
             ...(primerCompraMonto > 0 ? { primer_compra_monto: primerCompraMonto } : {}),
           },

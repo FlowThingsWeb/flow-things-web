@@ -77,7 +77,21 @@ export function getZonaEnvio(provincia: string, codigoPostal?: string | null): Z
 export interface OpcionEnvio {
   id: string
   nombre: string
+  /** Lo que paga el cliente. Es 0 cuando el pedido superó el umbral. */
   precio: number
+  /**
+   * Lo que le cuesta el envío a la tienda, pague o no el cliente. Cuando el
+   * envío es gratis, `precio` es 0 pero esto no: es la plata que sale del
+   * margen. Es el número que necesita el pricing, y el único que se puede
+   * comparar contra lo que el modelo de costeo asume.
+   */
+  costo_tienda: number
+  /**
+   * Kilómetros de manejo hasta el destino, sólo cuando se cobró por cercanía.
+   * `null` con tarifa plana. Guardarlo es lo que permite reemplazar el peor
+   * caso teórico del costeo por la distancia que se despacha de verdad.
+   */
+  km: number | null
   tiempo_estimado: string
   descripcion: string | null
 }
@@ -124,11 +138,14 @@ export async function calcularEnvio(
         const esGratis = subtotal > 0 && gratisDesde > 0 && subtotal >= gratisDesde
         // Redondeo a $100 para precios prolijos.
         const bruto = base + porKm * km
-        const precio = esGratis ? 0 : Math.round(bruto / 100) * 100
+        const costoTienda = Math.round(bruto / 100) * 100
+        const precio = esGratis ? 0 : costoTienda
         return {
           id: 'cercania',
           nombre: cfg.envio_km_nombre || 'Envío a domicilio',
           precio,
+          costo_tienda: costoTienda,
+          km,
           tiempo_estimado: cfg.envio_km_tiempo || '',
           descripcion: esGratis
             ? '¡Envío gratis por superar el mínimo!'
@@ -179,6 +196,8 @@ export async function calcularEnvio(
     id:              opcion.id,
     nombre:          opcion.nombre,
     precio:          precioFinal,
+    costo_tienda:    opcion.precio,
+    km:              null,
     tiempo_estimado: opcion.tiempo,
     descripcion:     esGratis ? '¡Envío gratis por superar el mínimo!' : null,
   }
