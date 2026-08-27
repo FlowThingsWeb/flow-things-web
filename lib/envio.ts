@@ -106,9 +106,16 @@ const esProvinciaBA = (provincia: string | null) => {
  *   1. Provincia distinta. Es el caso grave: CABA y provincia son
  *      jurisdicciones separadas y confundirlas cambia la tarifa entera.
  *   2. `partial_match`: Google mismo avisa que no pudo matchear la dirección.
- *   3. Código postal distinto Y nombre de localidad que tampoco coincide. Dos
- *      señales independientes en contra; una sola puede ser un CP mal tipeado
- *      o una diferencia de nomenclatura, y no alcanza para cobrar de más.
+ *   3. Sólo en provincia de Buenos Aires: la localidad declarada no coincide
+ *      con el partido ni con la localidad que devolvió Google.
+ *
+ * Dentro de CABA no se valida más allá de la provincia, y es a propósito:
+ * Google devuelve `locality` = "Buenos Aires" para los 48 barrios y códigos
+ * postales que no coinciden con los reales (Palermo 1425 le sale 1091, Parque
+ * Chas 1427 le sale 1431). Validar con esos datos rechazaba 17 de 48 barrios
+ * y les cobraba tarifa plana a clientes con la dirección bien puesta. El error
+ * que se deja pasar está acotado: CABA entera entra en el radio y el barrio
+ * más lejano está a 16 km.
  *
  * Al revés no se rechaza: si falta el dato no se asume lo peor, porque una
  * validación demasiado estricta le cobra tarifa plana a un cliente de CABA que
@@ -131,17 +138,18 @@ export function ubicacionCoincide(
     return { ok: false, motivo: `partial_match (resolvió "${geo.localidad ?? ''}" / "${geo.partido ?? ''}" CP ${geo.codigo_postal ?? '-'})` }
   }
 
-  const cpDeclarado = parseCP(declarado.codigoPostal)
-  const cpResuelto = parseCP(geo.codigo_postal)
-  if (cpDeclarado !== null && cpResuelto !== null && cpDeclarado !== cpResuelto) {
+  // Sólo en provincia: ahí `administrative_area_level_2` sí trae el partido y
+  // `locality` la localidad de verdad, así que comparar sirve. Es lo que
+  // separa un envío a Merlo (35 km, tarifa plana) de uno que se resolvió por
+  // error en San Martín (10 km).
+  if (esperaBA) {
     const dicho = normalizar(declarado.localidad)
-    const candidatos = [geo.localidad, geo.partido].map(normalizar).filter(Boolean)
-    const coincideNombre =
-      dicho.length > 2 && candidatos.some((c) => c.includes(dicho) || dicho.includes(c))
-    if (!coincideNombre) {
+    const candidatos = [geo.partido, geo.localidad].map(normalizar).filter(Boolean)
+    const coincide = candidatos.some((c) => c.includes(dicho) || dicho.includes(c))
+    if (dicho.length > 2 && candidatos.length > 0 && !coincide) {
       return {
         ok: false,
-        motivo: `cp+localidad: CP ${cpDeclarado} vs ${cpResuelto} y localidad "${declarado.localidad ?? ''}" vs "${geo.localidad ?? geo.partido ?? ''}"`,
+        motivo: `localidad: declaró "${declarado.localidad}" y resolvió "${geo.localidad ?? ''}" / "${geo.partido ?? ''}"`,
       }
     }
   }
