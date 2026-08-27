@@ -54,7 +54,12 @@ async function traerCostosDelCrm(): Promise<CostoCrm[]> {
   if (r.status === 404) {
     throw new Error(`El CRM no tiene el endpoint (¿CRM_URL mal?): ${url}`)
   }
-  if (!r.ok) throw new Error(`El CRM respondió ${r.status}`)
+  if (!r.ok) {
+    // El cuerpo trae el motivo real; sin esto el log sólo dice "500" y hay que
+    // adivinar si fue la base, un timeout o una consulta.
+    const detalle = await r.text().catch(() => '')
+    throw new Error(`El CRM respondió ${r.status}: ${detalle.slice(0, 300)}`)
+  }
   const data = await r.json()
   return (data.resultados ?? []) as CostoCrm[]
 }
