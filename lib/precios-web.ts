@@ -66,6 +66,18 @@ export type ConfigPreciosWeb = {
   zonas: ZonaEnvio[];
   /** Diferencia mínima para molestarse en cambiar el precio. */
   tolerancia: number;
+  /**
+   * Qué hacer cuando el precio de Mercado Libre queda por debajo del piso de
+   * margen de la web.
+   *
+   * `true` (por defecto): manda el piso y el conflicto se reporta. La web
+   * cobra bastante menos comisión que ML, así que un precio de ML por debajo
+   * del piso web significa que la publicación se está vendiendo con muy poco
+   * margen o a pérdida, y bajar la web también propaga esa pérdida.
+   *
+   * `false`: manda el techo de ML aunque el margen quede por debajo del piso.
+   */
+  respetar_piso_sobre_ml: boolean;
 };
 
 export const CONFIG_WEB_DEFAULT: ConfigPreciosWeb = {
@@ -89,6 +101,7 @@ export const CONFIG_WEB_DEFAULT: ConfigPreciosWeb = {
     { nombre: "Interior", costo: 40000, gratis_desde: 175000 },
   ],
   tolerancia: 0.03,
+  respetar_piso_sobre_ml: true,
 };
 
 /**
@@ -303,6 +316,13 @@ export type AjustePrecio = {
   costo_envio: number;
   ganancia: number;
   unidades_vendidas: number;
+  /** Precio efectivo del mismo SKU en Mercado Libre, si hay publicación. */
+  precio_ml: number | null;
+  /**
+   * El techo de ML no se pudo respetar porque quedaba por debajo del piso de
+   * margen. Se dejó el piso y hay que decidir a mano.
+   */
+  conflicto_ml: boolean;
   cambia: boolean;
   direccion: "sube" | "baja" | "igual";
   nota: string;
@@ -316,6 +336,8 @@ export function calcularPrecioWeb(
   costoConIva: number,
   unidadesVendidas: number,
   cfg: ConfigPreciosWeb = CONFIG_WEB_DEFAULT,
+  /** Precio efectivo del mismo SKU en ML, ya con promociones. null si no hay. */
+  precioMl: number | null = null,
 ): AjustePrecio {
   const envioDe = (precio: number) => costoEnvioDe(precio, cfg.zonas);
 
@@ -392,13 +414,40 @@ export function calcularPrecioWeb(
     }
   }
 
+  /**
+   * La web nunca puede quedar más cara que Mercado Libre.
+   *
+   * Si el mismo producto se consigue más barato en ML, la web no vende: el
+   * cliente compara y compra allá, donde además la comisión se la lleva el
+   * marketplace. El techo es el precio efectivo —con la promoción aplicada—,
+   * que es lo que el comprador ve.
+   *
+   * Se redondea hacia abajo, no a la centena más cercana: redondear para
+   * arriba volvería a dejar la web por encima del techo, que es justo lo que
+   * se quiere evitar.
+   */
+  let conflictoMl = false;
+  if (precioMl != null && precioMl > 0 && precioNuevo > precioMl) {
+    const tope = Math.floor(precioMl / 100) * 100;
+    if (tope >= piso || !cfg.respetar_piso_sobre_ml) {
+      precioNuevo = tope;
+      nota = `Se topea en ${tope.toLocaleString("es-AR")} para no quedar más cara que Mercado Libre (${Math.round(precioMl).toLocaleString("es-AR")})`;
+    } else {
+      // ML por debajo del piso de la web, que ya es el mínimo para no perder
+      // plata. Bajar más sería vender a pérdida en los dos canales.
+      conflictoMl = true;
+      precioNuevo = aCentena(piso);
+      nota = `Mercado Libre está a ${Math.round(precioMl).toLocaleString("es-AR")}, por debajo del piso de la web (${aCentena(piso).toLocaleString("es-AR")}): se deja el piso y hay que revisar la publicación`;
+    }
+  }
+
   // Cambiar el precio por dos pesos no aporta y ensucia el historial. Pero la
-  // tolerancia no puede tapar un margen por debajo del piso: ahí se corrige
-  // aunque el ajuste sea chico, que es justamente el caso de los productos que
-  // quedaron a uno o dos puntos del mínimo.
+  // tolerancia no puede tapar ni un margen por debajo del piso ni un precio
+  // por encima del techo de ML: esos se corrigen aunque el ajuste sea chico.
   const cambio = Math.abs(precioNuevo - producto.precio) / producto.precio;
   const bajoPiso = margenActual < cfg.margen_min;
-  const cambia = cambio > 0 && (bajoPiso || cambio >= cfg.tolerancia);
+  const sobreMl = precioMl != null && precioMl > 0 && producto.precio > precioMl;
+  const cambia = cambio > 0 && (bajoPiso || sobreMl || cambio >= cfg.tolerancia);
   if (!cambia) precioNuevo = producto.precio;
 
   return {
@@ -417,6 +466,8 @@ export function calcularPrecioWeb(
       precioNuevo * (1 - comisionDe(precioNuevo)) - envioDe(precioNuevo) - costoConIva,
     ),
     unidades_vendidas: unidadesVendidas,
+    precio_ml: precioMl,
+    conflicto_ml: conflictoMl,
     cambia,
     direccion:
       precioNuevo > producto.precio ? "sube" : precioNuevo < producto.precio ? "baja" : "igual",

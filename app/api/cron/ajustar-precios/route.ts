@@ -37,6 +37,8 @@ type CostoCrm = {
   sku: string
   costo_con_iva: number
   unidades_vendidas: number
+  /** Precio efectivo del mismo SKU en ML, con promociones ya aplicadas. */
+  precio_ml?: number | null
 }
 
 async function traerCostosDelCrm(): Promise<CostoCrm[]> {
@@ -47,7 +49,9 @@ async function traerCostosDelCrm(): Promise<CostoCrm[]> {
   if (!url) throw new Error('Falta la variable CRM_URL en la web')
   if (!secreto) throw new Error('Falta la variable CRM_SECRET en la web')
 
-  const r = await fetch(`${url}/api/integraciones/costos-por-sku`, {
+  // ml=1 trae además a cuánto se vende cada SKU en Mercado Libre: la web no
+  // puede quedar más cara que su propia publicación.
+  const r = await fetch(`${url}/api/integraciones/costos-por-sku?ml=1`, {
     headers: { Authorization: `Bearer ${secreto}` },
     cache: 'no-store',
   })
@@ -137,6 +141,7 @@ function armarMail(
 <td>${money(a.costo_con_iva)}</td>
 <td>${money(a.comision_monto)}<br><small style="color:#888">${a.comision_pct}%</small></td>
 <td>${money(a.costo_envio)}</td>
+<td>${a.precio_ml ? money(a.precio_ml) : '<span style="color:#bbb">—</span>'}</td>
 <td>${money(a.precio_actual)}</td>
 <td><b>${money(a.precio_nuevo)}</b> ${a.direccion === 'sube' ? '↑' : '↓'}</td>
 <td>${a.margen_actual_pct}% → <b>${a.margen_nuevo_pct}%</b></td>
@@ -149,10 +154,11 @@ function armarMail(
 <p>Se revisaron ${ajustes.length} productos con costo en el CRM.
 Se cambiaron <b>${aplicados.length}</b>: ${suben} suben, ${bajan} bajan.</p>
 <p>Objetivo: entre <b>${(cfg.margen_min * 100).toFixed(0)}%</b> y <b>${(cfg.margen_objetivo * 100).toFixed(0)}%</b>
-sobre el costo con IVA, ya descontados la comisión de cobro y el envío que paga la tienda.</p>
+sobre el costo con IVA, ya descontados la comisión de cobro y el envío que paga la tienda.
+Además, ningún precio queda por encima del de la misma publicación en Mercado Libre.</p>
 ${aplicados.length === 0 ? '<p>No hubo cambios: todos los precios están dentro del rango.</p>' : `
 <table border="1" cellpadding="6" cellspacing="0" style="font-size:14px">
-<tr><th>Producto</th><th>Costo c/IVA</th><th>Comisión</th><th>Envío</th><th>Antes</th><th>Ahora</th><th>Margen</th><th>Ganancia</th><th></th></tr>
+<tr><th>Producto</th><th>Costo c/IVA</th><th>Comisión</th><th>Envío</th><th>En ML</th><th>Antes</th><th>Ahora</th><th>Margen</th><th>Ganancia</th><th></th></tr>
 ${filas}</table>`}
 <h3>Cómo se costeó el envío</h3>
 <p>Se toma la zona más cara entre las que ya superaron su umbral de envío gratis, así el margen mínimo
@@ -181,6 +187,22 @@ según <b>${costeo.fuente_km}</b>${
          <code>envio_km_costeo</code> en la configuración`
       : ' (config <code>envio_km_costeo</code>)'
 }.</p>`}
+${(() => {
+  const conflictos = ajustes.filter(a => a.conflicto_ml)
+  if (conflictos.length === 0) return ''
+  return `
+<h3>Publicaciones de Mercado Libre más baratas que el piso de la web</h3>
+<p>En estos productos Mercado Libre está por debajo del mínimo que la web necesita para no perder plata,
+así que no se pudo aplicar el techo: se dejó el piso. La web cobra 1,49% de comisión y ML cerca del 13%,
+o sea que si allá el precio es más bajo que el piso de acá, esa publicación se está vendiendo con muy poco
+margen o directamente a pérdida. Conviene mirar la publicación, no el precio de la web.</p>
+<table border="1" cellpadding="6" cellspacing="0" style="font-size:14px">
+<tr><th>Producto</th><th>Costo c/IVA</th><th>Precio en ML</th><th>Piso de la web</th><th>Diferencia</th></tr>
+${conflictos.map(a => `<tr><td>${a.nombre}<br><small style="color:#888">SKU ${a.sku}</small></td>
+<td>${money(a.costo_con_iva)}</td><td>${money(a.precio_ml ?? 0)}</td><td><b>${money(a.precio_nuevo)}</b></td>
+<td style="color:#c00">${money(a.precio_nuevo - (a.precio_ml ?? 0))}</td></tr>`).join('')}
+</table>`
+})()}
 ${sugerencias.length === 0 ? '' : `
 <h3>Umbrales que convendría revisar</h3>
 <p>Justo por encima de cada umbral hay una zona donde se pierde plata: el producto activa el beneficio
@@ -246,6 +268,7 @@ export async function GET(request: NextRequest) {
           costo.costo_con_iva,
           ventas.get(p.sku) ?? 0,
           cfg,
+          costo.precio_ml ?? null,
         ),
       )
     }
@@ -287,11 +310,19 @@ export async function GET(request: NextRequest) {
           gratis_desde: z.gratis_desde,
         })),
       },
+      // Productos donde ML quedó por debajo del piso: el techo no se pudo
+      // aplicar y hay que decidirlo a mano.
+      conflictos_ml: ajustes.filter(a => a.conflicto_ml).map(a => ({
+        sku: a.sku,
+        ml: a.precio_ml,
+        piso_web: a.precio_nuevo,
+      })),
       detalle: aCambiar.map(a => ({
         sku: a.sku,
         de: a.precio_actual,
         a: a.precio_nuevo,
         margen: a.margen_nuevo_pct,
+        ml: a.precio_ml ?? null,
       })),
     })
   } catch (err) {
