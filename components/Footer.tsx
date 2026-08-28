@@ -8,6 +8,10 @@ import EditableImage from '@/components/EditableImage'
 import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import type { ConfigMap } from '@/lib/config'
 
+/** Logo de 128 px. Ver `logo_url` en lib/config.ts: el master de
+ *  512 px lo usan la factura, los mails y los datos estructurados. */
+const LOGO_UI = '/logo-chico.png'
+
 interface FooterProps {
   cfg: ConfigMap
 }
@@ -39,14 +43,14 @@ export default function Footer({ cfg }: FooterProps) {
                 {editMode ? (
                   <EditableImage
                     configKey="logo_url"
-                    src={cfg.logo_url || '/logo.png'}
+                    src={cfg.logo_url || LOGO_UI}
                     alt="Logo"
                     fill
                     className="object-cover"
                     sizes="40px"
                   />
                 ) : (
-                  <Image src={cfg.logo_url || '/logo.png'} alt="Flow Things" fill className="object-cover" sizes="40px" />
+                  <Image src={cfg.logo_url || LOGO_UI} alt="Flow Things" fill className="object-cover" sizes="40px" />
                 )}
               </div>
               <span className="font-bold text-white tracking-wide flex items-center gap-1">

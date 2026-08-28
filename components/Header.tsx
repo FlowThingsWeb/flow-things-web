@@ -12,6 +12,10 @@ import HeaderSearch from '@/components/HeaderSearch'
 import type { ConfigMap } from '@/lib/config'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 
+/** Logo de 128 px. Ver `logo_url` en lib/config.ts: el master de
+ *  512 px lo usan la factura, los mails y los datos estructurados. */
+const LOGO_UI = '/logo-chico.png'
+
 interface HeaderProps {
   cfg: ConfigMap
 }
@@ -47,7 +51,7 @@ export default function Header({ cfg }: HeaderProps) {
               {editMode ? (
                 <EditableImage
                   configKey="logo_url"
-                  src={cfg.logo_url || '/logo.png'}
+                  src={cfg.logo_url || LOGO_UI}
                   alt="Logo"
                   fill
                   className="object-cover"
@@ -56,7 +60,7 @@ export default function Header({ cfg }: HeaderProps) {
               ) : (
                 <Link href="/">
                   <Image
-                    src={cfg.logo_url || '/logo.png'}
+                    src={cfg.logo_url || LOGO_UI}
                     alt="Flow Things"
                     fill
                     className="object-cover"

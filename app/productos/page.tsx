@@ -19,6 +19,10 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       description: `Resultados para "${q}" en juguetería, librería y regalería. Envío a todo el país.`,
       // Las búsquedas no aportan nada al índice y generan URLs infinitas.
       robots: { index: false, follow: true },
+      // Sin esto la canonical cae en la del layout, que es la home: la página
+      // decía "no me indexes" y "la buena es la home" al mismo tiempo. La
+      // buena es el catálogo sin filtrar.
+      alternates: { canonical: `${BASE}/productos` },
     }
   }
 

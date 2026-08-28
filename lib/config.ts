@@ -12,6 +12,8 @@ export interface ConfigMap {
   header_nav_jugueteria: string
   // Hero
   hero_badge: string
+  hero_h1_1: string
+  hero_h1_2: string
   hero_titulo_1: string
   hero_titulo_2: string
   hero_titulo_3: string
@@ -70,13 +72,22 @@ export interface ConfigMap {
 
 const DEFAULTS: ConfigMap = {
   sitio_nombre: 'Flow Things',
-  logo_url: '/logo.png',
+  // 128 px, no el master de 512. Lo único que lee esta clave son el logo
+  // del encabezado (36 px) y el del pie (40 px). `/logo.png` sigue existiendo
+  // para la factura, los mails y el logo de Organization de los datos
+  // estructurados, que sí necesitan resolución.
+  logo_url: '/logo-chico.png',
   header_nombre_1: 'FLOW',
   header_nombre_2: 'THINGS',
   header_nav_catalogo: 'Catálogo',
   header_nav_libreria: 'Librería',
   header_nav_jugueteria: 'Juguetería',
   hero_badge: 'Librería & Juguetería online',
+  // El h1 arranca con lo que la gente escribe en Google. La frase de marca
+  // sigue en el mismo h1, abajo (hero_titulo_1..3): se lee igual, pero el
+  // encabezado ya no es sólo un eslogan.
+  hero_h1_1: 'Juguetería y librería',
+  hero_h1_2: 'online',
   hero_titulo_1: 'Todo lo que',
   hero_titulo_2: 'imaginás',
   hero_titulo_3: 'en un solo lugar',

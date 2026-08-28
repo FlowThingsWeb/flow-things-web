@@ -188,13 +188,24 @@ export default async function HomePage({
                 </span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 animate-fade-up leading-tight">
-                <T k="hero_titulo_1" />{' '}
-                <span className="text-gradient-purple">
-                  <T k="hero_titulo_2" />
+              {/* El h1 abre con lo que se busca en Google —"juguetería",
+                  "librería", "online"—, que el título y la descripción ya decían
+                  y él no. La frase de marca no se fue: quedó dentro del mismo
+                  h1, un escalón más abajo. */}
+              <h1 className="mb-4 animate-fade-up">
+                <span className="block text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight">
+                  <T k="hero_h1_1" />{' '}
+                  <span className="text-gradient-purple">
+                    <T k="hero_h1_2" />
+                  </span>
                 </span>
-                <br />
-                <T k="hero_titulo_3" />
+                <span className="block mt-3 text-lg sm:text-xl lg:text-2xl font-semibold text-brand-text-muted leading-snug">
+                  <T k="hero_titulo_1" />{' '}
+                  <span className="text-gradient-purple">
+                    <T k="hero_titulo_2" />
+                  </span>{' '}
+                  <T k="hero_titulo_3" />
+                </span>
               </h1>
 
               <p className="text-brand-text-muted text-base max-w-xl mb-7 animate-fade-up leading-relaxed">
