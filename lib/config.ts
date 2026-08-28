@@ -163,6 +163,37 @@ export const getConfig = unstable_cache(
   { revalidate: 60, tags: ['site-config'] }
 )
 
+/**
+ * Claves que no tienen por qué llegar al browser.
+ *
+ * `getConfig()` devuelve las 47 filas de `configuracion`, y el layout le pasa
+ * el objeto entero a UserShell, que es un componente de cliente: Next serializa
+ * todo eso en el HTML de TODAS las páginas. Ahí viajaban los cuerpos HTML
+ * completos de los mails de notificación —12,6 KB que ningún visitante usa— y
+ * el código del cupón post-compra, que se supone que se entrega recién después
+ * de comprar y estaba a la vista de cualquiera en el código fuente.
+ *
+ * Es una lista de exclusión, no de inclusión: si mañana se agrega una clave que
+ * sí necesita la UI, sigue funcionando sola. La contra es que una clave nueva
+ * pesada o sensible hay que acordarse de sumarla acá, por prefijo o por nombre.
+ */
+const PREFIJOS_SOLO_SERVIDOR = ['notif_', 'mailing_']
+const CLAVES_SOLO_SERVIDOR = ['cupon_postcompra_codigo']
+
+/**
+ * La misma config, sin lo que sólo usa el servidor. Va en todo borde donde el
+ * objeto cruza a un componente de cliente.
+ */
+export function configParaCliente(cfg: ConfigMap): ConfigMap {
+  const salida = {} as ConfigMap
+  for (const [clave, valor] of Object.entries(cfg)) {
+    if (CLAVES_SOLO_SERVIDOR.includes(clave)) continue
+    if (PREFIJOS_SOLO_SERVIDOR.some((p) => clave.startsWith(p))) continue
+    salida[clave] = valor
+  }
+  return salida
+}
+
 export interface ConfigRow {
   clave: string
   valor: string | null

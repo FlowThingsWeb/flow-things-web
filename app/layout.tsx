@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { getConfig } from '@/lib/config'
+import { configParaCliente, getConfig } from '@/lib/config'
 import { AuthProvider } from '@/lib/auth-context'
 import UserShell from '@/components/UserShell'
 import SeoJsonLd from '@/components/SeoJsonLd'
@@ -103,7 +103,9 @@ export default async function RootLayout({
       </head>
       <body>
         <AuthProvider>
-          <UserShell cfg={cfg}>
+          {/* Sin filtrar, acá cruzaban al browser los cuerpos de los mails
+              de notificación y el cupón post-compra. Ver lib/config.ts. */}
+          <UserShell cfg={configParaCliente(cfg)}>
             {children}
           </UserShell>
         </AuthProvider>
