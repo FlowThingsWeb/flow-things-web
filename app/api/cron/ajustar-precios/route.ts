@@ -30,7 +30,14 @@ export const maxDuration = 60
  * de Mercado Libre.
  */
 
-/** Tope de seguridad: un error de cálculo no puede tocar toda la tienda. */
+/**
+ * Tope de seguridad: un error de cálculo no puede tocar toda la tienda.
+ *
+ * Se puede subir con ?max=N para una corrida puntual —por ejemplo, después de
+ * corregir un error de costo que dejó mal todo el catálogo—, pero el default
+ * se queda bajo a propósito: el cron semanal no debería mover 90 precios sin
+ * que nadie lo haya mirado.
+ */
 const MAX_CAMBIOS = 25
 
 type CostoCrm = {
@@ -128,6 +135,8 @@ function armarMail(
   aplicados: AjustePrecio[],
   cfg: ConfigPreciosWeb,
   costeo: CosteoEnvio,
+  /** Cuántos quedaron sin cambiar por el tope de la corrida. */
+  quedanFuera = 0,
 ) {
   // Con los precios ya calculados se ve si algún umbral quedó mal ubicado.
   const sugerencias = recomendarUmbrales(ajustes.map(a => a.precio_nuevo), cfg)
@@ -135,30 +144,35 @@ function armarMail(
   const bajan = aplicados.filter(a => a.direccion === 'baja').length
 
   const filas = aplicados
-    .map(
-      a => `<tr>
-<td>${a.nombre}<br><small style="color:#888">SKU ${a.sku}</small></td>
+    .map(a => {
+      const dif = a.precio_actual ? (a.precio_nuevo / a.precio_actual - 1) * 100 : 0
+      const color = dif < 0 ? '#b91c1c' : '#15803d'
+      return `<tr>
+<td><b>${a.sku}</b><br><small style="color:#888">${a.nombre}</small></td>
 <td>${money(a.costo_con_iva)}</td>
-<td>${money(a.comision_monto)}<br><small style="color:#888">${a.comision_pct}%</small></td>
-<td>${money(a.costo_envio)}</td>
+<td>${money(a.comision_monto)}<br><small style="color:#888">${a.comision_pct}% de cobro</small></td>
+<td>${money(a.costo_envio)}<br><small style="color:#888">envío</small></td>
 <td>${a.precio_ml ? money(a.precio_ml) : '<span style="color:#bbb">—</span>'}</td>
 <td>${money(a.precio_actual)}</td>
-<td><b>${money(a.precio_nuevo)}</b> ${a.direccion === 'sube' ? '↑' : '↓'}</td>
-<td>${a.margen_actual_pct}% → <b>${a.margen_nuevo_pct}%</b></td>
-<td>${money(a.ganancia)}</td>
-<td style="font-size:12px">${a.nota}</td></tr>`,
-    )
+<td><b>${money(a.precio_nuevo)}</b></td>
+<td style="color:${color};font-weight:700">${dif > 0 ? '+' : ''}${dif.toFixed(1)}%</td>
+<td><b>${money(a.ganancia)}</b><br><small style="color:#888">${a.margen_actual_pct}% → ${a.margen_nuevo_pct}%</small></td>
+<td style="font-size:12px">${a.nota}</td></tr>`
+    })
     .join('')
 
   return `<h2>Precios de la tienda actualizados</h2>
 <p>Se revisaron ${ajustes.length} productos con costo en el CRM.
 Se cambiaron <b>${aplicados.length}</b>: ${suben} suben, ${bajan} bajan.</p>
+${quedanFuera > 0 ? `<p style="color:#b45309"><b>Quedaron ${quedanFuera} sin cambiar</b> por el tope de la corrida. Corré de nuevo para seguir.</p>` : ''}
+<p>La ganancia es lo que queda por unidad después de la comisión de cobro, el envío que paga la tienda
+y el costo con IVA. El margen es esa ganancia sobre el costo.</p>
 <p>Objetivo: entre <b>${(cfg.margen_min * 100).toFixed(0)}%</b> y <b>${(cfg.margen_objetivo * 100).toFixed(0)}%</b>
 sobre el costo con IVA, ya descontados la comisión de cobro y el envío que paga la tienda.
 Además, ningún precio queda por encima del de la misma publicación en Mercado Libre.</p>
 ${aplicados.length === 0 ? '<p>No hubo cambios: todos los precios están dentro del rango.</p>' : `
 <table border="1" cellpadding="6" cellspacing="0" style="font-size:14px">
-<tr><th>Producto</th><th>Costo c/IVA</th><th>Comisión</th><th>Envío</th><th>En ML</th><th>Antes</th><th>Ahora</th><th>Margen</th><th>Ganancia</th><th></th></tr>
+<tr><th>SKU / producto</th><th>Costo c/IVA</th><th>Comisión</th><th>Envío</th><th>En ML</th><th>Precio viejo</th><th>Precio nuevo</th><th>Dif</th><th>Ganancia y margen</th><th>Por qué</th></tr>
 ${filas}</table>`}
 <h3>Cómo se costeó el envío</h3>
 <p>Se toma la zona más cara entre las que ya superaron su umbral de envío gratis, así el margen mínimo
@@ -227,7 +241,11 @@ export async function GET(request: NextRequest) {
   }
 
   // Con ?dry=1 calcula y avisa, pero no toca ningún precio.
-  const dry = new URL(request.url).searchParams.get('dry') === '1'
+  const params = new URL(request.url).searchParams
+  const dry = params.get('dry') === '1'
+  const maxParam = Number(params.get('max'))
+  const maxCambios =
+    Number.isFinite(maxParam) && maxParam > 0 ? Math.floor(maxParam) : MAX_CAMBIOS
 
   try {
     const [costos, ventas, kms, cfgSitio] = await Promise.all([
@@ -273,7 +291,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const aCambiar = ajustes.filter(a => a.cambia).slice(0, MAX_CAMBIOS)
+    const aCambiar = ajustes.filter(a => a.cambia).slice(0, maxCambios)
+    const quedanFuera = ajustes.filter(a => a.cambia).length - aCambiar.length
 
     if (!dry) {
       for (const a of aCambiar) {
@@ -288,7 +307,7 @@ export async function GET(request: NextRequest) {
       await sendEmail({
         to: process.env.ADMIN_EMAIL,
         asunto: `Tienda: ${aCambiar.length} precio(s) actualizados${dry ? ' (simulación)' : ''}`,
-        cuerpo: armarMail(ajustes, aCambiar, cfg, costeo),
+        cuerpo: armarMail(ajustes, aCambiar, cfg, costeo, quedanFuera),
       })
     }
 

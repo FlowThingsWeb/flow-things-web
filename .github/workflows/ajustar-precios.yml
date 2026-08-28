@@ -21,6 +21,10 @@ on:
         description: "Calcular y avisar sin cambiar precios"
         type: boolean
         default: true
+      max:
+        description: "Tope de precios a cambiar en esta corrida (vacío = 25)"
+        type: string
+        default: ""
 
 jobs:
   ajustar:
@@ -28,8 +32,14 @@ jobs:
     steps:
       - name: Recalcular precios
         run: |
-          DRY=""
-          if [ "${{ inputs.simulacion }}" = "true" ]; then DRY="?dry=1"; fi
+          # Los parámetros se arman juntos: ?dry=1&max=90 o ?max=90 o nada.
+          PARAMS=""
+          if [ "${{ inputs.simulacion }}" = "true" ]; then PARAMS="dry=1"; fi
+          if [ -n "${{ inputs.max }}" ]; then
+            if [ -n "$PARAMS" ]; then PARAMS="$PARAMS&max=${{ inputs.max }}";
+            else PARAMS="max=${{ inputs.max }}"; fi
+          fi
+          if [ -n "$PARAMS" ]; then DRY="?$PARAMS"; else DRY=""; fi
           # -L porque el dominio sin www redirige, y --fail sin seguir el
           # redirect daría error 22 sin haber llegado al endpoint.
           # --fail-with-body para que el motivo del error quede en el log: con
