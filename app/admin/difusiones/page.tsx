@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { LOGO_EMAIL } from '@/lib/email-constants'
 
 type Difusion = {
   id: string
@@ -301,7 +302,7 @@ function brandPreview(contenido: string): string {
   <table width="100%" style="background:#ede9f7"><tr><td align="center" style="padding:24px 12px">
   <table width="600" style="max-width:600px;border-radius:20px;overflow:hidden;box-shadow:0 8px 30px rgba(80,0,200,.12)">
   <tr><td style="background:linear-gradient(135deg,#5b21b6,#7C3AED 60%,#9333ea);padding:24px;text-align:center">
-    <img src="https://flow-things-web.vercel.app/logo-light.png" height="48" alt="Flow Things"/></td></tr>
+    <img src="${LOGO_EMAIL}" height="48" alt="Flow Things"/></td></tr>
   <tr><td style="background:#fff;padding:32px;color:#1a0040;font-size:16px;line-height:1.6">${contenido || '<p style="color:#9ca3af">Tu contenido aparece acá…</p>'}</td></tr>
   <tr><td style="background:#fff;padding:0 32px 28px;text-align:center">
     <a href="#" style="display:inline-block;background:#7C3AED;color:#fff;font-weight:700;text-decoration:none;padding:12px 30px;border-radius:12px">Ver catálogo</a></td></tr>

@@ -1,3 +1,21 @@
+// ─── Dónde vive el sitio ──────────────────────────────────────────────────────
+
+/**
+ * Host del sitio para todo lo que se manda por mail.
+ *
+ * Las plantillas apuntaban al dominio de Vercel. Funcionaba, pero era la URL
+ * del proyecto la que le llegaba al cliente, y el día que el proyecto cambie de
+ * nombre se rompen las imágenes de todos los mails ya enviados —incluidos los
+ * de hace meses, que se cargan recién cuando alguien abre el mail—.
+ *
+ * Sale de la misma variable que usan el sitemap, el canonical y el feed, así
+ * que hay un solo lugar donde cambiarlo.
+ */
+export const URL_SITIO = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
+
+/** Logo sobre fondo violeta, el que va en la cabecera de los mails. */
+export const LOGO_EMAIL = `${URL_SITIO}/logo-light.png`
+
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
 export const DEFAULT_EMAIL_ASUNTO = 'Tu pedido de Flow Things fue confirmado &#x1F389;'
@@ -12,7 +30,7 @@ export const DEFAULT_EMAIL_CUERPO = `<!DOCTYPE html>
 
 <!-- HEADER -->
 <tr><td style="background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 60%,#9333ea 100%);padding:28px 40px 24px;text-align:center">
-  <img src="https://flow-things-web.vercel.app/logo-light.png" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>
+  <img src="${LOGO_EMAIL}" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>
 </td></tr>
 
 <!-- HERO -->
@@ -107,7 +125,7 @@ export const DEFAULT_EMAIL_CUERPO = `<!DOCTYPE html>
 
 <!-- FOOTER -->
 <tr><td style="background:#1e0050;padding:28px 40px;text-align:center">
-  <img src="https://flow-things-web.vercel.app/logo-light.png" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>
+  <img src="${LOGO_EMAIL}" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>
   <p style="margin:0 0 10px">
     <a href="https://flowthings.com.ar" style="color:#a78bfa;text-decoration:none;font-size:13px;font-weight:600">flowthings.com.ar</a>
   </p>
@@ -132,7 +150,7 @@ export const DEFAULT_CARRITO_CUERPO = `<!DOCTYPE html>
 <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(80,0,200,0.13)">
 
 <tr><td style="background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 60%,#9333ea 100%);padding:28px 40px;text-align:center">
-  <img src="https://flow-things-web.vercel.app/logo-light.png" height="56" alt="Flow Things" style="display:block;margin:0 auto"/>
+  <img src="${LOGO_EMAIL}" height="56" alt="Flow Things" style="display:block;margin:0 auto"/>
 </td></tr>
 
 <tr><td style="background:#f5f0ff;padding:32px 40px 24px;text-align:center">
@@ -173,7 +191,7 @@ export const DEFAULT_DESPACHO_CUERPO = `<!DOCTYPE html>
 
 <!-- HEADER -->
 <tr><td style="background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 60%,#9333ea 100%);padding:28px 40px 24px;text-align:center">
-  <img src="https://flow-things-web.vercel.app/logo-light.png" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>
+  <img src="${LOGO_EMAIL}" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>
 </td></tr>
 
 <!-- HERO -->
@@ -208,7 +226,7 @@ export const DEFAULT_DESPACHO_CUERPO = `<!DOCTYPE html>
 
 <!-- FOOTER -->
 <tr><td style="background:#1e0050;padding:28px 40px;text-align:center">
-  <img src="https://flow-things-web.vercel.app/logo-light.png" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>
+  <img src="${LOGO_EMAIL}" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>
   <p style="margin:0">
     <a href="https://flowthings.com.ar" style="color:#a78bfa;text-decoration:none;font-size:13px;font-weight:600">flowthings.com.ar</a>
   </p>

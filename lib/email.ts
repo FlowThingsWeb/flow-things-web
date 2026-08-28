@@ -1,5 +1,6 @@
 import { formatMonto } from './format'
 import { supabaseAdmin } from './supabaseAdmin'
+import { LOGO_EMAIL } from '@/lib/email-constants'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const nodemailer = require('nodemailer')
 
@@ -220,7 +221,7 @@ ${preheader}
 <tr><td align="center" style="padding:36px 16px 48px">
 <table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(80,0,200,0.13)">
   <tr><td style="background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 60%,#9333ea 100%);padding:28px 40px 24px;text-align:center">
-    <img src="https://flow-things-web.vercel.app/logo-light.png" height="56" alt="Flow Things" style="display:block;margin:0 auto"/>
+    <img src="${LOGO_EMAIL}" height="56" alt="Flow Things" style="display:block;margin:0 auto"/>
   </td></tr>
   <tr><td style="background:#ffffff;padding:36px 40px;color:#1a0040;font-size:16px;line-height:1.6">
     ${contenido}

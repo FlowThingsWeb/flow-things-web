@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { LOGO_EMAIL } from '@/lib/email-constants'
 
 // ─── Preview vars de ejemplo ──────────────────────────────────────────────────
 
@@ -108,7 +109,7 @@ const DEFAULT_DESPACHO_DESIGN: DespachoDesign = {
 
 function buildConfirmHTML(d: ConfirmDesign): string {
   const logoBlock = d.showLogo
-    ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>`
+    ? `<img src="${LOGO_EMAIL}" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>`
     : `<span style="color:#ffffff;font-size:24px;font-weight:800">Flow Things</span>`
   const closing = d.closingText.split('\n').join('<br/>')
   return `<!DOCTYPE html>
@@ -187,7 +188,7 @@ function buildConfirmHTML(d: ConfirmDesign): string {
 </td></tr>
 
 <tr><td style="background:#1e0050;padding:28px 40px;text-align:center">
-  ${d.showLogo ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>` : `<p style="margin:0 0 12px;font-size:16px;font-weight:700;color:#a78bfa">${d.footerText}</p>`}
+  ${d.showLogo ? `<img src="${LOGO_EMAIL}" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>` : `<p style="margin:0 0 12px;font-size:16px;font-weight:700;color:#a78bfa">${d.footerText}</p>`}
   <p style="margin:0 0 8px"><a href="https://flowthings.com.ar" style="color:#a78bfa;text-decoration:none;font-size:13px;font-weight:600">flowthings.com.ar</a></p>
   <p style="margin:0;font-size:11px;color:#6d28d9">Fecha del pedido: {{fecha}}</p>
 </td></tr>
@@ -198,7 +199,7 @@ function buildConfirmHTML(d: ConfirmDesign): string {
 
 function buildDespachoHTML(d: DespachoDesign): string {
   const logoBlock = d.showLogo
-    ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>`
+    ? `<img src="${LOGO_EMAIL}" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>`
     : `<span style="color:#ffffff;font-size:24px;font-weight:800">Flow Things</span>`
   return `<!DOCTYPE html>
 <html lang="es">
@@ -239,7 +240,7 @@ function buildDespachoHTML(d: DespachoDesign): string {
 </td></tr>
 
 <tr><td style="background:#1e0050;padding:28px 40px;text-align:center">
-  ${d.showLogo ? `<img src="https://flow-things-web.vercel.app/logo-light.png" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>` : `<p style="margin:0 0 12px;font-size:16px;font-weight:700;color:#a78bfa">${d.footerText}</p>`}
+  ${d.showLogo ? `<img src="${LOGO_EMAIL}" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>` : `<p style="margin:0 0 12px;font-size:16px;font-weight:700;color:#a78bfa">${d.footerText}</p>`}
   <p style="margin:0"><a href="https://flowthings.com.ar" style="color:#a78bfa;text-decoration:none;font-size:13px;font-weight:600">flowthings.com.ar</a></p>
 </td></tr>
 

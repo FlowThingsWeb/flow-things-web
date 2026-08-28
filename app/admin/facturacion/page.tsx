@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { formatMonto } from '@/lib/format'
+import { URL_SITIO } from '@/lib/email-constants'
 
 interface FacturaResultado {
   cae: string
@@ -99,7 +100,8 @@ function generarHTMLFactura(r: FacturaResultado): string {
   const qrData = generarQRData(r)
   const qrUrl = `https://www.afip.gob.ar/fe/qr/?p=${qrData}`
   const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrUrl)}`
-  const logoUrl = 'https://flow-things-web.vercel.app/logo.png'
+  // El master de 512 px: la factura se imprime y se manda en PDF.
+  const logoUrl = `${URL_SITIO}/logo.png`
 
   const cliente = r.cliente
   const items = r.items || [{ sku: '–', descripcion: 'Factura de prueba – Flow Things', cantidad: 1, precioUnitario: r.totalNumerico }]
