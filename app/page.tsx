@@ -13,6 +13,7 @@ import { blurDe, getMapaBlur, imagenDeProducto } from '@/lib/blur'
 import HomeCarousel from '@/components/HomeCarousel'
 import TrustBar from '@/components/TrustBar'
 import { armarCarrusel } from '@/lib/carruselHome'
+import FaqCategoria, { faqDeTienda } from '@/components/FaqCategoria'
 
 /** Primera foto usable de un producto (la propia o la de alguna variante). */
 function fotoDe(p: Producto): string | null {
@@ -93,6 +94,7 @@ export default async function HomePage({
   ])
 
   const slidesCarrusel = armarCarrusel(publicables)
+  const faqHome = faqDeTienda(cfg)
 
   // Blur sólo de lo que la home muestra: el mapa completo son 205 KB que se
   // quedan en el server.
@@ -429,6 +431,25 @@ export default async function HomePage({
           </div>
         </div>
       </section>
+
+      {/* Preguntas frecuentes de la tienda. Las categorías ya tienen las suyas;
+          faltaban en la home, que es la página por la que entra un asistente
+          cuando le preguntan "dónde compro juguetes con envío". */}
+      <FaqCategoria faq={faqHome} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: faqHome.map((f) => ({
+              '@type': 'Question',
+              name: f.pregunta,
+              acceptedAnswer: { '@type': 'Answer', text: f.respuesta },
+            })),
+          }),
+        }}
+      />
     </>
   )
 }
