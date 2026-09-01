@@ -1,0 +1,34 @@
+# Manda por mail lo que se movió en los precios de Mercado Libre.
+#
+# El HTML lo arma el CRM (que tiene los datos) y lo manda la tienda (que tiene
+# el mailer). Va por GitHub Actions y no por n8n: el aviso no puede depender
+# del servicio que más falló.
+#
+# Secretos que usa:
+#   - CRON_SECRET (el mismo del resto de los crons de la web)
+
+name: Avisar cambios de precios de ML
+
+on:
+  schedule:
+    # Todos los días a las 9 de la mañana de Buenos Aires (12 UTC), después de
+    # que corrió el workflow de precios.
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+    inputs:
+      horas:
+        description: "Ventana de movimientos a reportar"
+        type: string
+        default: "24"
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mandar el aviso
+        run: |
+          HORAS="${{ inputs.horas }}"
+          if [ -z "$HORAS" ]; then HORAS=24; fi
+          curl -sSL --fail-with-body \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://www.flowthings.com.ar/api/cron/avisar-ml?horas=$HORAS"
