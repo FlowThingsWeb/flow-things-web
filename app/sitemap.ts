@@ -22,14 +22,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .select('slug, updated_at, categorias(slug)')
     .eq('activo', true)
 
+  // Una ficha a la que le movimos el precio esta semana se declara como que
+  // cambia a diario: es la señal que hace que Google la vuelva a leer antes,
+  // en vez de seguir mostrando el precio viejo que tiene indexado.
+  const HACE_UNA_SEMANA = Date.now() - 7 * 24 * 60 * 60 * 1000
+
   const productosUrls: MetadataRoute.Sitemap = (productos || [])
     .filter((p: any) => !CATEGORIAS_PAUSADAS.includes(p.categorias?.slug))
-    .map((p: any) => ({
-      url: `${BASE}/productos/${p.slug}`,
-      lastModified: p.updated_at ? new Date(p.updated_at) : undefined,
-      changeFrequency: 'weekly' as const,
-      priority: 0.8,
-    }))
+    .map((p: any) => {
+      const modificado = p.updated_at ? new Date(p.updated_at) : undefined
+      const reciente = !!modificado && modificado.getTime() > HACE_UNA_SEMANA
+      return {
+        url: `${BASE}/productos/${p.slug}`,
+        lastModified: modificado,
+        changeFrequency: (reciente ? 'daily' : 'weekly') as 'daily' | 'weekly',
+        priority: reciente ? 0.9 : 0.8,
+      }
+    })
 
   // Categorías
   const { data: categorias } = await supabaseAdmin.from('categorias').select('slug')

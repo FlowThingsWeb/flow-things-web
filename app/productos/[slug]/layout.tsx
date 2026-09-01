@@ -43,6 +43,13 @@ function imagenDe(p: {
   return v?.imagen_url || v?.imagenes?.[0] || null
 }
 
+/** Vigencia del precio para el dato estructurado: 30 días, en YYYY-MM-DD. */
+function validoHasta(dias = 30): string {
+  const d = new Date()
+  d.setDate(d.getDate() + dias)
+  return d.toISOString().slice(0, 10)
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -116,6 +123,11 @@ export default async function ProductoLayout({
             '@type': 'Offer',
             price: p.precio,
             priceCurrency: 'ARS',
+            // Hasta cuándo vale el precio. Sin esto Google marca la ficha como
+            // incompleta y, cuando la copia que tiene indexada envejece, deja
+            // de mostrar el precio en el resultado. La página se rearma cada 5
+            // minutos, así que la fecha siempre viaja fresca.
+            priceValidUntil: validoHasta(),
             availability: p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
             itemCondition: 'https://schema.org/NewCondition',
             url: `${BASE}/productos/${slug}`,

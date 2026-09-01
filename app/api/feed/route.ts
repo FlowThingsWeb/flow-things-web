@@ -23,7 +23,7 @@ function esc(s: string): string {
 export async function GET() {
   const { data: productos } = await supabaseAdmin
     .from('productos')
-    .select('id, nombre, slug, descripcion, precio, imagen_url, imagenes, stock, categorias(nombre, slug)')
+    .select('id, nombre, slug, descripcion, precio, precio_anterior, imagen_url, imagenes, stock, categorias(nombre, slug)')
     .eq('activo', true)
 
   const items = (productos || [])
@@ -32,13 +32,23 @@ export async function GET() {
       const img = p.imagen_url || p.imagenes?.[0] || ''
       const desc = p.descripcion || p.nombre
       const disponibilidad = p.stock > 0 ? 'in stock' : 'out of stock'
+
+      // Merchant Center espera el precio de lista en g:price y el rebajado en
+      // g:sale_price; así muestra el tachado. Mandando el rebajado en g:price
+      // el descuento no se ve por ningún lado.
+      const anterior = Number(p.precio_anterior)
+      const actual = Number(p.precio)
+      const enOferta = Number.isFinite(anterior) && anterior > actual
+      const precioLista = enOferta ? anterior : actual
+
       return `    <item>
       <g:id>${esc(p.id)}</g:id>
       <title>${esc(p.nombre)}</title>
       <description>${esc(desc)}</description>
       <link>${BASE}/productos/${esc(p.slug)}</link>
       <g:image_link>${esc(img)}</g:image_link>
-      <g:price>${Number(p.precio).toFixed(2)} ARS</g:price>
+      <g:price>${precioLista.toFixed(2)} ARS</g:price>
+      ${enOferta ? `<g:sale_price>${actual.toFixed(2)} ARS</g:sale_price>` : ''}
       <g:availability>${disponibilidad}</g:availability>
       <g:condition>new</g:condition>
       <g:brand>Flow Things</g:brand>
