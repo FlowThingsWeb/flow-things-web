@@ -234,7 +234,7 @@ ${preheader}
     &nbsp;&#183;&nbsp; &#x1F4AC; <a href="https://wa.me/5491156075633" style="color:#7C3AED;text-decoration:none;font-weight:600">+54 9 11 5607-5633</a>
   </td></tr>
   <tr><td style="background:#1e0050;padding:24px 40px;text-align:center">
-    <p style="margin:0;font-size:12px;color:#c4b5fd">&copy; ${new Date().getFullYear()} Flow Things &#183; Librer&#xED;a &amp; Juguer&#xED;a</p>
+    <p style="margin:0;font-size:12px;color:#c4b5fd">&copy; ${new Date().getFullYear()} Flow Things &#183; Librer&#xED;a &amp; Jugueter&#xED;a</p>
   </td></tr>
 </table>
 </td></tr>
