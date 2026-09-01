@@ -43,6 +43,21 @@ function imagenDe(p: {
   return v?.imagen_url || v?.imagenes?.[0] || null
 }
 
+/**
+ * Recorta la descripción para el snippet de Google, que muestra ~160
+ * caracteres. Cortando por número seco quedaban frases partidas al medio de
+ * una palabra ("...sin pegamento ni he"), que es lo primero que lee alguien
+ * decidiendo si entra. Corta en el último espacio y cierra con puntos
+ * suspensivos; si el texto ya entra, lo deja intacto.
+ */
+function recortar(texto: string, max = 160): string {
+  const limpio = texto.replace(/\s+/g, ' ').trim()
+  if (limpio.length <= max) return limpio
+  const corte = limpio.slice(0, max - 1)
+  const ultimoEspacio = corte.lastIndexOf(' ')
+  return `${corte.slice(0, ultimoEspacio > 0 ? ultimoEspacio : corte.length).replace(/[,;:.\s]+$/, '')}…`
+}
+
 /** Vigencia del precio para el dato estructurado: 30 días, en YYYY-MM-DD. */
 function validoHasta(dias = 30): string {
   const d = new Date()
@@ -68,9 +83,9 @@ export async function generateMetadata({
   const alternativos = nombresAlternativos(p.nombre)
   const tambienConocido = alternativos[0]
   const base = p.descripcion || `Comprá ${p.nombre} en Flow Things con envío a todo el país.`
-  const descripcion = (
-    tambienConocido ? `${base} También podés buscarlo como ${tambienConocido}.` : base
-  ).slice(0, 160)
+  const descripcion = recortar(
+    tambienConocido ? `${base} También podés buscarlo como ${tambienConocido}.` : base,
+  )
 
   return {
     // El <title> va recortado: Google muestra ~60 caracteres y los nombres
