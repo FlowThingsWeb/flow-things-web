@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
+import { marcaDe } from '@/lib/marcas'
+import { getConfig } from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,9 +23,28 @@ function esc(s: string): string {
  * y Meta (Facebook/Instagram) para anuncios de catálogo.
  */
 export async function GET() {
+  const cfg = await getConfig()
+
+  // Merchant aprueba antes y calcula mejor el total cuando el envío viaja en
+  // el feed. Van las tres zonas reales; en CABA se declara la base del envío
+  // por cercanía, que es el piso de lo que se cobra.
+  const num = (v: string | undefined) => Number(v || 0)
+  const envioCaba = cfg.envio_km_activo === '1' ? num(cfg.envio_km_base) : num(cfg.envio_precio_caba)
+  const ENVIOS = [
+    { region: 'Ciudad Autónoma de Buenos Aires', precio: envioCaba },
+    { region: 'Buenos Aires', precio: num(cfg.envio_precio_gba) },
+    { region: '', precio: num(cfg.envio_precio_interior) },
+  ]
+    .filter((e) => e.precio > 0)
+    .map((e) => `      <g:shipping>
+        <g:country>AR</g:country>${e.region ? `\n        <g:region>${esc(e.region)}</g:region>` : ''}
+        <g:price>${e.precio.toFixed(2)} ARS</g:price>
+      </g:shipping>`)
+    .join('\n')
+
   const { data: productos } = await supabaseAdmin
     .from('productos')
-    .select('id, nombre, slug, descripcion, precio, precio_anterior, imagen_url, imagenes, stock, categorias(nombre, slug)')
+    .select('id, nombre, slug, sku, descripcion, precio, precio_anterior, imagen_url, imagenes, stock, categorias(nombre, slug)')
     .eq('activo', true)
 
   const items = (productos || [])
@@ -51,9 +72,10 @@ export async function GET() {
       ${enOferta ? `<g:sale_price>${actual.toFixed(2)} ARS</g:sale_price>` : ''}
       <g:availability>${disponibilidad}</g:availability>
       <g:condition>new</g:condition>
-      <g:brand>Flow Things</g:brand>
+      <g:brand>${esc(marcaDe(p.sku))}</g:brand>
       ${p.categorias?.nombre ? `<g:product_type>${esc(p.categorias.nombre)}</g:product_type>` : ''}
       <g:identifier_exists>no</g:identifier_exists>
+${ENVIOS}
     </item>`
     })
     .join('\n')

@@ -24,7 +24,13 @@ export default async function SeoJsonLd() {
     'Juguetería, librería y regalería online en Argentina. Juguetes, útiles escolares, ' +
     'juegos didácticos y regalos, con envío a todo el país y hasta 12 cuotas.'
 
-  const redes = [cfg.footer_instagram].filter(Boolean)
+  // Perfiles donde la marca ya existe y Google puede verificar que somos los
+  // mismos: es lo que arma el panel de marca al buscar "Flow Things". La
+  // tienda oficial de Mercado Libre pesa acá tanto como la red social.
+  const redes = [
+    cfg.footer_instagram,
+    'https://www.mercadolibre.com.ar/tienda/flow-things',
+  ].filter(Boolean)
 
   // Tienda online, sin local a la calle: se declara como OnlineStore y NO se
   // publica la dirección de despacho. Poner una dirección sin atención al

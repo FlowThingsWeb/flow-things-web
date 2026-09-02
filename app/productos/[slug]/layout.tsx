@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { nombresAlternativos, tituloSeo } from '@/lib/sinonimos'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { marcaDe } from '@/lib/marcas'
+import { getConfig } from '@/lib/config'
 
 const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
 
@@ -65,6 +67,58 @@ function validoHasta(dias = 30): string {
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * Costos de envío declarados por zona, para el dato estructurado.
+ *
+ * Sale de la misma configuración que cobra el checkout. CABA va como rango
+ * porque el envío por cercanía depende de los kilómetros: declarar un número
+ * fijo sería prometer un precio que la caja no respeta.
+ */
+function envios(cfg: Record<string, string>) {
+  const num = (v: string | undefined) => Number(v || 0)
+  const zona = (
+    nombre: string,
+    rate: Record<string, unknown>,
+    diasMin: number,
+    diasMax: number,
+  ) => ({
+    '@type': 'OfferShippingDetails',
+    shippingDestination: {
+      '@type': 'DefinedRegion',
+      addressCountry: 'AR',
+      ...(nombre ? { addressRegion: nombre } : {}),
+    },
+    shippingRate: { '@type': 'MonetaryAmount', currency: 'ARS', ...rate },
+    deliveryTime: {
+      '@type': 'ShippingDeliveryTime',
+      handlingTime: { '@type': 'QuantitativeValue', minValue: 0, maxValue: 1, unitCode: 'DAY' },
+      transitTime: { '@type': 'QuantitativeValue', minValue: diasMin, maxValue: diasMax, unitCode: 'DAY' },
+    },
+  })
+
+  const porKm = cfg.envio_km_activo === '1'
+  const base = num(cfg.envio_km_base)
+  const porKmValor = num(cfg.envio_km_por_km)
+  const radio = num(cfg.envio_km_radio_max)
+
+  const salida = []
+  if (porKm && base) {
+    salida.push(
+      zona('Ciudad Autónoma de Buenos Aires',
+        { minValue: base, maxValue: base + porKmValor * radio }, 1, 1),
+    )
+  } else if (num(cfg.envio_precio_caba)) {
+    salida.push(zona('Ciudad Autónoma de Buenos Aires', { value: num(cfg.envio_precio_caba) }, 1, 1))
+  }
+  if (num(cfg.envio_precio_gba)) {
+    salida.push(zona('Buenos Aires', { value: num(cfg.envio_precio_gba) }, 2, 3))
+  }
+  if (num(cfg.envio_precio_interior)) {
+    salida.push(zona('', { value: num(cfg.envio_precio_interior) }, 3, 12))
+  }
+  return salida.length ? salida : undefined
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -112,7 +166,7 @@ export default async function ProductoLayout({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const p = await getProducto(slug)
+  const [p, cfg] = await Promise.all([getProducto(slug), getConfig()])
 
   // Product + BreadcrumbList. Los campos extra (sku, categoría, condición,
   // vendedor, devoluciones) son los que Google pide para mostrar el resultado
@@ -133,7 +187,9 @@ export default async function ProductoLayout({
           ...(nombresAlternativos(p.nombre).length
             ? { alternateName: nombresAlternativos(p.nombre) }
             : {}),
-          brand: { '@type': 'Brand', name: 'Flow Things' },
+          // Quien fabrica el producto, no quien lo vende: es lo que Google
+          // cruza con las búsquedas por marca y con su ficha del producto.
+          brand: { '@type': 'Brand', name: marcaDe(p.sku) },
           offers: {
             '@type': 'Offer',
             price: p.precio,
@@ -147,6 +203,12 @@ export default async function ProductoLayout({
             itemCondition: 'https://schema.org/NewCondition',
             url: `${BASE}/productos/${slug}`,
             seller: { '@type': 'Organization', name: 'Flow Things', url: BASE },
+            // Cuánto sale el envío, por zona. Google lo usa para mostrar el
+            // total real en la ficha de Shopping; si no lo encuentra, asume
+            // costos propios o descarta el producto. En CABA el envío se cobra
+            // por distancia, así que va como rango entre la base y el radio
+            // máximo — no un número fijo que después no se cumple.
+            shippingDetails: envios(cfg),
             hasMerchantReturnPolicy: {
               '@type': 'MerchantReturnPolicy',
               applicableCountry: 'AR',
