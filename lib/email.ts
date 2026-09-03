@@ -57,6 +57,29 @@ function createTransport() {
 // cumpleaños, etc.) a la casilla del comercio. Configurable por env.
 const EMAIL_BCC = process.env.EMAIL_COPIA_BCC || 'contacto@flowthings.com.ar'
 
+/**
+ * Decodifica las entidades HTML del asunto.
+ *
+ * Los asuntos se escribieron con entidades —'&#x1F389;'— igual que el cuerpo,
+ * pero el asunto de un mail no es HTML: nodemailer lo manda tal cual y en la
+ * bandeja se lee "Tu pedido fue confirmado &#x1F389;". Nueve mails salieron
+ * así antes de que se notara, entre ellos todas las confirmaciones de pedido.
+ *
+ * Se decodifica acá y no en cada constante para que valga para todos los
+ * asuntos, incluidos los que escriba alguien desde el panel. El cuerpo NO se
+ * toca: ahí las entidades son correctas.
+ */
+const NOMBRADAS: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0', middot: '\u00b7',
+}
+
+export function decodificarEntidades(texto: string): string {
+  return texto
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&(\w+);/g, (m, nombre) => NOMBRADAS[nombre] ?? m)
+}
+
 export async function sendEmail(params: {
   to: string
   asunto: string
@@ -76,7 +99,7 @@ export async function sendEmail(params: {
     from: `"Flow Things" <${process.env.GMAIL_USER}>`,
     to: params.to,
     bcc,
-    subject: params.asunto,
+    subject: decodificarEntidades(params.asunto),
     html: params.cuerpo,
     attachments: params.adjuntos?.map(a => ({
       filename: a.filename,
@@ -90,7 +113,7 @@ export async function sendEmail(params: {
   try {
     await supabaseAdmin
       .from('emails_enviados')
-      .insert({ destinatario: params.to, asunto: params.asunto })
+      .insert({ destinatario: params.to, asunto: decodificarEntidades(params.asunto) })
   } catch {
     /* si falla el log, el mail igual se envió */
   }
