@@ -221,7 +221,7 @@ export default function ProductoDetalle({
       <nav className="flex items-center gap-2 text-sm text-brand-text-muted mb-8">
         <Link href="/" className="hover:text-brand-purple transition-colors">Inicio</Link>
         <span>/</span>
-        <Link href="/productos" className="hover:text-brand-purple transition-colors">Catálogo</Link>
+        <Link href="/productos" className="hover:text-brand-purple transition-colors">Todos los productos</Link>
         {producto.categorias && (
           <>
             <span>/</span>

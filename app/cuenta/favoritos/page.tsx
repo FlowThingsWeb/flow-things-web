@@ -79,7 +79,7 @@ export default function FavoritosPage() {
             href="/productos"
             className="bg-brand-purple hover:bg-brand-purple-light text-white font-semibold px-6 py-2.5 rounded-xl transition-colors text-sm inline-block"
           >
-            Ver catálogo
+            Ver todos los productos
           </Link>
         </div>
       ) : (

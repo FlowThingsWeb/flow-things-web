@@ -23,7 +23,7 @@ export default function NotFound() {
             href="/productos"
             className="bg-brand-purple hover:bg-brand-purple-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors"
           >
-            Ver catálogo
+            Ver todos los productos
           </Link>
           <Link
             href="/"

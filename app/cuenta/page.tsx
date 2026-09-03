@@ -194,7 +194,7 @@ export default function CuentaPage() {
             href="/productos"
             className="ml-auto text-xs bg-brand-purple hover:bg-brand-purple-light text-white font-semibold px-4 py-2 rounded-xl transition-colors whitespace-nowrap"
           >
-            Ir al catálogo
+            Ver todos los productos
           </Link>
         </div>
       )}
@@ -325,7 +325,7 @@ export default function CuentaPage() {
           >
             <span className="text-2xl">🛍️</span>
             <div>
-              <p className="font-semibold text-sm text-brand-text group-hover:text-brand-purple transition-colors">Catálogo</p>
+              <p className="font-semibold text-sm text-brand-text group-hover:text-brand-purple transition-colors">Todos los productos</p>
               <p className="text-xs text-brand-text-muted">Seguir comprando</p>
             </div>
           </Link>
@@ -345,7 +345,7 @@ export default function CuentaPage() {
               <span className="text-3xl block mb-2">🛒</span>
               <p className="text-brand-text-muted text-sm">Todavía no hiciste ninguna compra.</p>
               <Link href="/productos" className="text-brand-purple text-sm mt-2 inline-block hover:underline">
-                Ver catálogo
+                Ver todos los productos
               </Link>
             </div>
           ) : (

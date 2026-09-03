@@ -364,7 +364,7 @@ function CarritoContent() {
           href="/productos"
           className="bg-brand-purple hover:bg-brand-purple-dark text-white font-semibold px-8 py-3 rounded-2xl transition-colors"
         >
-          Ir al catálogo
+          Ver todos los productos
         </Link>
       </div>
     )

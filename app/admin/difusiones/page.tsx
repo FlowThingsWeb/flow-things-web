@@ -305,7 +305,7 @@ function brandPreview(contenido: string): string {
     <img src="${LOGO_EMAIL}" height="48" alt="Flow Things"/></td></tr>
   <tr><td style="background:#fff;padding:32px;color:#1a0040;font-size:16px;line-height:1.6">${contenido || '<p style="color:#9ca3af">Tu contenido aparece acá…</p>'}</td></tr>
   <tr><td style="background:#fff;padding:0 32px 28px;text-align:center">
-    <a href="#" style="display:inline-block;background:#7C3AED;color:#fff;font-weight:700;text-decoration:none;padding:12px 30px;border-radius:12px">Ver catálogo</a></td></tr>
+    <a href="#" style="display:inline-block;background:#7C3AED;color:#fff;font-weight:700;text-decoration:none;padding:12px 30px;border-radius:12px">Ver todos los productos</a></td></tr>
   <tr><td style="background:#1e0050;padding:20px;text-align:center;font-size:12px;color:#c4b5fd">© ${new Date().getFullYear()} Flow Things</td></tr>
   </table></td></tr></table></body></html>`
 }

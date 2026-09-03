@@ -227,7 +227,7 @@ ${preheader}
     ${contenido}
   </td></tr>
   <tr><td style="background:#ffffff;padding:0 40px 32px;text-align:center">
-    <a href="https://flowthings.com.ar/productos" style="display:inline-block;background:#7C3AED;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 34px;border-radius:12px">Ver catálogo</a>
+    <a href="https://flowthings.com.ar/productos" style="display:inline-block;background:#7C3AED;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 34px;border-radius:12px">Ver todos los productos</a>
   </td></tr>
   <tr><td style="background:#ffffff;padding:0 40px 28px;text-align:center;font-size:13px;color:#6b7280">
     &#x1F4E7; <a href="mailto:contacto@flowthings.com.ar" style="color:#7C3AED;text-decoration:none;font-weight:600">contacto@flowthings.com.ar</a>

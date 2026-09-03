@@ -93,7 +93,7 @@ export default async function PaginaCategoria({
   // aparece en el resultado de búsqueda en vez de la URL cruda.
   const migas = [
     { '@type': 'ListItem', position: 1, name: 'Inicio', item: BASE },
-    { '@type': 'ListItem', position: 2, name: 'Catálogo', item: `${BASE}/productos` },
+    { '@type': 'ListItem', position: 2, name: 'Todos los productos', item: `${BASE}/productos` },
     { '@type': 'ListItem', position: 3, name: cat.nombre, item: `${BASE}${basePath}` },
     ...(subActiva
       ? [{ '@type': 'ListItem', position: 4, name: subActiva.nombre, item: url }]
@@ -145,7 +145,7 @@ export default async function PaginaCategoria({
         <ol className="flex items-center gap-2 text-sm text-brand-text-muted">
           <li><Link href="/" className="hover:text-white">Inicio</Link></li>
           <li aria-hidden="true">›</li>
-          <li><Link href="/productos" className="hover:text-white">Catálogo</Link></li>
+          <li><Link href="/productos" className="hover:text-white">Todos los productos</Link></li>
           <li aria-hidden="true">›</li>
           {subActiva ? (
             <>

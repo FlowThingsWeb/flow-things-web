@@ -56,7 +56,7 @@ export default function RetomarPage() {
         ) : (
           <>
             <p className="text-brand-text mb-4">Este carrito ya no está disponible (quizás ya lo compraste).</p>
-            <a href="/productos" className="text-brand-purple font-semibold hover:underline">Ir al catálogo →</a>
+            <a href="/productos" className="text-brand-purple font-semibold hover:underline">Ver todos los productos →</a>
           </>
         )}
       </div>

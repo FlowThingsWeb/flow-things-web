@@ -44,7 +44,7 @@ export async function GET() {
 
 ${cats}
 
-- [Catálogo completo](${BASE}/productos)
+- [Todos los productos](${BASE}/productos)
 
 ## Envíos
 

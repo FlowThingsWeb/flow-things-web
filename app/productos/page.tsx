@@ -71,7 +71,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
         '@type': 'CollectionPage',
         '@id': `${BASE}/productos#pagina`,
         url: `${BASE}/productos`,
-        name: 'Catálogo — Juguetería, librería y regalería online',
+        name: 'Todos los productos — Juguetería, librería y regalería online',
         isPartOf: { '@id': `${BASE}/#website` },
         about: { '@id': `${BASE}/#tienda` },
         mainEntity: {
@@ -100,7 +100,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
         <ol className="flex items-center gap-2 text-sm text-brand-text-muted">
           <li><Link href="/" className="hover:text-white">Inicio</Link></li>
           <li aria-hidden="true">›</li>
-          <li className="text-brand-text">Catálogo</li>
+          <li className="text-brand-text">Todos los productos</li>
         </ol>
       </nav>
 

@@ -181,7 +181,7 @@ export default function CatalogoView({
                 </Link>
               ) : (
                 <Link href="/productos" className="text-brand-purple text-sm mt-2 inline-block hover:underline">
-                  Ver todo el catálogo
+                  Ver todos los productos
                 </Link>
               )}
             </div>
