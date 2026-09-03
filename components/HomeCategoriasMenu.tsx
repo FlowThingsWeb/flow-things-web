@@ -66,10 +66,16 @@ export default function HomeCategoriasMenu({
   return (
     <div
       ref={ref}
-      className="border-b border-brand-border bg-brand-bg-card/60 backdrop-blur-sm"
+      /* `relative z-30`: el backdrop-blur crea un contexto de apilado propio,
+         así que sin esto el desplegable queda por debajo del carrusel que
+         viene justo abajo — se renderiza, pero no se ve. */
+      className="relative z-30 border-b border-brand-border bg-brand-bg-card/60 backdrop-blur-sm"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto py-2 -mx-1 px-1">
+        {/* Sin scroll horizontal: `overflow-x-auto` recorta el desplegable,
+            que cae por debajo de la barra. Con dos o tres categorías entra en
+            una línea, y en pantallas chicas envuelve. */}
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2 py-2">
           {categorias.map((cat) => {
             const estaAbierta = abierta === cat.slug
             return (
