@@ -3,12 +3,13 @@
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Producto, Categoria, Variante } from '@/types'
+import { Producto, Categoria, Subcategoria, Variante } from '@/types'
 import { comprimirImagen, formatBytes } from '@/lib/comprimir-imagen'
 
 interface ProductFormProps {
   producto?: Producto
   categorias: Categoria[]
+  subcategorias?: Subcategoria[]
   mode: 'create' | 'edit'
 }
 
@@ -393,7 +394,7 @@ function VarianteCard({
 }
 
 // ── Componente principal ──────────────────────────────────────────────────
-export default function ProductForm({ producto, categorias, mode }: ProductFormProps) {
+export default function ProductForm({ producto, categorias, subcategorias = [], mode }: ProductFormProps) {
   const router = useRouter()
   const mainInputRef  = useRef<HTMLInputElement>(null)
   const extraInputRef = useRef<HTMLInputElement>(null)
@@ -407,6 +408,7 @@ export default function ProductForm({ producto, categorias, mode }: ProductFormP
     precio_anterior: producto?.precio_anterior?.toString() || '',
     stock: producto?.stock?.toString() || '0',
     categoria_id: producto?.categoria_id || '',
+    subcategoria_id: producto?.subcategoria_id || '',
     activo: producto?.activo ?? true,
     destacado: producto?.destacado ?? false,
     imagen_url: producto?.imagen_url || '',
@@ -443,8 +445,13 @@ export default function ProductForm({ producto, categorias, mode }: ProductFormP
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
       ...(name === 'nombre' && mode === 'create' ? { slug: slugify(value) } : {}),
+      // Cambiar de categoría invalida la subcategoría: si no se limpia, un
+      // producto puede quedar en Juguetería con el tipo "Cartucheras".
+      ...(name === 'categoria_id' ? { subcategoria_id: '' } : {}),
     }))
   }
+
+  const subsDisponibles = subcategorias.filter((s) => s.categoria_id === form.categoria_id)
 
   const handleMainUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -537,6 +544,7 @@ export default function ProductForm({ producto, categorias, mode }: ProductFormP
         precio_anterior: form.precio_anterior ? parseFloat(form.precio_anterior) : null,
         stock: parseInt(form.stock),
         categoria_id: form.categoria_id || null,
+        subcategoria_id: form.subcategoria_id || null,
         imagenes: galeria,
         ...(mode === 'edit' && producto ? { id: producto.id } : {}),
       }
@@ -789,6 +797,29 @@ export default function ProductForm({ producto, categorias, mode }: ProductFormP
               {categorias.map(cat => <option key={cat.id} value={cat.id}>{cat.nombre}</option>)}
             </select>
           </div>
+          {/* Sólo las subcategorías de la categoría elegida: ofrecer
+              "Cartucheras" dentro de Juguetería es pedir un error de carga. */}
+          {subsDisponibles.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-brand-text-muted mb-1">
+                Tipo de producto
+              </label>
+              <select
+                name="subcategoria_id"
+                value={form.subcategoria_id}
+                onChange={handleChange}
+                className="input-dark"
+              >
+                <option value="">Sin clasificar</option>
+                {subsDisponibles.map(sub => (
+                  <option key={sub.id} value={sub.id}>{sub.nombre}</option>
+                ))}
+              </select>
+              <p className="text-xs text-brand-text-light mt-1">
+                Es lo que agrupa el menú de la tienda y el filtro del catálogo.
+              </p>
+            </div>
+          )}
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" name="activo" checked={form.activo} onChange={handleChange}
               className="w-4 h-4 accent-brand-purple rounded" />

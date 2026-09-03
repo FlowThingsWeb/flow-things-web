@@ -11,6 +11,8 @@ import UserMenu from '@/components/UserMenu'
 import HeaderSearch from '@/components/HeaderSearch'
 import type { ConfigMap } from '@/lib/config'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
+import NavCategoria from '@/components/NavCategoria'
+import type { Categoria, Subcategoria } from '@/lib/catalogo'
 
 /** Logo de 128 px. Ver `logo_url` en lib/config.ts: el master de
  *  512 px lo usan la factura, los mails y los datos estructurados. */
@@ -18,9 +20,11 @@ const LOGO_UI = '/logo-chico.png'
 
 interface HeaderProps {
   cfg: ConfigMap
+  categorias: Categoria[]
+  subcategorias: Subcategoria[]
 }
 
-export default function Header({ cfg }: HeaderProps) {
+export default function Header({ cfg, categorias, subcategorias }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { cantidadTotal, openCart } = useCartStore()
   const cantidad = cantidadTotal()
@@ -39,6 +43,14 @@ export default function Header({ cfg }: HeaderProps) {
     { href: '/categoria/jugueteria', key: 'header_nav_jugueteria', slug: 'jugueteria' },
   ]
   const navLinks = allNavLinks.filter(l => !l.slug || !CATEGORIAS_PAUSADAS.includes(l.slug))
+
+  /** Subcategorías de una categoría, ya ordenadas por la tabla. */
+  const subsDe = (slug: string | null) => {
+    if (!slug) return []
+    const cat = categorias.find((c) => c.slug === slug)
+    if (!cat) return []
+    return subcategorias.filter((s) => s.categoria_id === cat.id)
+  }
 
   return (
     <header className="sticky top-0 z-40 bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
@@ -88,13 +100,16 @@ export default function Header({ cfg }: HeaderProps) {
           {/* Nav desktop */}
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <Link
+              <NavCategoria
                 key={link.href}
                 href={link.href}
-                className="text-brand-text-muted hover:text-brand-neon transition-colors text-sm font-medium tracking-wide uppercase"
-              >
-                <ET k={link.key} />
-              </Link>
+                label={
+                  <span className="text-sm font-medium tracking-wide uppercase hover:text-brand-neon transition-colors">
+                    <ET k={link.key} />
+                  </span>
+                }
+                subcategorias={subsDe(link.slug)}
+              />
             ))}
           </nav>
 
@@ -151,16 +166,37 @@ export default function Header({ cfg }: HeaderProps) {
             <div className="mb-3">
               <HeaderSearch variant="full" onSubmitted={() => setMenuOpen(false)} />
             </div>
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className="text-brand-text-muted hover:text-brand-neon py-2 px-3 rounded-lg hover:bg-brand-bg-soft transition-colors text-sm font-medium uppercase tracking-wide"
-              >
-                <ET k={link.key} />
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const subs = subsDe(link.slug)
+              return (
+                <div key={link.href}>
+                  <Link
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="block text-brand-text-muted hover:text-brand-neon py-2 px-3 rounded-lg hover:bg-brand-bg-soft transition-colors text-sm font-medium uppercase tracking-wide"
+                  >
+                    <ET k={link.key} />
+                  </Link>
+                  {/* En el celular no hay hover: las subcategorías van
+                      desplegadas debajo, que además evita un tap de más. */}
+                  {subs.length > 0 && (
+                    <ul className="ml-3 mb-1 border-l border-brand-border pl-3">
+                      {subs.map((sub) => (
+                        <li key={sub.id}>
+                          <Link
+                            href={`${link.href}/${sub.slug}`}
+                            onClick={() => setMenuOpen(false)}
+                            className="block py-1.5 px-2 rounded-lg text-sm text-brand-text-muted hover:text-brand-neon hover:bg-brand-bg-soft transition-colors"
+                          >
+                            {sub.nombre}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            })}
             <Link
               href="/cuenta"
               onClick={() => setMenuOpen(false)}

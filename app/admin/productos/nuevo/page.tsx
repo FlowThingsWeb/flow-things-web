@@ -15,14 +15,18 @@ export default async function NuevoProductoPage({ searchParams }: PageProps) {
   const params = await searchParams
   const isEdit = !!params.id
 
-  const [categoriasResult, productoResult] = await Promise.all([
+  const [categoriasResult, subcategoriasResult, productoResult] = await Promise.all([
     supabaseAdmin.from('categorias').select('*').order('nombre'),
+    // Todavía sin migrar: el selector de subcategoría no aparece y el resto
+    // del formulario funciona igual.
+    supabaseAdmin.from('subcategorias').select('*').order('orden'),
     isEdit
       ? supabaseAdmin.from('productos').select('*').eq('id', params.id).single()
       : Promise.resolve({ data: null }),
   ])
 
   const categorias = categoriasResult.data || []
+  const subcategorias = subcategoriasResult.data || []
   const producto = productoResult.data
 
   if (isEdit && !producto) {
@@ -54,6 +58,7 @@ export default async function NuevoProductoPage({ searchParams }: PageProps) {
       <ProductForm
         producto={producto || undefined}
         categorias={categorias}
+        subcategorias={subcategorias}
         mode={isEdit ? 'edit' : 'create'}
       />
     </div>

@@ -5,6 +5,14 @@ export interface Categoria {
   created_at: string
 }
 
+export interface Subcategoria {
+  id: string
+  categoria_id: string
+  nombre: string
+  slug: string
+  orden: number
+}
+
 export interface Producto {
   id: string
   nombre: string
@@ -15,6 +23,7 @@ export interface Producto {
   precio_anterior: number | null
   stock: number
   categoria_id: string | null
+  subcategoria_id?: string | null
   imagen_url: string | null
   imagenes: string[]
   activo: boolean
@@ -24,6 +33,7 @@ export interface Producto {
   created_at: string
   updated_at: string
   categorias?: Categoria
+  subcategorias?: Subcategoria
   variantes?: Variante[]
 }
 

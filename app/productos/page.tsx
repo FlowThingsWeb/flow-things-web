@@ -2,12 +2,15 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import CatalogoView from '@/components/CatalogoView'
 import { getMapaBlur, imagenDeProducto } from '@/lib/blur'
-import { getCategorias, getProductos, getRatings, PAGE_SIZE } from '@/lib/catalogo'
+import {
+  aplicarFiltros, getCategorias, getItemsDeCategoria, getRatings, getSubcategorias, PAGE_SIZE,
+} from '@/lib/catalogo'
+import { filtrosDe, type SearchParams } from '@/components/PaginaCategoria'
 
 const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
 
 interface PageProps {
-  searchParams: Promise<{ categoria?: string; q?: string; orden?: string; page?: string }>
+  searchParams: Promise<SearchParams & { categoria?: string }>
 }
 
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
@@ -45,17 +48,20 @@ export default async function ProductosPage({ searchParams }: PageProps) {
 
   // `categoria` sólo llega acá junto con una búsqueda: sin `q`, next.config
   // redirige a /categoria/<slug>, que es la URL que indexa Google.
-  const [items, categorias] = await Promise.all([
-    getProductos(params.categoria, params.q),
+  const [itemsBase, categorias, subcategorias] = await Promise.all([
+    getItemsDeCategoria(params.categoria),
     getCategorias(),
-  ])
-
-  const [ratings, mapaBlur] = await Promise.all([
-    getRatings([...new Set(items.map((i) => i.producto.id))]),
-    getMapaBlur(),
+    getSubcategorias(),
   ])
 
   const categoriaActiva = categorias.find((c) => c.slug === params.categoria)
+  const filtros = filtrosDe(params)
+  const items = aplicarFiltros(itemsBase, filtros)
+
+  const [ratings, mapaBlur] = await Promise.all([
+    getRatings([...new Set(itemsBase.map((i) => i.producto.id))]),
+    getMapaBlur(),
+  ])
 
   // ItemList del catálogo completo: le dice a Google qué hay en la página.
   const jsonLd = params.q
@@ -99,12 +105,17 @@ export default async function ProductosPage({ searchParams }: PageProps) {
       </nav>
 
       <CatalogoView
-        items={items}
+        items={itemsBase}
         categorias={categorias}
+        subcategorias={
+          categoriaActiva
+            ? subcategorias.filter((s) => s.categoria_id === categoriaActiva.id)
+            : []
+        }
         ratings={ratings}
         mapaBlur={mapaBlur}
         categoriaActiva={categoriaActiva?.slug}
-        q={params.q}
+        filtros={filtros}
         orden={params.orden}
         page={params.page}
         basePath="/productos"

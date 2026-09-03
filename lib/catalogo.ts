@@ -10,6 +10,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { Producto, Variante } from '@/types'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import { contieneConSinonimos, normalizar } from '@/lib/sinonimos'
+import { marcaDe } from '@/lib/marcas'
 
 export const PAGE_SIZE = 24
 
@@ -19,6 +20,29 @@ export type CatalogItem = {
 }
 
 export type Categoria = { id: string; nombre: string; slug: string }
+
+export type Subcategoria = {
+  id: string
+  categoria_id: string
+  nombre: string
+  slug: string
+  orden: number
+}
+
+/** Filtros de la grilla, todos opcionales. */
+export type Filtros = {
+  q?: string
+  /** Slug de la subcategoría abierta. */
+  sub?: string
+  marca?: string
+  /** Precio mínimo y máximo, en pesos. */
+  min?: number
+  max?: number
+  /** Sólo lo que tiene stock para entregar ya. */
+  disponible?: boolean
+  /** Sólo lo que está rebajado. */
+  oferta?: boolean
+}
 
 /**
  * Título, descripción y texto de cada categoría.
@@ -71,15 +95,38 @@ export const COPY_CATEGORIA: Record<
 const CACHE = { revalidate: 60, tags: ['catalogo'] }
 
 export const getCatalogoCompleto = unstable_cache(async (): Promise<Producto[]> => {
-  const { data } = await supabaseAdmin
-    .from('productos')
-    .select('*, categorias(id, nombre, slug), variantes(*)')
-    .eq('activo', true)
-    .order('created_at', { ascending: false })
-  return (data || []) as Producto[]
+  const CON_SUB = '*, categorias(id, nombre, slug), subcategorias(id, nombre, slug), variantes(*)'
+  const SIN_SUB = '*, categorias(id, nombre, slug), variantes(*)'
+
+  // Hasta que corra supabase_subcategorias.sql la tabla no existe y el select
+  // devuelve 400. El catálogo no puede caerse por eso: se reintenta sin las
+  // subcategorías y el sitio queda como estaba.
+  const consulta = (select: string) =>
+    supabaseAdmin
+      .from('productos')
+      .select(select)
+      .eq('activo', true)
+      .order('created_at', { ascending: false })
+
+  const { data, error } = await consulta(CON_SUB)
+  if (!error) return (data || []) as unknown as Producto[]
+
+  const { data: basico } = await consulta(SIN_SUB)
+  return (basico || []) as unknown as Producto[]
 }, ['catalogo-completo'], CACHE)
 
-export async function getProductos(categoria?: string, q?: string): Promise<CatalogItem[]> {
+export const getSubcategorias = unstable_cache(async (): Promise<Subcategoria[]> => {
+  const { data, error } = await supabaseAdmin
+    .from('subcategorias')
+    .select('id, categoria_id, nombre, slug, orden')
+    .order('orden', { ascending: true })
+  // Todavía sin migrar: el menú simplemente no muestra el segundo nivel.
+  if (error) return []
+  return (data || []) as Subcategoria[]
+}, ['subcategorias'], CACHE)
+
+/** Tarjetas de una categoría, SIN aplicar los filtros de la barra lateral. */
+export async function getItemsDeCategoria(categoria?: string): Promise<CatalogItem[]> {
   let productos: Producto[] = await getCatalogoCompleto()
 
   // Excluir categorías pausadas
@@ -103,12 +150,47 @@ export async function getProductos(categoria?: string, q?: string): Promise<Cata
       items.push({ producto, variante: null })
     }
   }
+  return items
+}
+
+/** Slug de la subcategoría de un producto, o null si no tiene. */
+export function subDe(p: Producto): string | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((p as any).subcategorias?.slug as string | undefined) ?? null
+}
+
+/** ¿Está disponible para entregar ya? */
+function hayStock({ producto, variante }: CatalogItem): boolean {
+  return (variante ? variante.stock : producto.stock) > 0
+}
+
+/**
+ * Aplica los filtros de la barra lateral a una lista de tarjetas.
+ *
+ * Va aparte de la consulta a propósito: la grilla necesita los resultados
+ * filtrados, pero los contadores de cada filtro necesitan saber cuántos
+ * habría SIN ese filtro puesto. Con la lista completa en memoria las dos
+ * cosas salen de la misma llamada.
+ */
+export function aplicarFiltros(items: CatalogItem[], f: Filtros): CatalogItem[] {
+  let out = items
+
+  if (f.sub) out = out.filter(({ producto }) => subDe(producto) === f.sub)
+  if (f.marca) out = out.filter(({ producto }) => marcaDe(producto.sku) === f.marca)
+  if (f.min != null) out = out.filter(({ producto }) => producto.precio >= f.min!)
+  if (f.max != null) out = out.filter(({ producto }) => producto.precio <= f.max!)
+  if (f.disponible) out = out.filter(hayStock)
+  if (f.oferta) {
+    out = out.filter(
+      ({ producto }) => producto.precio_anterior != null && producto.precio_anterior > producto.precio
+    )
+  }
 
   // Cada tarjeta se filtra sola: la de una variante sólo entra si el término
   // aparece en ESA variante.
-  if (q?.trim()) {
-    const words = normalizar(q).split(/\s+/).filter(Boolean)
-    return items.filter(({ producto, variante }) => {
+  if (f.q?.trim()) {
+    const words = normalizar(f.q).split(/\s+/).filter(Boolean)
+    out = out.filter(({ producto, variante }) => {
       const haystack = normalizar([
         producto.nombre,
         producto.descripcion ?? '',
@@ -120,7 +202,41 @@ export async function getProductos(categoria?: string, q?: string): Promise<Cata
     })
   }
 
-  return items
+  return out
+}
+
+/**
+ * Cuántos productos quedarían con cada opción de un filtro.
+ *
+ * Se cuenta aplicando TODOS los filtros menos el propio: si estoy mirando
+ * "Peluches" y quiero ver las marcas, cada marca tiene que decir cuántos
+ * peluches tiene, no cuántos productos tiene en todo el catálogo. Y una
+ * opción que daría cero no se ofrece: nada peor que un filtro que lleva a
+ * una grilla vacía.
+ */
+export function contarPor(
+  items: CatalogItem[],
+  f: Filtros,
+  campo: 'sub' | 'marca',
+): Map<string, number> {
+  const base = aplicarFiltros(items, { ...f, [campo]: undefined })
+  const cuenta = new Map<string, number>()
+  const vistos = new Set<string>()
+  for (const it of base) {
+    const clave = campo === 'sub' ? subDe(it.producto) : marcaDe(it.producto.sku)
+    if (!clave) continue
+    // Un producto con cinco variantes es un producto, no cinco.
+    const id = `${clave}::${it.producto.id}`
+    if (vistos.has(id)) continue
+    vistos.add(id)
+    cuenta.set(clave, (cuenta.get(clave) ?? 0) + 1)
+  }
+  return cuenta
+}
+
+/** Compatibilidad: categoría + búsqueda, que es lo que usaban las páginas. */
+export async function getProductos(categoria?: string, q?: string): Promise<CatalogItem[]> {
+  return aplicarFiltros(await getItemsDeCategoria(categoria), { q })
 }
 
 export async function getCategorias(): Promise<Categoria[]> {

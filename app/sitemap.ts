@@ -41,16 +41,41 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })
 
   // Categorías
-  const { data: categorias } = await supabaseAdmin.from('categorias').select('slug')
-  const categoriasUrls: MetadataRoute.Sitemap = (categorias || [])
-    .filter((c: any) => !CATEGORIAS_PAUSADAS.includes(c.slug))
-    .map((c: any) => ({
-      url: `${BASE}/categoria/${c.slug}`,
+  const { data: categorias } = await supabaseAdmin.from('categorias').select('id, slug')
+  const visibles = (categorias || []).filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (c: any) => !CATEGORIAS_PAUSADAS.includes(c.slug),
+  )
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const categoriasUrls: MetadataRoute.Sitemap = visibles.map((c: any) => ({
+    url: `${BASE}/categoria/${c.slug}`,
+    changeFrequency: 'weekly' as const,
+    // Son las páginas que compiten por "juguetería online" y "librería
+    // online": pesan más que una ficha suelta.
+    priority: 0.9,
+  }))
+
+  /**
+   * Subcategorías: /categoria/jugueteria/peluches.
+   *
+   * Sólo las que tienen productos. Una URL en el sitemap que lleva a una
+   * grilla vacía es exactamente lo que Google marca como contenido pobre, y
+   * la tabla trae subcategorías sembradas para el futuro que todavía no
+   * tienen nada.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const porId = new Map(visibles.map((c: any) => [c.id as string, c.slug as string]))
+  const { data: subcategorias } = await supabaseAdmin
+    .from('subcategorias')
+    .select('categoria_id, slug, productos:productos(count)')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const subcategoriasUrls: MetadataRoute.Sitemap = ((subcategorias || []) as any[])
+    .filter((s) => porId.has(s.categoria_id) && (s.productos?.[0]?.count ?? 0) > 0)
+    .map((s) => ({
+      url: `${BASE}/categoria/${porId.get(s.categoria_id)}/${s.slug}`,
       changeFrequency: 'weekly' as const,
-      // Son las páginas que compiten por "juguetería online" y "librería
-      // online": pesan más que una ficha suelta.
-      priority: 0.9,
+      priority: 0.8,
     }))
 
-  return [...estaticas, ...productosUrls, ...categoriasUrls]
+  return [...estaticas, ...productosUrls, ...categoriasUrls, ...subcategoriasUrls]
 }
