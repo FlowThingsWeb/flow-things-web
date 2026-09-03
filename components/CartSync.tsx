@@ -80,6 +80,19 @@ export default function CartSync() {
 
     syncTimerRef.current = setTimeout(async () => {
       try {
+        /**
+         * Carrito vacío: se borra la fila, no se guarda un array vacío.
+         *
+         * Vaciar el carrito dejaba una fila con `items: []` para siempre. No
+         * rompía nada —el cron las saltea— pero llenaban el panel de carritos
+         * abandonados del admin con gente que no tiene nada abandonado: seis
+         * de diez filas eran eso.
+         */
+        if (items.length === 0) {
+          await supabase.from('carritos_guardados').delete().eq('user_id', user.id)
+          return
+        }
+
         await supabase
           .from('carritos_guardados')
           // Tocar el carrito reinicia la secuencia entera de recordatorios: el

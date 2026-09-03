@@ -3,6 +3,12 @@ name: Procesar jobs
 # Vercel Hobby solo permite cron diario, así que la cola se dispara desde acá
 # cada 5 minutos (mínimo de GitHub Actions). El endpoint está protegido con
 # CRON_SECRET (guardarlo en Settings → Secrets and variables → Actions).
+#
+# OJO con el dominio: flowthings.com.ar responde 308 hacia www. Sin -L, curl
+# imprime "Redirecting..." y sale con código 0 — el workflow figura en verde y
+# el endpoint nunca se ejecutó. Y con -L tampoco alcanzaría: curl descarta el
+# header Authorization al seguir un redirect que cambia de host, así que
+# llegaría un 401. La URL tiene que apuntar a www directamente.
 on:
   schedule:
     - cron: '*/5 * * * *'
@@ -14,5 +20,6 @@ jobs:
     steps:
       - name: Disparar /api/cron/procesar-jobs
         run: |
-          curl -fsS -X GET "https://flowthings.com.ar/api/cron/procesar-jobs" \
+          curl -sS --fail-with-body -X GET \
+            "https://www.flowthings.com.ar/api/cron/procesar-jobs" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

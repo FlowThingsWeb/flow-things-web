@@ -10,6 +10,12 @@ name: Carritos abandonados
 #
 # El endpoint está protegido con CRON_SECRET (Settings → Secrets and variables
 # → Actions), el mismo que usan los demás crons de la web.
+#
+# OJO con el dominio: flowthings.com.ar responde 308 hacia www. Sin -L, curl
+# imprime "Redirecting..." y sale con código 0 — el workflow figura en verde y
+# el endpoint nunca se ejecutó. Y con -L tampoco alcanzaría: curl descarta el
+# header Authorization al seguir un redirect que cambia de host, así que
+# llegaría un 401. La URL tiene que apuntar a www directamente.
 on:
   schedule:
     - cron: '*/30 * * * *'
@@ -21,5 +27,6 @@ jobs:
     steps:
       - name: Disparar /api/cron/carritos-abandonados
         run: |
-          curl -fsS -X GET "https://flowthings.com.ar/api/cron/carritos-abandonados" \
+          curl -sS --fail-with-body -X GET \
+            "https://www.flowthings.com.ar/api/cron/carritos-abandonados" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
