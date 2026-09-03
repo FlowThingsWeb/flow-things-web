@@ -125,6 +125,34 @@ export const getSubcategorias = unstable_cache(async (): Promise<Subcategoria[]>
   return (data || []) as Subcategoria[]
 }, ['subcategorias'], CACHE)
 
+/**
+ * Las subcategorías que hoy tienen al menos un producto a la venta.
+ *
+ * La tabla trae subcategorías sembradas para cuando entre la mercadería
+ * —Carpetas, Cuadernos, Mochilas, Útiles escolares—, y el menú del header las
+ * estaba ofreciendo igual: cinco opciones en Librería de las cuales cuatro
+ * llevaban a una grilla vacía.
+ *
+ * Es también la lista que decide si una URL de subcategoría existe: una
+ * subcategoría sin productos devuelve 404 en vez de una página vacía que
+ * Google indexaría como contenido pobre. El día que se le carga el primer
+ * producto, aparece sola.
+ *
+ * El formulario del admin NO usa esta lista: ahí hacen falta todas, porque es
+ * justamente donde se le asigna el primer producto a una vacía.
+ */
+export const getSubcategoriasVisibles = unstable_cache(async (): Promise<Subcategoria[]> => {
+  const [subs, productos] = await Promise.all([getSubcategorias(), getCatalogoCompleto()])
+  const conProductos = new Set(
+    productos
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((p) => !CATEGORIAS_PAUSADAS.includes((p.categorias as any)?.slug))
+      .map((p) => p.subcategoria_id)
+      .filter(Boolean),
+  )
+  return subs.filter((s) => conProductos.has(s.id))
+}, ['subcategorias-visibles'], CACHE)
+
 /** Tarjetas de una categoría, SIN aplicar los filtros de la barra lateral. */
 export async function getItemsDeCategoria(categoria?: string): Promise<CatalogItem[]> {
   let productos: Producto[] = await getCatalogoCompleto()

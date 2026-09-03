@@ -57,9 +57,11 @@ export default function CatalogoView({
    * ruta de la categoría, que además es la que Google indexa.
    */
   const rutaFiltros = categoriaActiva ? `/categoria/${categoriaActiva}` : basePath
+  // Sólo dentro de una categoría la subcategoría tiene ruta propia.
+  const subEnRuta = !!categoriaActiva
 
   const linkPagina = (p: number) => {
-    const base = linkCon(rutaFiltros, filtros, orden, {})
+    const base = linkCon(rutaFiltros, filtros, orden, {}, subEnRuta)
     if (p <= 1) return base
     return `${base}${base.includes('?') ? '&' : '?'}page=${p}`
   }
@@ -140,6 +142,7 @@ export default function CatalogoView({
                     conteoMarca={conteoMarca}
                     filtros={filtros}
                     orden={orden}
+                    subEnRuta={subEnRuta}
                   />
                 </div>
               </details>
@@ -151,6 +154,7 @@ export default function CatalogoView({
                   conteoMarca={conteoMarca}
                   filtros={filtros}
                   orden={orden}
+                  subEnRuta={subEnRuta}
                 />
               </div>
             </>
@@ -179,7 +183,7 @@ export default function CatalogoView({
                   persona al catálogo entero y que empiece de cero. */}
               {items.length > 0 ? (
                 <Link
-                  href={linkCon(rutaFiltros, { q: filtros.q }, orden, { sub: null })}
+                  href={linkCon(rutaFiltros, { q: filtros.q }, orden, { sub: null }, subEnRuta)}
                   className="text-brand-purple text-sm mt-2 inline-block hover:underline"
                 >
                   Ver los {items.length} de esta categoría

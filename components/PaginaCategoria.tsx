@@ -16,7 +16,7 @@ import FaqCategoria, { faqDeCategoria } from '@/components/FaqCategoria'
 import { getMapaBlur, imagenDeProducto } from '@/lib/blur'
 import {
   COPY_CATEGORIA, aplicarFiltros, getCategorias, getItemsDeCategoria,
-  getRatings, getSubcategorias, PAGE_SIZE, type Filtros,
+  getRatings, getSubcategoriasVisibles, PAGE_SIZE, type Filtros,
 } from '@/lib/catalogo'
 import { getConfig } from '@/lib/config'
 
@@ -24,6 +24,8 @@ const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').re
 
 export type SearchParams = {
   q?: string
+  /** Subcategoría cuando no viaja en la ruta (marcas, catálogo completo). */
+  sub?: string
   orden?: string
   page?: string
   marca?: string
@@ -41,7 +43,9 @@ export function filtrosDe(sp: SearchParams, sub?: string): Filtros {
   }
   return {
     q: sp.q,
-    sub,
+    // En /categoria/... la subcategoría llega por la ruta; en /marcas/... por
+    // el parámetro, porque ahí no hay ruta que la contenga.
+    sub: sub ?? sp.sub,
     marca: sp.marca,
     min: num(sp.min),
     max: num(sp.max),
@@ -59,7 +63,7 @@ export default async function PaginaCategoria({
 }) {
   const [categorias, subcategorias, cfg] = await Promise.all([
     getCategorias(),
-    getSubcategorias(),
+    getSubcategoriasVisibles(),
     getConfig(),
   ])
   const cat = categorias.find((c) => c.slug === slug)

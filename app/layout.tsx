@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { configParaCliente, getConfig } from '@/lib/config'
-import { getCategorias, getMarcas, getSubcategorias } from '@/lib/catalogo'
+import { getCategorias, getMarcas, getSubcategoriasVisibles } from '@/lib/catalogo'
 import { AuthProvider } from '@/lib/auth-context'
 import UserShell from '@/components/UserShell'
 import SeoJsonLd from '@/components/SeoJsonLd'
@@ -73,7 +73,7 @@ export default async function RootLayout({
   const [cfg, categorias, subcategorias, marcas] = await Promise.all([
     getConfig(),
     getCategorias(),
-    getSubcategorias(),
+    getSubcategoriasVisibles(),
     getMarcas(),
   ])
 

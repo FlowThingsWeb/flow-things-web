@@ -3,7 +3,7 @@ import Link from 'next/link'
 import CatalogoView from '@/components/CatalogoView'
 import { getMapaBlur, imagenDeProducto } from '@/lib/blur'
 import {
-  aplicarFiltros, getCategorias, getItemsDeCategoria, getRatings, getSubcategorias, PAGE_SIZE,
+  aplicarFiltros, getCategorias, getItemsDeCategoria, getRatings, getSubcategoriasVisibles, PAGE_SIZE,
 } from '@/lib/catalogo'
 import { filtrosDe, type SearchParams } from '@/components/PaginaCategoria'
 
@@ -51,7 +51,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
   const [itemsBase, categorias, subcategorias] = await Promise.all([
     getItemsDeCategoria(params.categoria),
     getCategorias(),
-    getSubcategorias(),
+    getSubcategoriasVisibles(),
   ])
 
   const categoriaActiva = categorias.find((c) => c.slug === params.categoria)
@@ -110,7 +110,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
         subcategorias={
           categoriaActiva
             ? subcategorias.filter((s) => s.categoria_id === categoriaActiva.id)
-            : []
+            : subcategorias
         }
         ratings={ratings}
         mapaBlur={mapaBlur}

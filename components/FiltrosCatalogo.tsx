@@ -28,6 +28,15 @@ type Props = {
   conteoMarca: Map<string, number>
   filtros: Filtros
   orden?: string
+  /**
+   * Si la subcategoría es un segmento de la ruta o un parámetro.
+   *
+   * Dentro de una categoría hay ruta propia —/categoria/jugueteria/slime— y se
+   * usa, porque posiciona. Dentro de una marca no la hay: el slime de Craze no
+   * tiene URL propia, así que va como ?sub=slime. Poner el segmento igual daría
+   * /marcas/craze/slime, que no existe.
+   */
+  subEnRuta?: boolean
 }
 
 /**
@@ -44,14 +53,17 @@ export function linkCon(
   filtros: Filtros,
   orden: string | undefined,
   cambio: CambioFiltro,
+  subEnRuta = true,
 ): string {
   const f: Filtros = { ...filtros, ...cambio, sub: undefined }
-  // La subcategoría es un segmento de la ruta, no un parámetro: /categoria/
-  // jugueteria/peluches posiciona por "peluches", ?sub=peluches no.
   const sub = cambio.sub === null ? undefined : (cambio.sub ?? filtros.sub)
-  const ruta = sub ? `${basePath}/${sub}` : basePath
+  // Dentro de una categoría la subcategoría es un segmento —/categoria/
+  // jugueteria/peluches posiciona por "peluches", ?sub=peluches no—. Fuera de
+  // una categoría esa ruta no existe y va como parámetro.
+  const ruta = sub && subEnRuta ? `${basePath}/${sub}` : basePath
 
   const sp = new URLSearchParams()
+  if (sub && !subEnRuta) sp.set('sub', sub)
   if (f.q) sp.set('q', f.q)
   if (f.marca) sp.set('marca', f.marca)
   if (f.min != null) sp.set('min', String(f.min))
@@ -104,9 +116,9 @@ function Opcion({
 }
 
 export default function FiltrosCatalogo({
-  basePath, subcategorias, conteoSub, conteoMarca, filtros, orden,
+  basePath, subcategorias, conteoSub, conteoMarca, filtros, orden, subEnRuta = true,
 }: Props) {
-  const link = (cambio: CambioFiltro) => linkCon(basePath, filtros, orden, cambio)
+  const link = (cambio: CambioFiltro) => linkCon(basePath, filtros, orden, cambio, subEnRuta)
 
   // Sólo las subcategorías que tienen algo. Las sembradas para el futuro
   // —carpetas, mochilas— no aparecen hasta que entre el primer producto.
@@ -127,7 +139,7 @@ export default function FiltrosCatalogo({
     <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-5">
       {hayFiltros && (
         <Link
-          href={linkCon(basePath, { q: filtros.q }, orden, { sub: null })}
+          href={linkCon(basePath, { q: filtros.q }, orden, { sub: null }, subEnRuta)}
           className="inline-block mb-4 text-xs text-brand-purple hover:underline"
         >
           ✕ Limpiar filtros

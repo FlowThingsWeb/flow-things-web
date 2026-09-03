@@ -6,7 +6,8 @@ import CatalogoView from '@/components/CatalogoView'
 import { filtrosDe, type SearchParams } from '@/components/PaginaCategoria'
 import { getMapaBlur, imagenDeProducto } from '@/lib/blur'
 import {
-  aplicarFiltros, getCategorias, getItemsDeMarca, getMarcas, getRatings, PAGE_SIZE,
+  aplicarFiltros, getCategorias, getItemsDeMarca, getMarcas, getRatings,
+  getSubcategoriasVisibles, PAGE_SIZE,
 } from '@/lib/catalogo'
 
 const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
@@ -54,7 +55,9 @@ export default async function MarcaPage({ params, searchParams }: Props) {
   const { slug } = await params
   const sp = await searchParams
 
-  const [marcas, categorias] = await Promise.all([getMarcas(), getCategorias()])
+  const [marcas, categorias, subcategorias] = await Promise.all([
+    getMarcas(), getCategorias(), getSubcategoriasVisibles(),
+  ])
   const marca = marcas.find((m) => m.slug === slug)
   // Marca inventada en la URL: 404, no una grilla vacía con estado 200.
   if (!marca) notFound()
@@ -138,6 +141,9 @@ export default async function MarcaPage({ params, searchParams }: Props) {
       <CatalogoView
         items={itemsBase}
         categorias={categorias}
+        // Todas las visibles: una marca cruza categorías —Craze tiene slime,
+        // masas y gemas— y el contador esconde solo las que no le tocan.
+        subcategorias={subcategorias}
         ratings={ratings}
         mapaBlur={mapaBlur}
         filtros={filtros}
