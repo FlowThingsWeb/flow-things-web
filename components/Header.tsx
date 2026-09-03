@@ -38,9 +38,9 @@ export default function Header({ cfg, categorias, subcategorias }: HeaderProps) 
     )
 
   const allNavLinks = [
-    { href: '/productos', key: 'header_nav_catalogo', slug: null },
-    { href: '/categoria/libreria', key: 'header_nav_libreria', slug: 'libreria' },
-    { href: '/categoria/jugueteria', key: 'header_nav_jugueteria', slug: 'jugueteria' },
+    { href: '/productos', key: 'header_nav_catalogo', slug: null, nombre: 'todos los productos' },
+    { href: '/categoria/libreria', key: 'header_nav_libreria', slug: 'libreria', nombre: 'Librería' },
+    { href: '/categoria/jugueteria', key: 'header_nav_jugueteria', slug: 'jugueteria', nombre: 'Juguetería' },
   ]
   const navLinks = allNavLinks.filter(l => !l.slug || !CATEGORIAS_PAUSADAS.includes(l.slug))
 
@@ -108,6 +108,7 @@ export default function Header({ cfg, categorias, subcategorias }: HeaderProps) 
                     <ET k={link.key} />
                   </span>
                 }
+                nombre={link.nombre}
                 subcategorias={subsDe(link.slug)}
               />
             ))}

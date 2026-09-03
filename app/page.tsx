@@ -13,8 +13,6 @@ import { blurDe, getMapaBlur, imagenDeProducto } from '@/lib/blur'
 import HomeCarousel from '@/components/HomeCarousel'
 import TrustBar from '@/components/TrustBar'
 import { armarCarrusel } from '@/lib/carruselHome'
-import HomeCategoriasMenu from '@/components/HomeCategoriasMenu'
-import { getSubcategorias } from '@/lib/catalogo'
 import FaqCategoria, { faqDeTienda } from '@/components/FaqCategoria'
 
 /** Primera foto usable de un producto (la propia o la de alguna variante). */
@@ -87,10 +85,9 @@ export default async function HomePage({
   const params = await searchParams
   const editMode = params.editMode === '1'
 
-  const [destacados, categorias, subcategorias, cfg, publicables, mapaBlur] = await Promise.all([
+  const [destacados, categorias, cfg, publicables, mapaBlur] = await Promise.all([
     getDestacados(),
     getCategorias(),
-    getSubcategorias(),
     getConfig(),
     getProductosPublicables(),
     getMapaBlur(),
@@ -129,24 +126,6 @@ export default async function HomePage({
     'juegos-de-mesa': '🎲',
   }
 
-  /**
-   * Las categorías del menú de arriba, con sus tipos de producto.
-   *
-   * Sólo los tipos que hoy tienen mercadería a la venta: la tabla trae
-   * subcategorías sembradas para el futuro —carpetas, mochilas— y un menú que
-   * ofrece algo y lleva a una grilla vacía es peor que no ofrecerlo.
-   */
-  const subsConStock = new Set(
-    publicables.map((p) => (p as any).subcategoria_id).filter(Boolean),
-  )
-  const categoriasMenu = categoriasConFoto.map((cat) => ({
-    ...cat,
-    icono: categoriasIconos[cat.slug] || '📦',
-    subcategorias: subcategorias.filter(
-      (s) => s.categoria_id === cat.id && subsConStock.has(s.id),
-    ),
-  }))
-
   // Novedades: lo último que entró, sin repetir los destacados que ya se
   // muestran más arriba. Sale de `publicables`, así que no cuesta otra query.
   const idsDestacados = new Set(destacados.map((p) => p.id))
@@ -182,10 +161,6 @@ export default async function HomePage({
     <>
       {/* Barra de edición — solo en modo editor */}
       {editMode && <EditBar />}
-
-      {/* Categorías arriba de todo: lo primero que ve alguien que entra es el
-          carrusel, que muestra mercadería pero no dice qué más hay. */}
-      <HomeCategoriasMenu categorias={categoriasMenu} total={totalCatalogo} />
 
       {/* Carrusel de productos — primero para que se vea mercadería y un
           botón de comprar sin tener que scrollear. */}

@@ -18,10 +18,19 @@ import type { Subcategoria } from '@/lib/catalogo'
 export default function NavCategoria({
   href,
   label,
+  nombre,
   subcategorias,
 }: {
   href: string
   label: React.ReactNode
+  /**
+   * El nombre en texto plano, sólo para el lector de pantalla.
+   *
+   * `label` es JSX —lleva el texto editable del panel de administración—, así
+   * que no sirve para el aria-label: los tres botones terminaban diciendo
+   * "Ver tipos de la categoría", tres veces lo mismo y sin decir de cuál.
+   */
+  nombre: string
   subcategorias: Subcategoria[]
 }) {
   const [abierto, setAbierto] = useState(false)
@@ -90,7 +99,7 @@ export default function NavCategoria({
           type="button"
           aria-expanded={abierto}
           aria-haspopup="true"
-          aria-label={`Ver tipos de ${typeof label === 'string' ? label : 'la categoría'}`}
+          aria-label={`Ver tipos de ${nombre}`}
           onClick={() => setAbierto((v) => !v)}
           className="p-1 -m-1 text-brand-text-muted hover:text-white transition-colors"
         >
