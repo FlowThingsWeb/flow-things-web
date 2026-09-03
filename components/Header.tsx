@@ -12,7 +12,7 @@ import HeaderSearch from '@/components/HeaderSearch'
 import type { ConfigMap } from '@/lib/config'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import NavCategoria from '@/components/NavCategoria'
-import type { Categoria, Subcategoria } from '@/lib/catalogo'
+import type { Categoria, MarcaCatalogo, Subcategoria } from '@/lib/catalogo'
 
 /** Logo de 128 px. Ver `logo_url` en lib/config.ts: el master de
  *  512 px lo usan la factura, los mails y los datos estructurados. */
@@ -22,9 +22,10 @@ interface HeaderProps {
   cfg: ConfigMap
   categorias: Categoria[]
   subcategorias: Subcategoria[]
+  marcas: MarcaCatalogo[]
 }
 
-export default function Header({ cfg, categorias, subcategorias }: HeaderProps) {
+export default function Header({ cfg, categorias, subcategorias, marcas }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { cantidadTotal, openCart } = useCartStore()
   const cantidad = cantidadTotal()
@@ -51,6 +52,12 @@ export default function Header({ cfg, categorias, subcategorias }: HeaderProps) 
     if (!cat) return []
     return subcategorias.filter((s) => s.categoria_id === cat.id)
   }
+
+  // Las marcas del desplegable: las que más productos tienen. La lista
+  // completa está en /marcas, que es lo que abre "Ver todas las marcas".
+  const marcasMenu = marcas.slice(0, 12).map((m) => ({
+    id: m.slug, nombre: m.nombre, slug: m.slug,
+  }))
 
   return (
     <header className="sticky top-0 z-40 bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
@@ -109,9 +116,24 @@ export default function Header({ cfg, categorias, subcategorias }: HeaderProps) 
                   </span>
                 }
                 nombre={link.nombre}
-                subcategorias={subsDe(link.slug)}
+                items={subsDe(link.slug).map((s) => ({
+                  id: s.id, nombre: s.nombre, slug: s.slug,
+                }))}
               />
             ))}
+            {marcasMenu.length > 0 && (
+              <NavCategoria
+                href="/marcas"
+                label={
+                  <span className="text-sm font-medium tracking-wide uppercase hover:text-brand-neon transition-colors">
+                    Marcas
+                  </span>
+                }
+                nombre="las marcas"
+                items={marcasMenu}
+                verTodo="Ver todas las marcas"
+              />
+            )}
           </nav>
 
           {/* Acciones */}
@@ -198,6 +220,30 @@ export default function Header({ cfg, categorias, subcategorias }: HeaderProps) 
                 </div>
               )
             })}
+            {marcasMenu.length > 0 && (
+              <div>
+                <Link
+                  href="/marcas"
+                  onClick={() => setMenuOpen(false)}
+                  className="block text-brand-text-muted hover:text-brand-neon py-2 px-3 rounded-lg hover:bg-brand-bg-soft transition-colors text-sm font-medium uppercase tracking-wide"
+                >
+                  Marcas
+                </Link>
+                <ul className="ml-3 mb-1 border-l border-brand-border pl-3">
+                  {marcasMenu.map((m) => (
+                    <li key={m.slug}>
+                      <Link
+                        href={`/marcas/${m.slug}`}
+                        onClick={() => setMenuOpen(false)}
+                        className="block py-1.5 px-2 rounded-lg text-sm text-brand-text-muted hover:text-brand-neon hover:bg-brand-bg-soft transition-colors"
+                      >
+                        {m.nombre}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <Link
               href="/cuenta"
               onClick={() => setMenuOpen(false)}

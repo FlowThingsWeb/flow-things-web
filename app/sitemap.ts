@@ -77,5 +77,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     }))
 
-  return [...estaticas, ...productosUrls, ...categoriasUrls, ...subcategoriasUrls]
+  // Marcas. Mucha búsqueda es por marca ("la granja de zenón juguetes"), así
+  // que estas páginas valen tanto como las de categoría.
+  const { getMarcas } = await import('@/lib/catalogo')
+  const marcas = await getMarcas()
+  const marcasUrls: MetadataRoute.Sitemap = [
+    { url: `${BASE}/marcas`, changeFrequency: 'weekly' as const, priority: 0.8 },
+    ...marcas.map((m) => ({
+      url: `${BASE}/marcas/${m.slug}`,
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    })),
+  ]
+
+  return [
+    ...estaticas, ...productosUrls, ...categoriasUrls,
+    ...subcategoriasUrls, ...marcasUrls,
+  ]
 }

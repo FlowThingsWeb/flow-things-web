@@ -10,7 +10,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { Producto, Variante } from '@/types'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import { contieneConSinonimos, normalizar } from '@/lib/sinonimos'
-import { marcaDe } from '@/lib/marcas'
+import { logoDeMarca, marcaDe, slugMarca } from '@/lib/marcas'
 
 export const PAGE_SIZE = 24
 
@@ -278,4 +278,62 @@ export function ordenarYPaginar(items: CatalogItem[], orden?: string, page?: str
   const visibles = ordenados.slice((paginaActual - 1) * PAGE_SIZE, paginaActual * PAGE_SIZE)
 
   return { ordenados, visibles, totalPaginas, paginaActual }
+}
+
+export type MarcaCatalogo = {
+  nombre: string
+  slug: string
+  logo: string | null
+  /** Cuántos productos distintos tiene, no cuántas tarjetas. */
+  cantidad: number
+  /** Una foto de su mercadería, para las marcas que no tienen logo. */
+  foto: string | null
+}
+
+/**
+ * Las marcas que hoy tienen algo a la venta, con su logo y cuántos productos.
+ *
+ * Sale del SKU, que ya estaba mapeado para el feed de Merchant Center: no hay
+ * tabla de marcas ni un campo que alguien tenga que completar al cargar un
+ * producto. La contra es que un SKU que no está en el mapa cae en "Flow
+ * Things", y esa no es una marca para mostrar en la pared de logos — se
+ * excluye.
+ */
+export const getMarcas = unstable_cache(async (): Promise<MarcaCatalogo[]> => {
+  const productos = await getCatalogoCompleto()
+  const porMarca = new Map<string, { cantidad: number; foto: string | null }>()
+
+  for (const p of productos) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (CATEGORIAS_PAUSADAS.includes((p.categorias as any)?.slug)) continue
+    const nombre = marcaDe(p.sku)
+    if (nombre === 'Flow Things') continue
+    const previo = porMarca.get(nombre)
+    const foto =
+      p.imagen_url ||
+      p.imagenes?.[0] ||
+      (p.variantes || []).find((v) => v.activo && (v.imagen_url || v.imagenes?.[0]))?.imagen_url ||
+      null
+    porMarca.set(nombre, {
+      cantidad: (previo?.cantidad ?? 0) + 1,
+      foto: previo?.foto ?? foto,
+    })
+  }
+
+  return [...porMarca.entries()]
+    .map(([nombre, d]) => ({
+      nombre,
+      slug: slugMarca(nombre),
+      logo: logoDeMarca(nombre),
+      cantidad: d.cantidad,
+      foto: d.foto,
+    }))
+    // Primero las que más tienen: la pared de logos abre con lo que más hay.
+    .sort((a, b) => b.cantidad - a.cantidad || a.nombre.localeCompare(b.nombre, 'es'))
+}, ['marcas-catalogo'], CACHE)
+
+/** Tarjetas de una marca, por su slug. */
+export async function getItemsDeMarca(slug: string): Promise<CatalogItem[]> {
+  const todos = await getItemsDeCategoria()
+  return todos.filter(({ producto }) => slugMarca(marcaDe(producto.sku)) === slug)
 }

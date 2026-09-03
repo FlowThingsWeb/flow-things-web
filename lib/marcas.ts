@@ -615,3 +615,48 @@ export function marcaDe(sku: string | null | undefined): string {
   if (!sku) return 'Flow Things'
   return MARCA_POR_SKU[sku.trim().toUpperCase()] || 'Flow Things'
 }
+
+/**
+ * URL del logo de cada marca, dentro de /public/marcas.
+ *
+ * Las sublíneas comparten el logo de la marca madre: "Influencer Stylist" y
+ * "Influencer Life Style" son Influencer, y "Unicorn Dreams Stylist" es
+ * Unicorn Dreams. Se copia el archivo por cada una en vez de resolver la madre
+ * en código: son 40 KB y evita una tabla de equivalencias que hay que mantener.
+ *
+ * Craze y Toy Story 5 no tienen logo propio en la carpeta de marcas —Craze
+ * sólo tiene los de sus líneas (Magic Sand, Magic Dough, Compound Mix)—, así
+ * que se muestran con el nombre en tipografía. No es un error a esconder: es
+ * lo que hay hasta que aparezca el archivo.
+ */
+export const LOGO_POR_MARCA: Record<string, string> = {
+  "Dr. Steve Hunters": "/marcas/dr-steve-hunters.png",
+  "Dreams": "/marcas/dreams.png",
+  "Football is Life": "/marcas/football-is-life.png",
+  "Girl Boss": "/marcas/girl-boss.png",
+  "Hey! Beauty": "/marcas/hey-beauty.png",
+  "Influencer": "/marcas/influencer.png",
+  "Influencer Life Style": "/marcas/influencer-life-style.png",
+  "Influencer Stylist": "/marcas/influencer-stylist.png",
+  "La Granja de Zenón": "/marcas/la-granja-de-zenon.png",
+  "Magical World": "/marcas/magical-world.png",
+  "Style 4 Ever": "/marcas/style-4-ever.png",
+  "Sweet Friends": "/marcas/sweet-friends.png",
+  "Unicorn Dreams": "/marcas/unicorn-dreams.png",
+  "Unicorn Dreams Stylist": "/marcas/unicorn-dreams-stylist.png",
+}
+
+/** El nombre de la marca, en formato de URL: "Hey! Beauty" → "hey-beauty". */
+export function slugMarca(nombre: string): string {
+  return nombre
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** El logo de una marca, o null si todavía no tiene archivo. */
+export function logoDeMarca(nombre: string): string | null {
+  return LOGO_POR_MARCA[nombre] ?? null
+}

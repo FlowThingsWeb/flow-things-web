@@ -20,17 +20,18 @@ import FloatingWhatsApp from '@/components/FloatingWhatsApp'
 import Analytics from '@/components/Analytics'
 import CarritoHidratador from '@/components/CarritoHidratador'
 import type { ConfigMap } from '@/lib/config'
-import type { Categoria, Subcategoria } from '@/lib/catalogo'
+import type { Categoria, MarcaCatalogo, Subcategoria } from '@/lib/catalogo'
 
 interface Props {
   cfg: ConfigMap
   /** Para el menú del header: el segundo nivel se arma con esto. */
   categorias: Categoria[]
   subcategorias: Subcategoria[]
+  marcas: MarcaCatalogo[]
   children: React.ReactNode
 }
 
-export default function UserShell({ cfg, categorias, subcategorias, children }: Props) {
+export default function UserShell({ cfg, categorias, subcategorias, marcas, children }: Props) {
   const pathname = usePathname()
   const isAdmin = pathname.startsWith('/admin')
 
@@ -52,7 +53,7 @@ export default function UserShell({ cfg, categorias, subcategorias, children }: 
         gratisAmba={Number(cfg.envio_gratis_amba_desde || cfg.envio_gratis_gba_desde) || 60000}
         gratisInterior={Number(cfg.envio_gratis_interior_desde) || 120000}
       />
-      <Header cfg={cfg} categorias={categorias} subcategorias={subcategorias} />
+      <Header cfg={cfg} categorias={categorias} subcategorias={subcategorias} marcas={marcas} />
       <main className="min-h-screen">{children}</main>
       <CartDrawer
         gratisCaba={Number(cfg.envio_gratis_caba_desde) || 40000}

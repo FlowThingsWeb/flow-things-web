@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { configParaCliente, getConfig } from '@/lib/config'
-import { getCategorias, getSubcategorias } from '@/lib/catalogo'
+import { getCategorias, getMarcas, getSubcategorias } from '@/lib/catalogo'
 import { AuthProvider } from '@/lib/auth-context'
 import UserShell from '@/components/UserShell'
 import SeoJsonLd from '@/components/SeoJsonLd'
@@ -70,10 +70,11 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [cfg, categorias, subcategorias] = await Promise.all([
+  const [cfg, categorias, subcategorias, marcas] = await Promise.all([
     getConfig(),
     getCategorias(),
     getSubcategorias(),
+    getMarcas(),
   ])
 
   // Build Google Fonts URL if a custom font is set
@@ -110,7 +111,12 @@ export default async function RootLayout({
         <AuthProvider>
           {/* Sin filtrar, acá cruzaban al browser los cuerpos de los mails
               de notificación y el cupón post-compra. Ver lib/config.ts. */}
-          <UserShell cfg={configParaCliente(cfg)} categorias={categorias} subcategorias={subcategorias}>
+          <UserShell
+            cfg={configParaCliente(cfg)}
+            categorias={categorias}
+            subcategorias={subcategorias}
+            marcas={marcas}
+          >
             {children}
           </UserShell>
         </AuthProvider>

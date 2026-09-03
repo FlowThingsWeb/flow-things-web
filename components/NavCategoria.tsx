@@ -2,14 +2,21 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import type { Subcategoria } from '@/lib/catalogo'
+
+
+/** Lo mínimo para armar una opción del desplegable. */
+export type ItemMenu = { id: string; nombre: string; slug: string }
 
 /**
- * Item del menú con su desplegable de subcategorías.
+ * Item del menú con su desplegable.
  *
- * El link a la categoría sigue siendo un link: se puede entrar a "Juguetería"
- * sin elegir un tipo, que es lo que hace la mayoría. El desplegable es un
- * atajo para quien ya sabe que busca peluches.
+ * Lo usan las categorías con sus tipos de producto y Marcas con sus marcas:
+ * en los dos casos es un link que ya sirve solo más una lista de hijos que
+ * cuelgan de la misma ruta.
+ *
+ * El link de arriba sigue siendo un link: se puede entrar a "Juguetería" sin
+ * elegir un tipo, que es lo que hace la mayoría. El desplegable es un atajo
+ * para quien ya sabe que busca peluches.
  *
  * Abre con hover en desktop y con click en todos lados. El click importa: en
  * touch no hay hover, y con teclado el hover no existe — sin él, el segundo
@@ -19,7 +26,8 @@ export default function NavCategoria({
   href,
   label,
   nombre,
-  subcategorias,
+  items,
+  verTodo = 'Ver todo',
 }: {
   href: string
   label: React.ReactNode
@@ -31,7 +39,9 @@ export default function NavCategoria({
    * "Ver tipos de la categoría", tres veces lo mismo y sin decir de cuál.
    */
   nombre: string
-  subcategorias: Subcategoria[]
+  items: ItemMenu[]
+  /** Texto del link final del panel. */
+  verTodo?: string
 }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -58,7 +68,7 @@ export default function NavCategoria({
     if (cerrarTimer.current) clearTimeout(cerrarTimer.current)
   }, [])
 
-  if (subcategorias.length === 0) {
+  if (items.length === 0) {
     return (
       <Link
         href={href}
@@ -99,7 +109,7 @@ export default function NavCategoria({
           type="button"
           aria-expanded={abierto}
           aria-haspopup="true"
-          aria-label={`Ver tipos de ${nombre}`}
+          aria-label={`Ver ${nombre}`}
           onClick={() => setAbierto((v) => !v)}
           className="p-1 -m-1 text-brand-text-muted hover:text-white transition-colors"
         >
@@ -119,7 +129,7 @@ export default function NavCategoria({
           onMouseLeave={programarCierre}
         >
           <ul className="min-w-56 bg-brand-bg-card border border-brand-border rounded-xl shadow-xl py-2">
-            {subcategorias.map((s) => (
+            {items.map((s) => (
               <li key={s.id}>
                 <Link
                   href={`${href}/${s.slug}`}
@@ -136,7 +146,7 @@ export default function NavCategoria({
                 onClick={() => setAbierto(false)}
                 className="block px-4 py-2 text-sm text-brand-purple hover:bg-brand-bg-soft transition-colors"
               >
-                Ver todo
+                {verTodo}
               </Link>
             </li>
           </ul>

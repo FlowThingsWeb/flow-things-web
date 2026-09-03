@@ -117,7 +117,12 @@ export default function CatalogoView({
           {/* En el celular los filtros van plegados: si ocupan la pantalla
               entera, hay que hacer scroll hasta el final para ver el primer
               producto. En desktop entran al lado de la grilla. */}
-          {categoriaActiva && (
+          {/* Los filtros van siempre, no sólo dentro de una categoría: en
+              /marcas/craze y en el catálogo completo sirven igual. Cada grupo
+              se esconde solo cuando no tiene nada que ofrecer — la marca no
+              aparece si todo es de la misma marca, el tipo de producto no
+              aparece si no hay subcategorías. */}
+          {(
             <>
               <details className="lg:hidden bg-brand-bg-card border border-brand-border rounded-2xl">
                 <summary className="px-5 py-4 cursor-pointer text-sm font-semibold text-white select-none">
