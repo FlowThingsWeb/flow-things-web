@@ -2,6 +2,23 @@ import type { Metadata } from 'next'
 import PaginaCategoria, { type SearchParams } from '@/components/PaginaCategoria'
 import { getCategorias, getSubcategorias } from '@/lib/catalogo'
 
+/**
+ * Se renderiza por request, no en el build.
+ *
+ * Tenía `generateStaticParams`, y ahí estuvo el problema: la lista de
+ * subcategorías sale de la base, así que un build hecho antes de la migración
+ * la devolvía vacía. Con la lista vacía Next igual sirve la ruta, pero la
+ * renderiza en modo estático — y esta página lee `searchParams` para los
+ * filtros, que es justamente lo que no se puede leer en modo estático:
+ * DYNAMIC_SERVER_USAGE, 500 en todas las subcategorías.
+ *
+ * No es que faltara un dato: es que el modo de render dependía de si la base
+ * estaba lista en el momento del build, y eso no puede decidir si la página
+ * funciona. Los datos igual salen de caché (unstable_cache, 60s), así que
+ * renderizar por request cuesta poco, y el HTML sigue completo para Google.
+ */
+export const dynamic = 'force-dynamic'
+
 const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
 
 /**
@@ -19,14 +36,6 @@ const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').re
 interface Props {
   params: Promise<{ slug: string; sub: string }>
   searchParams: Promise<SearchParams>
-}
-
-export async function generateStaticParams() {
-  const [categorias, subcategorias] = await Promise.all([getCategorias(), getSubcategorias()])
-  const porId = new Map(categorias.map((c) => [c.id, c.slug]))
-  return subcategorias
-    .filter((s) => porId.has(s.categoria_id))
-    .map((s) => ({ slug: porId.get(s.categoria_id)!, sub: s.slug }))
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
