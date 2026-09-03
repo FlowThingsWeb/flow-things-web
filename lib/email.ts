@@ -21,6 +21,14 @@ const HTML_VAR_KEYS = new Set([
   'fila_descuento',
   'tracking_boton',
   'productos_lista',
+  // El recuadro del cupón del carrito y el encabezado de cada etapa: son HTML
+  // armado por nosotros, y el único dato de afuera —el nombre— ya viene
+  // escapado antes de entrar acá.
+  'bloque_extra',
+  'titulo',
+  'bajada',
+  // Entidad HTML del emoji del encabezado: escaparla mostraría '&#x1F381;'.
+  'emoji',
 ])
 
 export function renderTemplate(template: string, vars: Record<string, string>): string {

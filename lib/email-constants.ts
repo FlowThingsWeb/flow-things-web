@@ -141,6 +141,72 @@ export const DEFAULT_EMAIL_CUERPO = `<!DOCTYPE html>
 // ─── Recuperación de carrito abandonado ─────────────────────────────────────
 export const DEFAULT_CARRITO_ASUNTO = '¿Te quedó algo en el carrito? &#x1F6D2;'
 
+/** El cupón del tercer mail. Ver supabase_carrito_abandonado_secuencia.sql. */
+export const CUPON_CARRITO = 'VOLVE5'
+export const CUPON_CARRITO_PCT = 5
+
+/**
+ * Las tres etapas del recordatorio de carrito, con su copy.
+ *
+ * Tres mails al mismo carrito no pueden decir lo mismo tres veces: el primero
+ * asume que se distrajo, el segundo que lo está pensando, el tercero le da una
+ * razón nueva para volver. Por eso cambia el asunto y el encabezado, y sólo el
+ * último lleva cupón.
+ */
+export const CARRITO_ETAPAS = {
+  '2h': {
+    horas: 2,
+    columna: 'recordatorio_2h_at',
+    asunto: '¿Te quedó algo en el carrito? &#x1F6D2;',
+    titulo: '{{nombre}}, ¡te quedó algo pendiente!',
+    bajada: 'Guardamos tu carrito para que lo termines cuando quieras.',
+    cta: 'Terminar mi compra',
+    emoji: '&#x1F6D2;',
+    conCupon: false,
+  },
+  '24h': {
+    horas: 24,
+    columna: 'recordatorio_24h_at',
+    asunto: 'Tu carrito sigue esperándote &#x1F49C;',
+    titulo: '{{nombre}}, todavía lo tenemos guardado',
+    bajada: 'Seguimos con stock de lo que elegiste. Cuando quieras, lo terminás en un minuto.',
+    cta: 'Volver a mi carrito',
+    emoji: '&#x1F49C;',
+    conCupon: false,
+  },
+  '7d': {
+    horas: 24 * 7,
+    columna: 'recordatorio_7d_at',
+    asunto: `Te dejamos un ${CUPON_CARRITO_PCT}% para que lo termines &#x1F381;`,
+    titulo: '{{nombre}}, esto es para vos',
+    bajada: 'Pasó una semana y tu carrito sigue ahí. Esto es para que lo termines hoy.',
+    cta: `Usar mi ${CUPON_CARRITO_PCT}% de descuento`,
+    emoji: '&#x1F381;',
+    conCupon: true,
+  },
+} as const
+
+export type EtapaCarrito = keyof typeof CARRITO_ETAPAS
+
+/** El recuadro del cupón, sólo para el mail de la semana. */
+export const BLOQUE_CUPON_CARRITO = `<tr><td style="background:#ffffff;padding:4px 40px 20px">
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-radius:20px;background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 55%,#c026d3 100%)">
+    <tr><td style="padding:26px 24px 24px;text-align:center">
+      <p style="margin:0 0 2px;font-size:12px;font-weight:700;color:#e9d5ff;letter-spacing:.16em;text-transform:uppercase">Sólo para vos</p>
+      <p style="margin:0;font-size:56px;line-height:1.05;font-weight:800;color:#ffffff;letter-spacing:-.02em">${CUPON_CARRITO_PCT}% OFF</p>
+      <p style="margin:2px 0 18px;font-size:15px;color:#f3e8ff">en todo tu carrito</p>
+
+      <table cellpadding="0" cellspacing="0" align="center" style="border-collapse:separate;background:#ffffff;border-radius:12px">
+        <tr><td style="padding:12px 26px;text-align:center">
+          <span style="font-size:26px;font-weight:800;color:#5b21b6;letter-spacing:.14em">${CUPON_CARRITO}</span>
+        </td></tr>
+      </table>
+
+      <p style="margin:14px 0 0;font-size:13px;color:#e9d5ff">Escribí el código al pagar &#xB7; se usa una sola vez</p>
+    </td></tr>
+  </table>
+</td></tr>`
+
 export const DEFAULT_CARRITO_CUERPO = `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
@@ -154,20 +220,21 @@ export const DEFAULT_CARRITO_CUERPO = `<!DOCTYPE html>
 </td></tr>
 
 <tr><td style="background:#f5f0ff;padding:32px 40px 24px;text-align:center">
-  <div style="font-size:52px;line-height:1;margin-bottom:10px">&#x1F6D2;</div>
-  <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#1a0040">{{nombre}}, ¡te quedó algo pendiente!</h1>
-  <p style="margin:0;font-size:15px;color:#6b21a8">Guardamos tu carrito para que lo termines cuando quieras.</p>
+  <div style="font-size:52px;line-height:1;margin-bottom:10px">{{emoji}}</div>
+  <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#1a0040">{{titulo}}</h1>
+  <p style="margin:0;font-size:15px;color:#6b21a8">{{bajada}}</p>
 </td></tr>
 
-<tr><td style="background:#ffffff;padding:24px 40px 8px">
+{{bloque_extra}}
+
+<tr><td style="background:#ffffff;padding:20px 40px 8px">
   {{productos_lista}}
 </td></tr>
 
 <tr><td style="background:#ffffff;padding:8px 40px 36px;text-align:center">
-  <a href="{{link}}" style="display:inline-block;background:#7C3AED;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:14px 40px;border-radius:14px">
-    Terminar mi compra
+  <a href="{{link}}" style="display:inline-block;background:#7C3AED;color:#ffffff;font-size:17px;font-weight:800;text-decoration:none;padding:17px 44px;border-radius:14px">
+    {{cta}}
   </a>
-  <p style="margin:20px 0 0;font-size:12px;color:#9ca3af">Si ya lo compraste, ignorá este mensaje &#x1F60A;</p>
 </td></tr>
 
 <tr><td style="background:#1e0050;padding:22px 40px;text-align:center">

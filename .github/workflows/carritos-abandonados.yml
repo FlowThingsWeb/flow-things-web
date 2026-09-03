@@ -1,0 +1,25 @@
+name: Carritos abandonados
+
+# Los recordatorios son a las 2 horas, al día y a la semana, así que el cron
+# tiene que correr seguido: con el diario de Vercel (plan Hobby), el mail de
+# "2 horas" podía salir hasta 24 horas tarde y llegaba como el del día.
+#
+# Cada media hora es suficiente para que cada etapa caiga cerca de su momento
+# sin mandar nada de más: el endpoint marca la etapa apenas la envía, así que
+# correr de más no duplica mails.
+#
+# El endpoint está protegido con CRON_SECRET (Settings → Secrets and variables
+# → Actions), el mismo que usan los demás crons de la web.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  recordar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar /api/cron/carritos-abandonados
+        run: |
+          curl -fsS -X GET "https://flowthings.com.ar/api/cron/carritos-abandonados" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

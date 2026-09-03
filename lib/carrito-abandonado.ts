@@ -1,15 +1,47 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { sendEmail, renderTemplate, escapeHtml, filaProducto } from '@/lib/email'
-import { DEFAULT_CARRITO_ASUNTO, DEFAULT_CARRITO_CUERPO } from '@/lib/email-constants'
+import {
+  BLOQUE_CUPON_CARRITO, CARRITO_ETAPAS, DEFAULT_CARRITO_CUERPO, type EtapaCarrito,
+} from '@/lib/email-constants'
 import { formatMonto } from '@/lib/format'
+
+/**
+ * Asunto y cuerpo del recordatorio de carrito para una etapa.
+ *
+ * Lo comparten el cron y el envío manual del admin: si el copy de una etapa
+ * cambia, cambia en los dos lados. El cupón sólo entra en la de la semana.
+ */
+export function armarMailCarrito(
+  etapa: EtapaCarrito,
+  nombre: string,
+  productosLista: string,
+  link: string,
+): { asunto: string; cuerpo: string } {
+  const e = CARRITO_ETAPAS[etapa]
+  const nombreSeguro = escapeHtml(nombre)
+  return {
+    asunto: e.asunto,
+    cuerpo: renderTemplate(DEFAULT_CARRITO_CUERPO, {
+      nombre: nombreSeguro,
+      titulo: e.titulo.replace('{{nombre}}', nombreSeguro),
+      bajada: e.bajada,
+      cta: e.cta,
+      emoji: e.emoji,
+      productos_lista: productosLista,
+      bloque_extra: e.conCupon ? BLOQUE_CUPON_CARRITO : '',
+      link,
+    }),
+  }
+}
 
 /**
  * Arma y envía el email de recuperación de carrito abandonado a un usuario.
  * Marca recordatorio_enviado. Se usa desde el admin (envío manual) — el cron
- * tiene su propio loop batcheado.
+ * tiene su propio loop batcheado y su propia secuencia de etapas.
  */
 export async function enviarRecordatorioCarrito(
   userId: string,
+  etapa: EtapaCarrito = '2h',
 ): Promise<{ ok: boolean; error?: string }> {
   const { data: c } = await supabaseAdmin
     .from('carritos_guardados')
@@ -38,14 +70,12 @@ export async function enviarRecordatorioCarrito(
   }).join('')
   const productosLista = `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${filas}</table>`
 
-  const cuerpo = renderTemplate(DEFAULT_CARRITO_CUERPO, {
-    nombre: escapeHtml(nombre),
-    productos_lista: productosLista,
-    link: `${appUrl}/carrito`,
-  })
+  const { asunto, cuerpo } = armarMailCarrito(
+    etapa, nombre, productosLista, `${appUrl}/carrito`,
+  )
 
   try {
-    await sendEmail({ to: email, asunto: DEFAULT_CARRITO_ASUNTO, cuerpo })
+    await sendEmail({ to: email, asunto, cuerpo })
     await supabaseAdmin
       .from('carritos_guardados')
       .update({ recordatorio_enviado: new Date().toISOString() })

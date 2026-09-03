@@ -82,9 +82,20 @@ export default function CartSync() {
       try {
         await supabase
           .from('carritos_guardados')
-          // recordatorio_enviado: null re-arma el recordatorio de carrito abandonado
-          // cada vez que el carrito cambia (así se puede volver a avisar más adelante).
-          .upsert({ user_id: user.id, items, updated_at: new Date().toISOString(), recordatorio_enviado: null })
+          // Tocar el carrito reinicia la secuencia entera de recordatorios: el
+          // reloj de las 2 horas, el del día y el de la semana arrancan de
+          // nuevo desde este momento. Si sólo se limpiara la primera etapa, a
+          // alguien que vuelve a agregar algo le llegaría el mail de la semana
+          // por un carrito que acaba de tocar.
+          .upsert({
+            user_id: user.id,
+            items,
+            updated_at: new Date().toISOString(),
+            recordatorio_enviado: null,
+            recordatorio_2h_at: null,
+            recordatorio_24h_at: null,
+            recordatorio_7d_at: null,
+          })
       } catch {
         // silenciar errores de red
       }
