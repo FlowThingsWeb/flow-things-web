@@ -95,6 +95,17 @@ export default function PoliticaPrivacidadPage() {
                 <strong className="text-brand-text">Vercel</strong> — plataforma de hosting del sitio web. No procesa datos personales más
                 allá de los logs técnicos estándar.
               </li>
+              <li>
+                <strong className="text-brand-text">Google Analytics</strong> y <strong className="text-brand-text">Meta Pixel</strong> —
+                medición de tráfico y de resultados de publicidad. Registran páginas vistas y acciones dentro del sitio,
+                asociadas a un identificador anónimo, no a tu nombre.
+              </li>
+              <li>
+                <strong className="text-brand-text">Microsoft Clarity</strong> — nos muestra cómo se usa el sitio: dónde se hace click,
+                hasta dónde se baja en una página y grabaciones del recorrido, para detectar qué se traba y arreglarlo.
+                Lo que escribís en los formularios se enmascara antes de salir de tu navegador: no vemos contraseñas,
+                datos de tarjeta ni el contenido de los campos que completás.
+              </li>
             </ul>
             <p className="mt-3">
               Todos estos proveedores cuentan con sus propias políticas de privacidad y no están autorizados a usar tus datos para
@@ -149,9 +160,15 @@ export default function PoliticaPrivacidadPage() {
           {/* 7 */}
           <section>
             <h2 className="text-xl font-bold text-brand-text mb-3">7. Cookies</h2>
+            <p className="mb-3">
+              Usamos cookies de sesión estrictamente necesarias para mantener tu sesión iniciada y para recordar lo que
+              agregaste al carrito.
+            </p>
             <p>
-              Usamos cookies de sesión estrictamente necesarias para mantener tu sesión iniciada. No usamos cookies de
-              seguimiento ni de publicidad de terceros.
+              Además usamos cookies de medición de Google Analytics, Meta Pixel y Microsoft Clarity, que nos dicen cuánta
+              gente entra, de dónde llega y cómo recorre el sitio. No vendemos esos datos ni los usamos para armar perfiles
+              tuyos fuera de la tienda. Podés bloquearlas desde la configuración de tu navegador o navegando en una ventana
+              privada; la tienda funciona igual.
             </p>
           </section>
 
