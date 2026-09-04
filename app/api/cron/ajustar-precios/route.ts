@@ -3,15 +3,10 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { sendEmail } from '@/lib/email'
 import { getConfig } from '@/lib/config'
 import {
-  CONFIG_WEB_DEFAULT,
-  MUESTRAS_KM_MINIMAS,
   calcularPrecioWeb,
-  costeoDesdeConfig,
-  escalonesDesdeConfig,
-  recomendarUmbrales,
+  configDesdeSitio,
   type AjustePrecio,
   type ConfigPreciosWeb,
-  type CosteoEnvio,
 } from '@/lib/precios-web'
 
 export const maxDuration = 60
@@ -79,54 +74,15 @@ async function traerCostosDelCrm(): Promise<CostoCrm[]> {
 }
 
 /** Unidades vendidas por SKU en la tienda, para no tocar lo que ya funciona. */
-async function ventasWebPorSku(dias: number): Promise<Map<string, number>> {
-  const desde = new Date(Date.now() - dias * 86_400_000).toISOString()
-  const { data } = await supabaseAdmin
-    .from('ordenes')
-    .select('items, estado, created_at')
-    .gte('created_at', desde)
-
-  const porSku = new Map<string, number>()
-  for (const orden of data ?? []) {
-    // Sólo cuentan las ventas cobradas.
-    if (!ESTADOS_COBRADOS.includes(String(orden.estado).toLowerCase())) {
-      continue
-    }
-    for (const item of (orden.items ?? []) as { sku?: string; cantidad?: number }[]) {
-      if (!item?.sku) continue
-      porSku.set(item.sku, (porSku.get(item.sku) ?? 0) + Number(item.cantidad ?? 1))
-    }
-  }
-  return porSku
-}
-
-/** Estados en los que la venta se considera cobrada. */
-const ESTADOS_COBRADOS = ['pagado', 'aprobado', 'approved', 'completado']
-
 /**
- * Distancias de los envíos por cercanía ya despachados.
+ * El precio ya no depende de si el producto se vendió.
  *
- * Es lo que le permite al costeo dejar de asumir el peor caso: en vez de
- * cobrar todos los productos como si cada envío fuera al borde del radio, se
- * usa el percentil 90 de lo que realmente se despachó. Sólo cuentan las
- * órdenes cobradas y sólo las que se cobraron por distancia (las de tarifa
- * plana no tienen km).
+ * Antes se dejaba quieto el precio de lo que había vendido en la última
+ * semana, con la idea de que el mercado ya lo había validado. Con el margen
+ * medido sobre lo facturado y dos tramos según quién paga el envío, el precio
+ * correcto es uno solo y sale del costo: dejar quieto uno que quedó bajo el
+ * objetivo es vender barato por inercia.
  */
-async function kmDespachados(dias: number): Promise<number[]> {
-  const desde = new Date(Date.now() - dias * 86_400_000).toISOString()
-  const { data } = await supabaseAdmin
-    .from('ordenes')
-    .select('datos_comprador, estado')
-    .gte('created_at', desde)
-
-  const kms: number[] = []
-  for (const orden of data ?? []) {
-    if (!ESTADOS_COBRADOS.includes(String(orden.estado).toLowerCase())) continue
-    const km = Number((orden.datos_comprador as { envio_km?: number } | null)?.envio_km)
-    if (Number.isFinite(km) && km > 0) kms.push(km)
-  }
-  return kms
-}
 
 const money = (n: number) => '$' + Math.round(n).toLocaleString('es-AR')
 
@@ -134,102 +90,44 @@ function armarMail(
   ajustes: AjustePrecio[],
   aplicados: AjustePrecio[],
   cfg: ConfigPreciosWeb,
-  costeo: CosteoEnvio,
-  /** Cuántos quedaron sin cambiar por el tope de la corrida. */
-  quedanFuera = 0,
-) {
-  // Con los precios ya calculados se ve si algún umbral quedó mal ubicado.
-  const sugerencias = recomendarUmbrales(ajustes.map(a => a.precio_nuevo), cfg)
+  quedanFuera: number,
+): string {
   const suben = aplicados.filter(a => a.direccion === 'sube').length
   const bajan = aplicados.filter(a => a.direccion === 'baja').length
+  const caros = ajustes.filter(a => a.mas_caro_que_ml)
 
   const filas = aplicados
-    .map(a => {
-      const dif = a.precio_actual ? (a.precio_nuevo / a.precio_actual - 1) * 100 : 0
-      const color = dif < 0 ? '#b91c1c' : '#15803d'
-      return `<tr>
-<td><b>${a.sku}</b><br><small style="color:#888">${a.nombre}</small></td>
+    .map(a => `<tr>
+<td>${a.nombre}<br><small style="color:#888">SKU ${a.sku}</small></td>
 <td>${money(a.costo_con_iva)}</td>
-<td>${money(a.comision_monto)}<br><small style="color:#888">${a.comision_pct}% de cobro</small></td>
-<td>${money(a.costo_envio)}<br><small style="color:#888">envío</small></td>
-<td>${a.precio_ml ? money(a.precio_ml) : '<span style="color:#bbb">—</span>'}</td>
 <td>${money(a.precio_actual)}</td>
-<td><b>${money(a.precio_nuevo)}</b></td>
-<td style="color:${color};font-weight:700">${dif > 0 ? '+' : ''}${dif.toFixed(1)}%</td>
-<td><b>${money(a.ganancia)}</b><br><small style="color:#888">${a.margen_actual_pct}% → ${a.margen_nuevo_pct}%</small></td>
-<td style="font-size:12px">${a.nota}</td></tr>`
-    })
+<td><b>${money(a.precio_nuevo)}</b> ${a.direccion === 'sube' ? '↑' : a.direccion === 'baja' ? '↓' : ''}</td>
+<td>${a.absorbe_envio ? `−${money(a.envio_monto)}` : '<small style="color:#888">lo paga el cliente</small>'}</td>
+<td><b>${money(a.ganancia)}</b></td>
+<td>${a.margen_nuevo_pct}%</td>
+<td>${a.precio_ml ? money(a.precio_ml) : '—'}</td>
+</tr>`)
     .join('')
 
-  return `<h2>Precios de la tienda actualizados</h2>
-<p>Se revisaron ${ajustes.length} productos con costo en el CRM.
-Se cambiaron <b>${aplicados.length}</b>: ${suben} suben, ${bajan} bajan.</p>
-${quedanFuera > 0 ? `<p style="color:#b45309"><b>Quedaron ${quedanFuera} sin cambiar</b> por el tope de la corrida. Corré de nuevo para seguir.</p>` : ''}
-<p>La ganancia es lo que queda por unidad después de la comisión de cobro, el envío que paga la tienda
-y el costo con IVA. El margen es esa ganancia sobre el costo.</p>
-<p>Objetivo: entre <b>${(cfg.margen_min * 100).toFixed(0)}%</b> y <b>${(cfg.margen_objetivo * 100).toFixed(0)}%</b>
-sobre el costo con IVA, ya descontados la comisión de cobro y el envío que paga la tienda.
-Además, ningún precio queda por encima del de la misma publicación en Mercado Libre.</p>
-${aplicados.length === 0 ? '<p>No hubo cambios: todos los precios están dentro del rango.</p>' : `
-<table border="1" cellpadding="6" cellspacing="0" style="font-size:14px">
-<tr><th>SKU / producto</th><th>Costo c/IVA</th><th>Comisión</th><th>Envío</th><th>En ML</th><th>Precio viejo</th><th>Precio nuevo</th><th>Dif</th><th>Ganancia y margen</th><th>Por qué</th></tr>
-${filas}</table>`}
-<h3>Cómo se costeó el envío</h3>
-<p>Se toma la zona más cara entre las que ya superaron su umbral de envío gratis, así el margen mínimo
-se cumple sin importar a dónde se venda.</p>
-<table border="1" cellpadding="6" cellspacing="0" style="font-size:14px">
-<tr><th>Zona</th><th>Le cuesta a la tienda</th><th>Gratis desde</th></tr>
-${[...cfg.zonas]
-  .sort((a, b) => a.gratis_desde - b.gratis_desde)
-  .map(z => `<tr><td>${z.nombre}</td><td>${money(z.costo)}</td><td>${money(z.gratis_desde)}</td></tr>`)
-  .join('')}
-</table>
-${!costeo.tarifa_km ? '' : `
-<p style="font-size:14px">CABA y AMBA no tienen tarifa plana: se cobra
-<b>${money(costeo.tarifa_km.base)} + ${money(costeo.tarifa_km.por_km)} por km</b>,
-hasta ${costeo.tarifa_km.radio_max} km. Para poner precio hay que elegir una distancia, porque el precio
-se fija antes de saber a dónde va el paquete.</p>
-<p style="font-size:14px">Esta corrida costeó a <b>${costeo.km_costeo?.toFixed(1)} km</b>
-(${money(cfg.zonas.find(z => z.nombre.startsWith('Cercanía'))?.costo ?? 0)} por envío),
-según <b>${costeo.fuente_km}</b>${
-  costeo.fuente_km === 'historial de envíos'
-    ? ` — percentil 90 de ${costeo.muestras_km} envíos despachados`
-    : costeo.fuente_km === 'radio máximo'
-      ? `. Hay ${costeo.muestras_km} envío(s) por cercanía registrados y hacen falta ${MUESTRAS_KM_MINIMAS}
-         para usar el historial: mientras tanto se cobra el peor caso, que infla el precio de todo lo que
-         pasa los ${money(costeo.tarifa_km.gratis_desde)}. Si querés forzar una distancia, seteá
-         <code>envio_km_costeo</code> en la configuración`
-      : ' (config <code>envio_km_costeo</code>)'
-}.</p>`}
-${(() => {
-  const conflictos = ajustes.filter(a => a.conflicto_ml)
-  if (conflictos.length === 0) return ''
-  return `
-<h3>Publicaciones de Mercado Libre más baratas que el piso de la web</h3>
-<p>En estos productos Mercado Libre está por debajo del mínimo que la web necesita para no perder plata,
-así que no se pudo aplicar el techo: se dejó el piso. La web cobra 1,49% de comisión y ML cerca del 13%,
-o sea que si allá el precio es más bajo que el piso de acá, esa publicación se está vendiendo con muy poco
-margen o directamente a pérdida. Conviene mirar la publicación, no el precio de la web.</p>
-<table border="1" cellpadding="6" cellspacing="0" style="font-size:14px">
-<tr><th>Producto</th><th>Costo c/IVA</th><th>Precio en ML</th><th>Piso de la web</th><th>Diferencia</th></tr>
-${conflictos.map(a => `<tr><td>${a.nombre}<br><small style="color:#888">SKU ${a.sku}</small></td>
-<td>${money(a.costo_con_iva)}</td><td>${money(a.precio_ml ?? 0)}</td><td><b>${money(a.precio_nuevo)}</b></td>
-<td style="color:#c00">${money(a.precio_nuevo - (a.precio_ml ?? 0))}</td></tr>`).join('')}
-</table>`
-})()}
-${sugerencias.length === 0 ? '' : `
-<h3>Umbrales que convendría revisar</h3>
-<p>Justo por encima de cada umbral hay una zona donde se pierde plata: el producto activa el beneficio
-—envío gratis o cuotas— y su costo se lo come, sin que el precio de más alcance a compensarlo.</p>
-<table border="1" cellpadding="6" cellspacing="0" style="font-size:14px">
-<tr><th>Umbral</th><th>Hoy</th><th>Sugerido</th><th>Productos ahí</th><th>Costo si se vende uno de cada uno</th></tr>
-${sugerencias.map(s => `<tr><td>${s.nombre}</td><td>${money(s.umbral_actual)}</td>
-<td><b>${money(s.umbral_sugerido)}</b></td><td>${s.productos_afectados}</td>
-<td>${money(s.plata_en_juego)}</td></tr>`).join('')}
-</table>
-<ul>${sugerencias.map(s => `<li>${s.detalle}</li>`).join('')}</ul>
-<p style="color:#888">Subir el umbral deja esos productos fuera del beneficio: recupera margen, pero también
-saca el gancho comercial. La decisión es tuya.</p>`}`
+  return `<h2>Precios de la tienda</h2>
+<p>${aplicados.length} precio(s) actualizados: ${suben} suben y ${bajan} bajan, sobre ${ajustes.length} productos revisados.
+${quedanFuera > 0 ? `Quedaron ${quedanFuera} para la próxima corrida por el tope de seguridad.` : ''}</p>
+
+<p style="color:#666;font-size:14px">Objetivo: <b>${(cfg.margen_propio * 100).toFixed(0)}%</b> sobre lo facturado
+cuando el envío lo paga el cliente, y <b>${(cfg.margen_con_envio * 100).toFixed(0)}%</b> cuando lo absorbe la
+tienda, que es a partir de ${money(cfg.umbral_envio_gratis)}. Cobrar cuesta
+${((cfg.comision_cobro + cfg.costo_cuotas) * 100).toFixed(2)}% (Mercado Pago más las 3 cuotas sin interés) y el
+envío ${money(cfg.envio)} a cualquier punto del país.</p>
+
+<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial;font-size:14px">
+<tr><th>Producto</th><th>Costo c/IVA</th><th>Antes</th><th>Ahora</th><th>Envío</th><th>Ganancia</th><th>Margen</th><th>En ML</th></tr>
+${filas}</table>
+
+${caros.length === 0 ? '' : `<h3>${caros.length} quedan más caros que en Mercado Libre</h3>
+<p style="color:#666;font-size:14px">No se les bajó el precio a propósito: hacerlo rompería el margen, y el
+problema en estos casos no es el precio sino el costo de reposición — son productos donde Mercado Libre cobra
+poca comisión y por eso su precio es difícil de igualar. Conviene mirarlos con el proveedor.</p>
+<ul>${caros.map(a => `<li>${a.nombre} — web ${money(a.precio_nuevo)} contra ${money(a.precio_ml ?? 0)} en ML</li>`).join('')}</ul>`}`
 }
 
 export async function GET(request: NextRequest) {
@@ -248,26 +146,12 @@ export async function GET(request: NextRequest) {
     Number.isFinite(maxParam) && maxParam > 0 ? Math.floor(maxParam) : MAX_CAMBIOS
 
   try {
-    const [costos, ventas, kms, cfgSitio] = await Promise.all([
-      traerCostosDelCrm(),
-      ventasWebPorSku(CONFIG_WEB_DEFAULT.dias_ventana_ventas),
-      // Ventana larga a propósito: el costeo por distancia necesita volumen,
-      // no actualidad, y las tarifas no cambian de una semana a la otra.
-      kmDespachados(180),
-      getConfig(),
-    ])
+    const [costos, cfgSitio] = await Promise.all([traerCostosDelCrm(), getConfig()])
 
-    // Envíos y cuotas salen de la configuración real de la tienda, así un
-    // cambio de tarifa o de mínimo se refleja en los precios sin tocar código.
-    // La parte variable (el envío por km) se costea con lo que se despachó de
-    // verdad cuando hay historial suficiente, y con el radio máximo si no.
+    // El costo del envío y el umbral salen de la configuración de la tienda,
+    // así cambiarlos no obliga a tocar código.
     const sitio = cfgSitio as Record<string, string | undefined>
-    const costeo: CosteoEnvio = costeoDesdeConfig(sitio, kms)
-    const cfg: ConfigPreciosWeb = {
-      ...CONFIG_WEB_DEFAULT,
-      zonas: costeo.zonas,
-      escalones_cuotas: escalonesDesdeConfig(sitio),
-    }
+    const cfg: ConfigPreciosWeb = configDesdeSitio(sitio)
     const costoPorSku = new Map(costos.map(c => [c.sku, c]))
 
     const { data: productos } = await supabaseAdmin
@@ -284,7 +168,6 @@ export async function GET(request: NextRequest) {
         calcularPrecioWeb(
           { id: p.id, sku: p.sku, nombre: p.nombre, precio: Number(p.precio) },
           costo.costo_con_iva,
-          ventas.get(p.sku) ?? 0,
           cfg,
           costo.precio_ml ?? null,
         ),
@@ -307,7 +190,7 @@ export async function GET(request: NextRequest) {
       await sendEmail({
         to: process.env.ADMIN_EMAIL,
         asunto: `Tienda: ${aCambiar.length} precio(s) actualizados${dry ? ' (simulación)' : ''}`,
-        cuerpo: armarMail(ajustes, aCambiar, cfg, costeo, quedanFuera),
+        cuerpo: armarMail(ajustes, aCambiar, cfg, quedanFuera),
       })
     }
 
@@ -315,32 +198,30 @@ export async function GET(request: NextRequest) {
       revisados: ajustes.length,
       cambiados: aCambiar.length,
       simulacion: dry,
-      // Con qué costeo de envío salieron estos precios. Sin esto no hay forma
-      // de saber, mirando el resultado, si un precio subió por el costo del
-      // producto o por la distancia que se asumió.
-      envio: {
-        km_costeo: costeo.km_costeo,
-        fuente_km: costeo.fuente_km,
-        envios_registrados: costeo.muestras_km,
-        muestras_necesarias: MUESTRAS_KM_MINIMAS,
-        zonas: costeo.zonas.map(z => ({
-          zona: z.nombre,
-          costo: z.costo,
-          gratis_desde: z.gratis_desde,
-        })),
+      // Con qué reglas salieron estos precios. Sin esto no hay forma de saber,
+      // mirando el resultado, por qué un precio quedó donde quedó.
+      reglas: {
+        margen_propio: cfg.margen_propio,
+        margen_con_envio: cfg.margen_con_envio,
+        cobro: cfg.comision_cobro + cfg.costo_cuotas,
+        envio: cfg.envio,
+        umbral_envio_gratis: cfg.umbral_envio_gratis,
       },
-      // Productos donde ML quedó por debajo del piso: el techo no se pudo
-      // aplicar y hay que decidirlo a mano.
-      conflictos_ml: ajustes.filter(a => a.conflicto_ml).map(a => ({
+      absorben_envio: ajustes.filter(a => a.absorbe_envio).length,
+      // Quedan más caros que su propia publicación de ML. No se les baja el
+      // precio solo: hay que mirar el costo de reposición.
+      mas_caros_que_ml: ajustes.filter(a => a.mas_caro_que_ml).map(a => ({
         sku: a.sku,
+        web: a.precio_nuevo,
         ml: a.precio_ml,
-        piso_web: a.precio_nuevo,
       })),
       detalle: aCambiar.map(a => ({
         sku: a.sku,
         de: a.precio_actual,
         a: a.precio_nuevo,
         margen: a.margen_nuevo_pct,
+        ganancia: a.ganancia,
+        envio_gratis: a.absorbe_envio,
         ml: a.precio_ml ?? null,
       })),
     })
