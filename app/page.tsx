@@ -168,10 +168,7 @@ export default async function HomePage({
 
       {/* Garantías: contesta envío, cuotas, seguridad y devoluciones antes de
           que el cliente tenga que ir a buscarlo. */}
-      <TrustBar
-        envioGratisDesde={envioGratisDesde}
-        envio={Number(cfg.envio_precio_interior) || 15000}
-      />
+      <TrustBar envioGratisDesde={envioGratisDesde} />
 
       {/* Hero — debajo del carrusel y compacto: sigue estando el mensaje de
           marca, pero ya no se come la pantalla de entrada. */}

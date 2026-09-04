@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCategorias } from '@/lib/catalogo'
 import { getConfig } from '@/lib/config'
 import { formatPrecio } from '@/lib/format'
-import { textoEnvioCerca } from '@/components/FaqCategoria'
+import { textoEnvioPais } from '@/components/FaqCategoria'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 
 const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
@@ -48,9 +48,8 @@ ${cats}
 
 ## Envíos
 
-- ${textoEnvioCerca(cfg)}. Entrega: ${cfg.envio_tiempo_caba || 'hasta 24 hs hábiles'}.
-- Gran Buenos Aires: ${formatPrecio(num(cfg.envio_precio_gba))}${gbaGratis ? `, gratis desde ${formatPrecio(gbaGratis)}` : ''}. Entrega: ${cfg.envio_tiempo_gba || '48-72 hs hábiles'}.
-- Interior del país: ${formatPrecio(num(cfg.envio_precio_interior))}${interiorGratis ? `, gratis desde ${formatPrecio(interiorGratis)}` : ''}. Entrega: ${cfg.envio_tiempo_interior || 'hasta 12 días hábiles'}.
+- ${textoEnvioPais(cfg)}
+- Entregas: CABA ${cfg.envio_tiempo_caba || 'hasta 24 hs hábiles'}, Gran Buenos Aires ${cfg.envio_tiempo_gba || '48-72 hs hábiles'}, interior del país ${cfg.envio_tiempo_interior || 'hasta 12 días hábiles'}.
 
 ## Pagos
 

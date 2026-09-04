@@ -48,10 +48,7 @@ export default function UserShell({ cfg, categorias, subcategorias, marcas, chil
       <RegistrationPopup />
       <CartSync />
       <RegistrationBanner />
-      <AnnouncementBar
-        envio={Number(cfg.envio_precio_interior) || 15000}
-        gratisDesde={Number(cfg.envio_gratis_interior_desde) || 61000}
-      />
+      <AnnouncementBar gratisDesde={Number(cfg.envio_gratis_interior_desde) || 61000} />
       <Header cfg={cfg} categorias={categorias} subcategorias={subcategorias} marcas={marcas} />
       <main className="min-h-screen">{children}</main>
       <CartDrawer

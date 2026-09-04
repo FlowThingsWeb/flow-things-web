@@ -45,34 +45,25 @@ export function textoEnvioCerca(cfg: Config): string {
 }
 
 /**
- * Cuánto sale el envío, dicho en una sola frase.
+ * El envío, contado desde el beneficio y no desde la tarifa.
  *
- * Las tres zonas cobran lo mismo, así que enumerarlas —"a GBA tanto, al
- * interior tanto"— sólo hace pensar que hay una diferencia que buscar. Si
- * alguna vez vuelven a diferir, esto lo detecta y arma el listado.
+ * No dice cuánto sale por debajo del umbral a propósito: el número real
+ * depende del destino y lo muestra el checkout cuando el comprador pone su
+ * dirección. Anunciar una tarifa acá obliga a mantenerla sincronizada en dos
+ * lugares y, sobre todo, pone el costo por delante del beneficio.
  */
 export function textoEnvioPais(cfg: Config): string {
-  const amba = num(cfg.envio_precio_amba ?? cfg.envio_precio_gba)
-  const bsas = num(cfg.envio_precio_bsas ?? cfg.envio_precio_gba)
-  const interior = num(cfg.envio_precio_interior)
   const gratis = num(cfg.envio_gratis_interior_desde)
-  const parejas = amba > 0 && amba === bsas && bsas === interior
-
-  if (parejas) {
+  if (gratis) {
     return (
-      `El envío cuesta ${formatPrecio(interior)} a cualquier punto del país` +
-      (gratis ? `, y es gratis en compras desde ${formatPrecio(gratis)}` : '') +
-      '. En CABA se calcula por distancia y suele salir menos.'
+      `El envío es gratis a todo el país en compras desde ${formatPrecio(gratis)}. ` +
+      'Por debajo de ese monto, el costo se calcula al finalizar la compra según ' +
+      'la dirección de entrega, y lo ves antes de pagar.'
     )
   }
   return (
-    textoEnvioCerca(cfg) +
-    (amba ? `. A Gran Buenos Aires, ${formatPrecio(amba)}` : '') +
-    (interior
-      ? `. Al interior del país, ${formatPrecio(interior)}` +
-        (gratis ? `, gratis desde ${formatPrecio(gratis)}` : '')
-      : '') +
-    '.'
+    'El costo del envío se calcula al finalizar la compra según la dirección ' +
+    'de entrega, y lo ves antes de pagar.'
   )
 }
 
@@ -95,7 +86,7 @@ export function faqDeCategoria(nombreCategoria: string, cfg: Config): ItemFaq[] 
 
   if (caba || interior || cfg.envio_km_activo === '1') {
     faq.push({
-      pregunta: '¿Cuánto cuesta el envío?',
+      pregunta: '¿El envío es gratis?',
       respuesta: textoEnvioPais(cfg),
     })
   }
