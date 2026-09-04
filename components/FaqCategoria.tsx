@@ -44,6 +44,38 @@ export function textoEnvioCerca(cfg: Config): string {
   )
 }
 
+/**
+ * Cuánto sale el envío, dicho en una sola frase.
+ *
+ * Las tres zonas cobran lo mismo, así que enumerarlas —"a GBA tanto, al
+ * interior tanto"— sólo hace pensar que hay una diferencia que buscar. Si
+ * alguna vez vuelven a diferir, esto lo detecta y arma el listado.
+ */
+export function textoEnvioPais(cfg: Config): string {
+  const amba = num(cfg.envio_precio_amba ?? cfg.envio_precio_gba)
+  const bsas = num(cfg.envio_precio_bsas ?? cfg.envio_precio_gba)
+  const interior = num(cfg.envio_precio_interior)
+  const gratis = num(cfg.envio_gratis_interior_desde)
+  const parejas = amba > 0 && amba === bsas && bsas === interior
+
+  if (parejas) {
+    return (
+      `El envío cuesta ${formatPrecio(interior)} a cualquier punto del país` +
+      (gratis ? `, y es gratis en compras desde ${formatPrecio(gratis)}` : '') +
+      '. En CABA se calcula por distancia y suele salir menos.'
+    )
+  }
+  return (
+    textoEnvioCerca(cfg) +
+    (amba ? `. A Gran Buenos Aires, ${formatPrecio(amba)}` : '') +
+    (interior
+      ? `. Al interior del país, ${formatPrecio(interior)}` +
+        (gratis ? `, gratis desde ${formatPrecio(gratis)}` : '')
+      : '') +
+    '.'
+  )
+}
+
 export function faqDeCategoria(nombreCategoria: string, cfg: Config): ItemFaq[] {
   const caba = num(cfg.envio_precio_caba)
   const gba = num(cfg.envio_precio_gba)
@@ -61,24 +93,17 @@ export function faqDeCategoria(nombreCategoria: string, cfg: Config): ItemFaq[] 
       `del país (${cfg.envio_tiempo_interior || 'hasta 12 días hábiles'}).`,
   })
 
-  if (caba || cfg.envio_km_activo === '1') {
+  if (caba || interior || cfg.envio_km_activo === '1') {
     faq.push({
       pregunta: '¿Cuánto cuesta el envío?',
-      respuesta:
-        textoEnvioCerca(cfg) +
-        (gba ? `. A Gran Buenos Aires, ${formatPrecio(gba)}` : '') +
-        (interior
-          ? `. Al interior del país, ${formatPrecio(interior)}` +
-            (interiorGratis ? `, gratis desde ${formatPrecio(interiorGratis)}` : '')
-          : '') +
-        '.',
+      respuesta: textoEnvioPais(cfg),
     })
   }
 
   faq.push({
     pregunta: '¿Cómo puedo pagar?',
     respuesta:
-      'Con Mercado Pago: tarjeta de crédito en hasta 12 cuotas, tarjeta de débito, ' +
+      'Con Mercado Pago: tarjeta de crédito en 3 cuotas sin interés, tarjeta de débito, ' +
       'dinero en cuenta o transferencia.',
   })
 

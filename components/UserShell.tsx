@@ -49,9 +49,8 @@ export default function UserShell({ cfg, categorias, subcategorias, marcas, chil
       <CartSync />
       <RegistrationBanner />
       <AnnouncementBar
-        gratisCaba={Number(cfg.envio_gratis_caba_desde) || 40000}
-        gratisAmba={Number(cfg.envio_gratis_amba_desde || cfg.envio_gratis_gba_desde) || 60000}
-        gratisInterior={Number(cfg.envio_gratis_interior_desde) || 120000}
+        envio={Number(cfg.envio_precio_interior) || 15000}
+        gratisDesde={Number(cfg.envio_gratis_interior_desde) || 61000}
       />
       <Header cfg={cfg} categorias={categorias} subcategorias={subcategorias} marcas={marcas} />
       <main className="min-h-screen">{children}</main>

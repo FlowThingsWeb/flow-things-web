@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const titulo = `${sc.nombre} — Comprá online con envío a todo el país`
   const desc =
     `Comprá ${sc.nombre.toLowerCase()} online en Flow Things. ` +
-    `${cat.nombre} con envío a CABA, Gran Buenos Aires y todo el país, y hasta 12 cuotas.`
+    `${cat.nombre} con envío a todo el país y 3 cuotas sin interés.`
   const url = `${BASE}/categoria/${slug}/${sub}`
 
   return {

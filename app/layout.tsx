@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     template: '%s | Flow Things',
   },
   description:
-    'Juguetería, librería y regalería online en Argentina. Juguetes, útiles escolares, juegos didácticos y regalos, con envío a todo el país y hasta 12 cuotas.',
+    'Juguetería, librería y regalería online en Argentina. Juguetes, útiles escolares, juegos didácticos y regalos, con envío a todo el país y 3 cuotas sin interés.',
   keywords: [
     'juguetería online', 'juguetería online argentina', 'librería online',
     'regalería online', 'comprar juguetes online', 'útiles escolares online',

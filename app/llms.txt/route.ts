@@ -54,7 +54,7 @@ ${cats}
 
 ## Pagos
 
-Mercado Pago: tarjeta de crédito en hasta 12 cuotas, tarjeta de débito, dinero
+Mercado Pago: tarjeta de crédito en 3 cuotas sin interés, tarjeta de débito, dinero
 en cuenta y transferencia bancaria.
 
 ## Cambios y devoluciones

@@ -151,7 +151,7 @@ export default function ProductCard({ producto, variante, rating, prioridad, blu
                 llamadas a MP desde la grilla. El detalle exacto (sin interés /
                 monto por cuota) va en la ficha y el carrito. */}
             <p className="text-brand-text-muted text-[11px]">
-              Hasta 12 cuotas
+              3 cuotas sin interés
             </p>
           </div>
 

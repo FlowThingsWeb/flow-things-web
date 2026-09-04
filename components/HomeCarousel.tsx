@@ -288,7 +288,7 @@ function Slide({
             )}
           </div>
           <p className="text-brand-text-muted text-sm mt-1">
-            Hasta 12 cuotas · Envío a todo el país
+            3 cuotas sin interés · Envío a todo el país
           </p>
 
           <div className="mt-6 flex flex-col sm:flex-row gap-3">

@@ -59,33 +59,33 @@ export const COPY_CATEGORIA: Record<
     titulo: 'Juguetería online — Juguetes con envío a todo el país',
     h1: 'Juguetería online',
     desc:
-      'Comprá juguetes online en Argentina: juegos didácticos, peluches, muñecos y juegos de mesa. Envío a todo el país y hasta 12 cuotas.',
+      'Comprá juguetes online en Argentina: juegos didácticos, peluches, muñecos y juegos de mesa. Envío a todo el país y 3 cuotas sin interés.',
     intro:
       'Juguetería online con envío a CABA, Gran Buenos Aires y todo el país. ' +
       'Tenemos juegos didácticos, peluches, muñecos, juegos de mesa y sets de ' +
       'actividades para regalar o para jugar en casa. Comprás por la web, pagás ' +
-      'con Mercado Pago en hasta 12 cuotas y te lo enviamos a tu domicilio.',
+      'con Mercado Pago en 3 cuotas sin interés y te lo enviamos a tu domicilio.',
   },
   libreria: {
     titulo: 'Librería online — Útiles escolares y artículos de librería',
     h1: 'Librería online',
     desc:
-      'Comprá artículos de librería online en Argentina: cuadernos, carpetas, canoplas y útiles escolares. Envío a todo el país y hasta 12 cuotas.',
+      'Comprá artículos de librería online en Argentina: cuadernos, carpetas, canoplas y útiles escolares. Envío a todo el país y 3 cuotas sin interés.',
     intro:
       'Librería online con envío a CABA, Gran Buenos Aires y todo el país. ' +
       'Cuadernos, carpetas, canoplas, portalápices y útiles escolares de las ' +
       'marcas que se piden en la lista del colegio. Comprás por la web, pagás ' +
-      'con Mercado Pago en hasta 12 cuotas y te lo enviamos a tu domicilio.',
+      'con Mercado Pago en 3 cuotas sin interés y te lo enviamos a tu domicilio.',
   },
   'juegos-de-mesa': {
     titulo: 'Juegos de mesa online — Para jugar en familia',
     h1: 'Juegos de mesa',
     desc:
-      'Comprá juegos de mesa online en Argentina: juegos para toda la familia, de estrategia y para chicos. Envío a todo el país y hasta 12 cuotas.',
+      'Comprá juegos de mesa online en Argentina: juegos para toda la familia, de estrategia y para chicos. Envío a todo el país y 3 cuotas sin interés.',
     intro:
       'Juegos de mesa para jugar en familia o con amigos, con envío a CABA, ' +
       'Gran Buenos Aires y todo el país. Comprás por la web, pagás con Mercado ' +
-      'Pago en hasta 12 cuotas y te lo enviamos a tu domicilio.',
+      'Pago en 3 cuotas sin interés y te lo enviamos a tu domicilio.',
   },
 }
 

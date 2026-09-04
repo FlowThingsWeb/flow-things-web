@@ -13,9 +13,15 @@ import { formatPrecio } from '@/lib/format'
  */
 export default function TrustBar({
   envioGratisDesde,
+  envio = 15000,
+  cuotas = 3,
 }: {
   /** Monto a partir del cual el envío es gratis. 0 o NaN = no se muestra. */
   envioGratisDesde: number
+  /** Lo que cuesta el envío a cualquier punto del país. */
+  envio?: number
+  /** Cuotas sin interés vigentes en Mercado Pago. */
+  cuotas?: number
 }) {
   const items: { icono: string; titulo: string; detalle: string; href?: string }[] = [
     ...(envioGratisDesde > 0
@@ -23,15 +29,15 @@ export default function TrustBar({
           {
             icono: '🚚',
             titulo: `Envío gratis desde ${formatPrecio(envioGratisDesde)}`,
-            detalle: 'En CABA, a domicilio',
+            detalle: `A todo el país · ${formatPrecio(envio)} por debajo`,
             href: '/productos',
           },
         ]
       : []),
     {
       icono: '💳',
-      titulo: 'Hasta 12 cuotas',
-      detalle: 'Con tarjeta de crédito',
+      titulo: `${cuotas} cuotas sin interés`,
+      detalle: 'Con tarjeta de crédito, siempre',
     },
     {
       icono: '🔒',

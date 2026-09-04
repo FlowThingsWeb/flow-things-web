@@ -31,7 +31,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 
   const titulo = 'Catálogo — Juguetería, librería y regalería online'
   const desc =
-    'Todo el catálogo de Flow Things: juguetes, útiles escolares, juegos didácticos y regalos. Envío a todo el país y hasta 12 cuotas.'
+    'Todo el catálogo de Flow Things: juguetes, útiles escolares, juegos didácticos y regalos. Envío a todo el país y 3 cuotas sin interés.'
   return {
     title: titulo,
     description: desc,

@@ -22,7 +22,7 @@ export default async function SeoJsonLd() {
   const nombre = cfg.sitio_nombre || 'Flow Things'
   const descripcion =
     'Juguetería, librería y regalería online en Argentina. Juguetes, útiles escolares, ' +
-    'juegos didácticos y regalos, con envío a todo el país y hasta 12 cuotas.'
+    'juegos didácticos y regalos, con envío a todo el país y 3 cuotas sin interés.'
 
   // Perfiles donde la marca ya existe y Google puede verificar que somos los
   // mismos: es lo que arma el panel de marca al buscar "Flow Things". La
