@@ -624,10 +624,10 @@ export function marcaDe(sku: string | null | undefined): string {
  * Unicorn Dreams. Se copia el archivo por cada una en vez de resolver la madre
  * en código: son 40 KB y evita una tabla de equivalencias que hay que mantener.
  *
- * Craze y Toy Story 5 no tienen logo propio en la carpeta de marcas —Craze
- * sólo tiene los de sus líneas (Magic Sand, Magic Dough, Compound Mix)—, así
- * que se muestran con el nombre en tipografía. No es un error a esconder: es
- * lo que hay hasta que aparezca el archivo.
+ * Craze todavía no tiene logo propio en la carpeta —sólo están los de sus
+ * líneas: Magic Sand, Magic Dough, Compound Mix—, así que se muestra con una
+ * foto de su mercadería y el nombre debajo. No es un error a esconder: es lo
+ * que hay hasta que aparezca el archivo.
  */
 export const LOGO_POR_MARCA: Record<string, string> = {
   "Dr. Steve Hunters": "/marcas/dr-steve-hunters.png",
@@ -642,6 +642,7 @@ export const LOGO_POR_MARCA: Record<string, string> = {
   "Magical World": "/marcas/magical-world.png",
   "Style 4 Ever": "/marcas/style-4-ever.png",
   "Sweet Friends": "/marcas/sweet-friends.png",
+  "Toy Story 5": "/marcas/toy-story-5.png",
   "Unicorn Dreams": "/marcas/unicorn-dreams.png",
   "Unicorn Dreams Stylist": "/marcas/unicorn-dreams-stylist.png",
 }
