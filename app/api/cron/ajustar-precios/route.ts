@@ -5,6 +5,7 @@ import { getConfig } from '@/lib/config'
 import {
   calcularPrecioWeb,
   configDesdeSitio,
+  umbralDesalineado,
   type AjustePrecio,
   type ConfigPreciosWeb,
 } from '@/lib/precios-web'
@@ -152,6 +153,8 @@ export async function GET(request: NextRequest) {
     // así cambiarlos no obliga a tocar código.
     const sitio = cfgSitio as Record<string, string | undefined>
     const cfg: ConfigPreciosWeb = configDesdeSitio(sitio)
+    // Los precios asumen un umbral y la caja cobra según otro: hay que verlo.
+    const desalineado = umbralDesalineado(sitio, cfg)
     const costoPorSku = new Map(costos.map(c => [c.sku, c]))
 
     const { data: productos } = await supabaseAdmin
@@ -208,6 +211,10 @@ export async function GET(request: NextRequest) {
         umbral_envio_gratis: cfg.umbral_envio_gratis,
       },
       absorben_envio: ajustes.filter(a => a.absorbe_envio).length,
+      // El umbral con el que se calcularon los precios contra el que cobra el
+      // checkout. Si no coinciden, hay ventas donde el envío lo termina
+      // pagando la tienda sin que el precio lo haya previsto.
+      umbral_desalineado: desalineado,
       // Quedan más caros que su propia publicación de ML. No se les baja el
       // precio solo: hay que mirar el costo de reposición.
       mas_caros_que_ml: ajustes.filter(a => a.mas_caro_que_ml).map(a => ({

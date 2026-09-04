@@ -53,8 +53,17 @@ export const CONFIG_WEB_DEFAULT: ConfigPreciosWeb = {
 /**
  * La configuración editable desde el panel pisa los valores por defecto.
  *
- * Así cambiar el umbral de envío gratis o el costo del flete no obliga a tocar
- * código: se edita en la tienda y el próximo cálculo lo toma.
+ * Cada parámetro tiene su propia clave `precio_*` y no reutiliza las del
+ * checkout. Parece redundante y no lo es: la primera versión caía a
+ * `envio_gratis_caba_desde` cuando no encontraba la suya, y ese valor es el
+ * umbral que cobra la caja hoy —$45.000—, no el que se usó para fijar los
+ * precios. El cron salió calculando con un umbral distinto del que había en el
+ * cálculo y recomendó subir doce productos sin motivo.
+ *
+ * Los dos números tienen que terminar siendo el mismo: el precio de un
+ * producto asume quién paga el envío, y la caja decide quién lo paga de
+ * verdad. Pero que coincidan tiene que ser una decisión explícita, no un
+ * fallback silencioso.
  */
 export function configDesdeSitio(
   sitio: Record<string, string | undefined>,
@@ -67,13 +76,27 @@ export function configDesdeSitio(
   return {
     ...base,
     envio: num(sitio.precio_costo_envio, base.envio),
-    umbral_envio_gratis: num(
-      sitio.envio_gratis_desde ?? sitio.envio_gratis_caba_desde,
-      base.umbral_envio_gratis,
-    ),
+    umbral_envio_gratis: num(sitio.precio_umbral_envio_gratis, base.umbral_envio_gratis),
     margen_propio: num(sitio.precio_margen_propio, base.margen_propio),
     margen_con_envio: num(sitio.precio_margen_con_envio, base.margen_con_envio),
   };
+}
+
+/**
+ * ¿El umbral con el que se fijaron los precios coincide con el que cobra la
+ * caja? Si no, hay productos cuyo precio asume que el cliente paga el envío y
+ * a los que la tienda se lo termina regalando.
+ */
+export function umbralDesalineado(
+  sitio: Record<string, string | undefined>,
+  cfg: ConfigPreciosWeb,
+): { checkout: number; precios: number } | null {
+  const caja = Number(
+    sitio.envio_km_gratis_desde ?? sitio.envio_gratis_caba_desde,
+  );
+  if (!Number.isFinite(caja) || caja <= 0) return null;
+  if (caja === cfg.umbral_envio_gratis) return null;
+  return { checkout: caja, precios: cfg.umbral_envio_gratis };
 }
 
 export type ProductoWeb = {
