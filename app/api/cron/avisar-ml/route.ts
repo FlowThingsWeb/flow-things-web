@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
 
   const partes = [
     resumen?.con_promocion ? `${resumen.con_promocion} en promoción` : null,
+    resumen?.subidas ? `${resumen.subidas} subida(s) de lista` : null,
     resumen?.bajadas ? `${resumen.bajadas} bajada(s) de precio` : null,
+    resumen?.trabadas ? `${resumen.trabadas} trabada(s)` : null,
   ].filter(Boolean)
 
   await sendEmail({

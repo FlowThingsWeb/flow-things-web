@@ -1,0 +1,30 @@
+name: Precios sugeridos ML
+
+# El mail con el precio recomendado de cada publicación.
+#
+# Lo mandaba n8n, que además armaba la lista de publicaciones. Ahora la arma el
+# propio CRM desde ml_listings —GET en vez de POST— así que esto puede correr
+# sin n8n en el medio, que es el eslabón que más falló.
+#
+# Va después del ciclo de promociones (8:00 BA) para que el mail refleje lo que
+# el ciclo acaba de mover, y no el estado de ayer.
+#
+# OJO con el dominio: flowthings.com.ar responde 308 hacia www y curl descarta
+# el header Authorization al seguir un redirect que cambia de host. La URL
+# apunta a www directamente.
+on:
+  schedule:
+    # 9:30 de Buenos Aires.
+    - cron: "30 12 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sugerir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pedir las recomendaciones y mandar el mail
+        run: |
+          curl -sS --fail-with-body \
+            -w "\n--- HTTP %{http_code} en %{time_total}s, %{size_download} bytes\n" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://www.flowthings.com.ar/api/cron/precios-sugeridos"
