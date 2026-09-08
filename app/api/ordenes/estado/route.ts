@@ -24,11 +24,18 @@ export async function GET(request: NextRequest) {
 
   // Exponer solo campos no sensibles de cada item.
   const items = Array.isArray(data.items)
-    ? data.items.map((i: { nombre: string; cantidad: number; precio: number; imagen_url?: string | null }) => ({
+    ? data.items.map((i: {
+        nombre: string; cantidad: number; precio: number;
+        imagen_url?: string | null; sku?: string | null;
+      }) => ({
         nombre: i.nombre,
         cantidad: i.cantidad,
         precio: i.precio,
         imagen_url: i.imagen_url ?? null,
+        // El SKU va para que el evento de compra de GA4 pueda decir QUÉ se
+        // vendió y no sólo cuánto. No es dato sensible: es el mismo código que
+        // figura en la ficha del producto.
+        sku: i.sku ?? null,
       }))
     : []
 

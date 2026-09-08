@@ -60,13 +60,50 @@ function ExitoContent() {
         if (data.estado === 'approved') {
           clearCart()
           setAprobado(true)
-          // Evento de conversión para analytics (GA4 + Meta Pixel), una sola vez.
+          /**
+           * Evento de conversión para analytics (GA4 + Meta Pixel), una sola vez.
+           *
+           * Va con el detalle de productos, no sólo con el total. Sin `items`,
+           * GA4 registra que hubo una venta pero no de qué: los informes de
+           * ecommerce —qué producto vende, cuál se agrega al carrito y no se
+           * compra— quedan vacíos, y una campaña como la del newsletter se
+           * puede medir en visitas pero no en qué terminó vendiendo.
+           */
           if (!trackedRef.current) {
             trackedRef.current = true
             const total = Number(data.total) || 0
+            const envioMonto = Number(data.envio) || 0
+            const descuentoMonto = Number(data.descuento) || 0
+            const lista = Array.isArray(data.items) ? data.items : []
+            const gaItems = lista.map((i: ItemResumen & { sku?: string | null }, idx: number) => ({
+              item_id: i.sku || `sin-sku-${idx}`,
+              item_name: i.nombre,
+              price: Number(i.precio) || 0,
+              quantity: Number(i.cantidad) || 1,
+            }))
             const w = window as any
-            try { w.gtag?.('event', 'purchase', { transaction_id: ordenId, value: total, currency: 'ARS' }) } catch {}
-            try { w.fbq?.('track', 'Purchase', { value: total, currency: 'ARS' }) } catch {}
+            try {
+              w.gtag?.('event', 'purchase', {
+                transaction_id: ordenId,
+                value: total,
+                currency: 'ARS',
+                shipping: envioMonto,
+                // GA4 espera el cupón como texto; acá se manda el monto
+                // resignado, que es lo que tenemos y lo que importa mirar.
+                discount: descuentoMonto,
+                items: gaItems,
+              })
+            } catch {}
+            try {
+              w.fbq?.('track', 'Purchase', {
+                value: total,
+                currency: 'ARS',
+                contents: gaItems.map((i: { item_id: string; quantity: number; price: number }) => ({
+                  id: i.item_id, quantity: i.quantity, item_price: i.price,
+                })),
+                content_type: 'product',
+              })
+            } catch {}
           }
           return // pago confirmado — dejar de pollear
         }
