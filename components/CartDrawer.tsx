@@ -8,6 +8,7 @@ import { trackAddToCart } from '@/lib/fbpixel'
 import { supabase } from '@/lib/supabase'
 import { Producto } from '@/types'
 import { formatPrecio } from '@/lib/format'
+import { estadoEnvioGratis, umbralEnvioGratis } from '@/lib/envio-gratis'
 import CuotasMP from '@/components/CuotasMP'
 
 interface CartDrawerProps {
@@ -18,6 +19,12 @@ interface CartDrawerProps {
 }
 
 export default function CartDrawer({ gratisCaba = 40000, gratisAmba = 60000, gratisInterior = 120000 }: CartDrawerProps) {
+  // El umbral único, del más alto de los que cobra la caja.
+  const umbral_ = umbralEnvioGratis({
+    envio_gratis_caba_desde: String(gratisCaba),
+    envio_gratis_amba_desde: String(gratisAmba),
+    envio_gratis_interior_desde: String(gratisInterior),
+  })
   const { items, isOpen, closeCart, removeItem, updateCantidad, total, addItem } = useCartStore()
   const totalAmount = total()
 
@@ -162,64 +169,53 @@ export default function CartDrawer({ gratisCaba = 40000, gratisAmba = 60000, gra
           <div className="border-t border-brand-border p-5 space-y-4">
             {/* Progreso envío gratis */}
             {(() => {
-              const CABA = gratisCaba
-              const AMBA = gratisAmba
-              const INTERIOR = gratisInterior
-              const pctCaba = Math.min(100, (totalAmount / CABA) * 100)
-              const pctAmba = Math.min(100, (totalAmount / AMBA) * 100)
-              const pctInterior = Math.min(100, (totalAmount / INTERIOR) * 100)
-              const libreCaba = totalAmount >= CABA
-              const libreAmba = totalAmount >= AMBA
-              const libreInterior = totalAmount >= INTERIOR
+              /*
+                Una sola barra, no tres.
 
-              if (libreInterior) {
+                Antes había una por zona —CABA, AMBA, interior— con el mismo
+                número en las tres, o sea tres barras avanzando igual para
+                contar lo mismo. Y obligaban a saber en qué zona vivís antes de
+                entender cuánto te falta.
+
+                El umbral es el más alto de los tres: prometer el más bajo sería
+                prometer algo que la caja después no cumple.
+              */
+              const { estado, falta, umbral } = estadoEnvioGratis(totalAmount, umbral_)
+              const pct = Math.min(100, umbral_ > 0 ? (totalAmount / umbral_) * 100 : 0)
+
+              if (estado === 'gratis') {
                 return (
                   <div className="bg-green-900/30 border border-green-500/30 rounded-xl px-3 py-2">
                     <p className="text-xs text-green-300 font-medium">
-                      🎉 ¡Envío gratis a todo el país!
+                      🎉 ¡Tenés envío gratis a todo el país!
                     </p>
                   </div>
                 )
               }
 
               return (
-                <div className="bg-brand-bg-soft rounded-xl p-3 space-y-3">
-                  {/* CABA */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-brand-text-muted">🚚 CABA</p>
-                      {libreCaba
-                        ? <span className="text-xs text-green-400 font-semibold">¡Gratis! ✓</span>
-                        : <span className="text-xs text-brand-text-muted">Falta <span className="text-white font-bold">{formatPrecio(CABA - totalAmount)}</span></span>
-                      }
-                    </div>
-                    <div className="w-full h-1.5 bg-brand-border rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-500 ${libreCaba ? 'bg-green-400' : 'bg-brand-neon'}`} style={{ width: `${pctCaba}%` }} />
-                    </div>
+                <div className="bg-brand-bg-soft rounded-xl p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-brand-text-muted">🚚 Envío gratis a todo el país</p>
+                    <span className="text-xs text-brand-text-muted whitespace-nowrap">
+                      Falta <span className="text-white font-bold">{formatPrecio(falta)}</span>
+                    </span>
                   </div>
-                  {/* AMBA */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-brand-text-muted">🚚 AMBA</p>
-                      {libreAmba
-                        ? <span className="text-xs text-green-400 font-semibold">¡Gratis! ✓</span>
-                        : <span className="text-xs text-brand-text-muted">Falta <span className="text-white font-bold">{formatPrecio(AMBA - totalAmount)}</span></span>
-                      }
-                    </div>
-                    <div className="w-full h-1.5 bg-brand-border rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-500 ${libreAmba ? 'bg-green-400' : 'bg-brand-neon'}`} style={{ width: `${pctAmba}%` }} />
-                    </div>
+                  <div className="w-full h-1.5 bg-brand-border rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-brand-neon transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
-                  {/* Interior */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-brand-text-muted">🚚 Interior del país</p>
-                      <span className="text-xs text-brand-text-muted">Falta <span className="text-white font-bold">{formatPrecio(INTERIOR - totalAmount)}</span></span>
-                    </div>
-                    <div className="w-full h-1.5 bg-brand-border rounded-full overflow-hidden">
-                      <div className="h-full bg-brand-purple rounded-full transition-all duration-500" style={{ width: `${pctInterior}%` }} />
-                    </div>
-                  </div>
+                  {/*
+                    Cerca vale la pena empujar; lejos, sólo se deja el dato del
+                    umbral, porque la cuenta desanima en vez de motivar.
+                  */}
+                  <p className="text-[11px] text-brand-text-muted pt-0.5">
+                    {estado === 'cerca'
+                      ? <>Sumá <span className="text-brand-neon font-semibold">{formatPrecio(falta)}</span> más y te lo llevás sin cargo</>
+                      : <>Desde {formatPrecio(umbral)} el envío es gratis</>}
+                  </p>
                 </div>
               )
             })()}

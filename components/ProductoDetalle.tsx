@@ -12,6 +12,7 @@ import RelatedProducts from '@/components/RelatedProducts'
 import EnvioEstimador from '@/components/EnvioEstimador'
 import ShareButton from '@/components/ShareButton'
 import { formatPrecio } from '@/lib/format'
+import { estadoEnvioGratis, umbralEnvioGratis } from '@/lib/envio-gratis'
 import { trackViewContent, trackAddToCart } from '@/lib/fbpixel'
 
 function waLink(telefono: string, texto: string) {
@@ -58,6 +59,18 @@ export default function ProductoDetalle({
   const touchStartX = useRef(0)
 
   const { telefono, email, gratisCaba, gratisAmba, gratisInterior } = config
+  /**
+   * Se mide contra el precio del producto, no contra el carrito: es lo único
+   * que el que está en esta página sabe todavía.
+   */
+  const envioGratis = estadoEnvioGratis(
+    producto.precio,
+    umbralEnvioGratis({
+      envio_gratis_caba_desde: String(gratisCaba),
+      envio_gratis_amba_desde: String(gratisAmba),
+      envio_gratis_interior_desde: String(gratisInterior),
+    }),
+  )
 
   const addItem = useCartStore(s => s.addItem)
 
@@ -666,10 +679,37 @@ export default function ProductoDetalle({
               <span>🚚</span>
               <span>Envío a todo el país</span>
             </div>
-            <div className="flex items-start gap-2">
-              <span>🎁</span>
-              <span>Envío gratis en CABA desde {formatPrecio(gratisCaba)} · AMBA desde {formatPrecio(gratisAmba)} · Interior del país desde {formatPrecio(gratisInterior)}</span>
-            </div>
+            {/*
+              El envío gratis como gancho y no como letra chica.
+
+              Antes decía los tres umbrales seguidos —CABA, AMBA, interior— con
+              el mismo número tres veces, y le pedía al que lee que averigüe en
+              qué zona vive antes de saber si le sirve. Ahora habla del producto
+              que está mirando: si ya lo tiene, se lo dice; si le falta poco, le
+              dice cuánto; y si le falta mucho, sólo menciona el beneficio,
+              porque "sumá $48.000" no empuja una compra, la frena.
+            */}
+            {envioGratis.estado === 'gratis' ? (
+              <div className="flex items-center gap-2">
+                <span>🎁</span>
+                <span className="text-green-400 font-semibold">
+                  Este producto tiene envío gratis a todo el país
+                </span>
+              </div>
+            ) : envioGratis.estado === 'cerca' ? (
+              <div className="flex items-start gap-2">
+                <span>🎁</span>
+                <span>
+                  Sumá <span className="text-brand-neon font-bold">{formatPrecio(envioGratis.falta)}</span>
+                  {' '}y tenés <span className="text-brand-text font-semibold">envío gratis a todo el país</span>
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2">
+                <span>🎁</span>
+                <span>Envío gratis a todo el país desde {formatPrecio(envioGratis.umbral)}</span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <span>🔒</span>
               <span>Compra 100% segura</span>
