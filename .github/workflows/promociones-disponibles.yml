@@ -1,0 +1,29 @@
+name: Promociones disponibles ML
+
+# Avisa qué campañas de ML están disponibles y no se están aprovechando.
+#
+# Lo mandaba n8n, que además recorría el catálogo buscando las candidatas. Eso
+# lo hace ahora el CRM, así que acá alcanza con pedirle el HTML.
+#
+# Recorre las publicaciones activas contra la API de ML, así que es la más
+# pesada de las cuatro: va última.
+#
+# OJO con el dominio: flowthings.com.ar responde 308 hacia www y curl descarta
+# el header Authorization al seguir un redirect que cambia de host. La URL
+# apunta a www directamente.
+on:
+  schedule:
+    # 10:00 de Buenos Aires.
+    - cron: "0 13 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pedir el resumen y mandarlo
+        run: |
+          curl -sS --fail-with-body \
+            -w "\n--- HTTP %{http_code} en %{time_total}s, %{size_download} bytes\n" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://www.flowthings.com.ar/api/cron/promociones-disponibles"

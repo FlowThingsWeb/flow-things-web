@@ -1,0 +1,34 @@
+name: Promociones por vencer ML
+
+# Avisa qué publicaciones se quedan sin descuento y sin reemplazo.
+#
+# Lo mandaba n8n. Los datos salen de lo que el ciclo ya averiguó al buscar
+# relevo, así que corre después de él para no avisar de vencimientos que el
+# ciclo acaba de cubrir.
+#
+# OJO con el dominio: flowthings.com.ar responde 308 hacia www y curl descarta
+# el header Authorization al seguir un redirect que cambia de host. La URL
+# apunta a www directamente.
+on:
+  schedule:
+    # 9:45 de Buenos Aires, después del ciclo (8:00) y de los sugeridos (9:30).
+    - cron: "45 12 * * *"
+  workflow_dispatch:
+    inputs:
+      dias:
+        description: "Ventana de vencimientos"
+        type: string
+        default: "7"
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pedir el aviso y mandarlo
+        run: |
+          DIAS="${{ inputs.dias }}"
+          if [ -z "$DIAS" ]; then DIAS=7; fi
+          curl -sS --fail-with-body \
+            -w "\n--- HTTP %{http_code} en %{time_total}s, %{size_download} bytes\n" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://www.flowthings.com.ar/api/cron/promociones-por-vencer?dias=$DIAS"
