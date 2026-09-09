@@ -28,6 +28,15 @@ export type ConfigPreciosWeb = {
   margen_propio: number;
   /** Margen sobre lo facturado cuando la tienda absorbe el envío. */
   margen_con_envio: number;
+  /**
+   * Los mismos dos márgenes, recortados, para cuando el precio normal quedaría
+   * por encima del de Mercado Libre.
+   *
+   * No es una rebaja general: se aplica sólo a esa publicación y sólo mientras
+   * dure la situación. Si ML sube, la publicación vuelve sola a los normales.
+   */
+  margen_propio_vs_ml: number;
+  margen_con_envio_vs_ml: number;
   /** Comisión de Mercado Pago sobre el precio. */
   comision_cobro: number;
   /** Costo de las 3 cuotas sin interés, que paga la tienda. Siempre activas. */
@@ -43,6 +52,8 @@ export type ConfigPreciosWeb = {
 export const CONFIG_WEB_DEFAULT: ConfigPreciosWeb = {
   margen_propio: 0.28,
   margen_con_envio: 0.17,
+  margen_propio_vs_ml: 0.26,
+  margen_con_envio_vs_ml: 0.15,
   comision_cobro: 0.0149,
   costo_cuotas: 0.1049,
   envio: 15_000,
@@ -125,8 +136,14 @@ export type AjustePrecio = {
   ganancia: number;
   /** Precio efectivo del mismo SKU en Mercado Libre, si hay publicación. */
   precio_ml: number | null;
-  /** El precio nuevo queda por encima del de ML: la web deja de ser la opción barata. */
+  /**
+   * El precio nuevo queda por encima del de ML: la web deja de ser la opción
+   * barata. Se evalúa DESPUÉS de haber cedido margen, así que acá quedan sólo
+   * los que ni con el margen recortado alcanzan.
+   */
   mas_caro_que_ml: boolean;
+  /** Está usando los márgenes recortados porque el normal superaba a ML. */
+  cede_ante_ml: boolean;
   cambia: boolean;
   direccion: "sube" | "baja" | "igual";
   nota: string;
@@ -176,21 +193,51 @@ export function calcularPrecioWeb(
   precioMl: number | null = null,
 ): AjustePrecio {
   /**
-   * De qué lado del umbral cae el producto.
+   * Precio para un par de márgenes dado.
    *
-   * Se decide con el precio del margen alto, que es el que tendría si el
-   * cliente pagara el envío. Si ese precio ya cruza el umbral, el producto va
-   * a regalar envío igual, así que se lo vuelve a calcular con el flete
-   * adentro y el margen bajo.
+   * De qué lado del umbral cae el producto se decide con el precio del margen
+   * alto, que es el que tendría si el cliente pagara el envío. Si ese precio ya
+   * cruza el umbral, el producto va a regalar envío igual, así que se lo vuelve
+   * a calcular con el flete adentro y el margen bajo.
    */
-  const precioPropio = aCentena(
-    precioParaMargen(costoConIva, cfg.margen_propio, cfg, false),
-  );
-  const absorbe = precioPropio >= cfg.umbral_envio_gratis;
+  const objetivoCon = (margenPropio: number, margenConEnvio: number) => {
+    const propio = aCentena(precioParaMargen(costoConIva, margenPropio, cfg, false));
+    const absorbe = propio >= cfg.umbral_envio_gratis;
+    return {
+      precio: absorbe
+        ? aCentena(precioParaMargen(costoConIva, margenConEnvio, cfg, true))
+        : propio,
+      absorbe,
+    };
+  };
 
-  const precioNuevo = absorbe
-    ? aCentena(precioParaMargen(costoConIva, cfg.margen_con_envio, cfg, true))
-    : precioPropio;
+  const normal = objetivoCon(cfg.margen_propio, cfg.margen_con_envio);
+
+  /**
+   * Ceder margen cuando la web quedaría más cara que Mercado Libre.
+   *
+   * La comparación es contra el precio NORMAL, no contra el precio que tiene
+   * hoy ni contra el recortado. Es lo que hace que la regla sea estable.
+   *
+   * Comparando contra el precio ya recortado pasaría esto: una publicación
+   * apenas 1% arriba de ML baja al margen recortado y queda 2% ABAJO; a la
+   * corrida siguiente ya no está más cara que ML, así que vuelve al margen
+   * normal y queda arriba otra vez; y a la siguiente vuelve a bajar. El precio
+   * oscilaría entre dos valores en cada corrida, para siempre — el mismo
+   * círculo vicioso que hubo con los precios de lista de ML.
+   *
+   * Contra el precio normal no hay oscilación posible: el normal sale del costo
+   * y no se mueve porque hayamos recortado. La publicación vuelve sola a los
+   * márgenes de siempre cuando ML sube por encima de él, que es exactamente la
+   * condición pedida.
+   */
+  const cedeAnteMl = precioMl != null && normal.precio > precioMl;
+  const objetivo = cedeAnteMl
+    ? objetivoCon(cfg.margen_propio_vs_ml, cfg.margen_con_envio_vs_ml)
+    : normal;
+
+  const precioNuevo = objetivo.precio;
+  const absorbe = objetivo.absorbe;
 
   const cuotas = precioNuevo * cfg.costo_cuotas;
   const comision = precioNuevo * cfg.comision_cobro;
@@ -203,11 +250,15 @@ export function calcularPrecioWeb(
   const diferencia = Math.abs(precioNuevo - producto.precio) / producto.precio;
   const cambia = diferencia > cfg.tolerancia;
 
-  const nota = absorbe
-    ? `Arriba de ${cfg.umbral_envio_gratis.toLocaleString("es-AR")}: la tienda paga el envío, ` +
-      `objetivo ${(cfg.margen_con_envio * 100).toFixed(0)}%`
-    : `Abajo de ${cfg.umbral_envio_gratis.toLocaleString("es-AR")}: el envío lo paga el cliente, ` +
-      `objetivo ${(cfg.margen_propio * 100).toFixed(0)}%`;
+  const objetivoPct = absorbe
+    ? (cedeAnteMl ? cfg.margen_con_envio_vs_ml : cfg.margen_con_envio)
+    : (cedeAnteMl ? cfg.margen_propio_vs_ml : cfg.margen_propio);
+  const nota =
+    (absorbe
+      ? `Arriba de ${cfg.umbral_envio_gratis.toLocaleString("es-AR")}: la tienda paga el envío, `
+      : `Abajo de ${cfg.umbral_envio_gratis.toLocaleString("es-AR")}: el envío lo paga el cliente, `) +
+    `objetivo ${(objetivoPct * 100).toFixed(0)}%` +
+    (cedeAnteMl ? " (recortado porque el precio normal superaba a ML)" : "");
 
   return {
     id: producto.id,
@@ -234,6 +285,7 @@ export function calcularPrecioWeb(
      * proveedor, no se tocan solos.
      */
     mas_caro_que_ml: precioMl != null && precioNuevo >= precioMl,
+    cede_ante_ml: cedeAnteMl,
     cambia,
     direccion:
       precioNuevo > producto.precio ? "sube" : precioNuevo < producto.precio ? "baja" : "igual",
