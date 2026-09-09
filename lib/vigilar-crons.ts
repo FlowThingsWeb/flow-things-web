@@ -120,22 +120,57 @@ export async function cronsFaltantes(ahora = new Date()): Promise<CronFaltante[]
   return faltantes
 }
 
-/** Clave con la que el propio vigilante anota que ya avisó hoy. */
-export const CLAVE_AVISO = '_aviso_faltantes'
-
 /**
- * Si ya se avisó hoy, no se vuelve a avisar.
+ * Prefijo con el que el vigilante anota de qué cron ya avisó, y qué día.
  *
- * El vigilante viaja colgado de procesar-jobs, que corre varias veces por día.
- * Sin esta marca, un cron caído generaría un mail por cada pasada.
+ * Una marca POR CRON, no una sola para todos. Con una sola marca diaria pasaba
+ * esto: los plazos vencen escalonados (18:37, 18:49, 19:11 UTC) y las pasadas
+ * caen cada 1,7 a 5,2 horas. Una pasada a las 18:40 encontraba vencido sólo el
+ * primero, avisaba de ése, quedaba marcada como "ya avisé hoy", y de los otros
+ * dos no te enterabas hasta el día siguiente — justo el retraso que este
+ * vigilante existe para eliminar.
+ *
+ * Va sobre la misma tabla: la clave es texto libre, así que estas marcas
+ * conviven con los latidos sin cambiar el esquema. No coinciden con ninguna
+ * clave de CRONS_DE_PRECIOS, así que el resto del código las ignora.
  */
-export async function yaSeAvisoHoy(ahora = new Date()): Promise<boolean> {
-  const { data } = await supabaseAdmin
+export const PREFIJO_AVISO = '_aviso:'
+
+/** De los faltantes, los que todavía no se avisaron hoy. */
+export async function sinAvisarHoy(
+  faltantes: CronFaltante[],
+  ahora = new Date(),
+): Promise<CronFaltante[]> {
+  if (faltantes.length === 0) return []
+  const hoy = ahora.toISOString().slice(0, 10)
+  const claves = faltantes.map(f => PREFIJO_AVISO + f.cron.clave)
+
+  const { data, error } = await supabaseAdmin
     .from('crons_corridas')
-    .select('ultima_corrida')
-    .eq('clave', CLAVE_AVISO)
-    .maybeSingle()
-  return !!data && data.ultima_corrida.slice(0, 10) === ahora.toISOString().slice(0, 10)
+    .select('clave, ultima_corrida')
+    .in('clave', claves)
+  // Ante un error de lectura no se avisa: repetir el mismo aviso en cada pasada
+  // lo convierte en ruido, y el ruido es cómo se pierde el aviso que importa.
+  if (error) throw new Error(`No se pudo leer los avisos previos: ${error.message}`)
+
+  const avisadosHoy = new Set(
+    (data ?? []).filter(f => f.ultima_corrida.slice(0, 10) === hoy).map(f => f.clave),
+  )
+  return faltantes.filter(f => !avisadosHoy.has(PREFIJO_AVISO + f.cron.clave))
+}
+
+/** Deja anotado que ya se avisó de estos crons. */
+export async function marcarAvisados(faltantes: CronFaltante[], ahora = new Date()): Promise<void> {
+  if (faltantes.length === 0) return
+  await supabaseAdmin.from('crons_corridas').upsert(
+    faltantes.map(f => ({
+      clave: PREFIJO_AVISO + f.cron.clave,
+      ultima_corrida: ahora.toISOString(),
+      ultimo_ok: true,
+      ultimo_detalle: f.motivo,
+    })),
+    { onConflict: 'clave' },
+  )
 }
 
 export function htmlDeFaltantes(faltantes: CronFaltante[]): string {

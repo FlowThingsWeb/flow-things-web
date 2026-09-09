@@ -4,9 +4,8 @@ import { sendEmail } from '@/lib/email'
 import {
   cronsFaltantes,
   htmlDeFaltantes,
-  registrarLatido,
-  yaSeAvisoHoy,
-  CLAVE_AVISO,
+  marcarAvisados,
+  sinAvisarHoy,
 } from '@/lib/vigilar-crons'
 
 // Batch chico para caber en el límite de duración de la función serverless.
@@ -49,23 +48,30 @@ export async function GET(request: NextRequest) {
  */
 async function avisarCronsCaidos(): Promise<{ faltantes: number; avisado: boolean; motivo?: string }> {
   try {
-    // Un mail por día alcanza: esta ruta corre varias veces y un cron caído
-    // seguiría caído en cada pasada.
-    if (await yaSeAvisoHoy()) return { faltantes: 0, avisado: false, motivo: 'ya se avisó hoy' }
-
     const faltantes = await cronsFaltantes()
     if (faltantes.length === 0) return { faltantes: 0, avisado: false }
 
-    const to = process.env.ADMIN_EMAIL
-    if (!to) return { faltantes: faltantes.length, avisado: false, motivo: 'falta ADMIN_EMAIL' }
+    // Se avisa una vez por día POR CRON. Esta ruta corre varias veces y un cron
+    // caído sigue caído en cada pasada, pero los plazos vencen escalonados: con
+    // una sola marca diaria, avisar del primero silenciaba a los demás hasta el
+    // día siguiente.
+    const aAvisar = await sinAvisarHoy(faltantes)
+    if (aAvisar.length === 0) {
+      return { faltantes: faltantes.length, avisado: false, motivo: 'ya se avisó de todos hoy' }
+    }
 
-    const n = faltantes.length
+    const to = process.env.ADMIN_EMAIL
+    if (!to) return { faltantes: aAvisar.length, avisado: false, motivo: 'falta ADMIN_EMAIL' }
+
+    const n = aAvisar.length
     await sendEmail({
       to,
       asunto: `Crons de precios: ${n} ${n === 1 ? 'no corrió' : 'no corrieron'} hoy`,
-      cuerpo: htmlDeFaltantes(faltantes),
+      cuerpo: htmlDeFaltantes(aAvisar),
     })
-    await registrarLatido(CLAVE_AVISO)
+    // Después de mandar: si falla el mail, no queda marcado y se reintenta en
+    // la pasada siguiente.
+    await marcarAvisados(aAvisar)
     return { faltantes: n, avisado: true }
   } catch (e: any) {
     console.error('[vigilar-crons] No se pudo avisar:', e?.message ?? e)
