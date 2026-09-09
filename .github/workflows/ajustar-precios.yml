@@ -1,7 +1,18 @@
 # Ajusta los precios de la tienda según el costo de reposición del CRM.
 #
-# Semanal y no diario: el costo sólo cambia cuando entra una compra nueva, y
-# mover precios todos los días confunde a quien está mirando un producto.
+# Diario. Era semanal, con este motivo: el costo de reposición sólo cambia
+# cuando entra una compra nueva, y mover precios todos los días confunde a quien
+# está mirando un producto.
+#
+# Dejó de alcanzar cuando el precio pasó a depender también del de Mercado
+# Libre: si la publicación de ML está más barata, la web cede margen (26%/14%
+# en vez de 28%/17%), y vuelve a los normales cuando ML sube. Los precios de ML
+# se mueven todos los días con las promociones, así que con corrida semanal una
+# publicación podía quedarse hasta seis días con el margen recortado después de
+# que ML ya había subido.
+#
+# Lo que evita el manoseo diario no es la frecuencia sino la tolerancia del 3%:
+# revisa 106 productos y no toca los que ya están cerca del objetivo.
 #
 # Va por GitHub Actions y no por Vercel porque el plan Hobby permite pocos
 # crons; tampoco por n8n, cuyo plan gratuito ya consume el workflow de ML.
@@ -13,12 +24,18 @@ name: Ajustar precios de la tienda
 
 on:
   schedule:
-    # Lunes a las 8 de la mañana (11 UTC).
+    # Todos los días 10:23 de Buenos Aires (13:23 UTC).
+    #
+    # Después del ciclo de promociones del CRM (11:09) y de los avisos de ML,
+    # a propósito: el precio de la web se calcula comparando contra el precio
+    # efectivo de ML, así que tiene que correr con los precios de ML del día ya
+    # actualizados. Al revés compararía contra los de ayer.
+    #
     # Minuto "raro" a propósito: GitHub documenta que los schedule se demoran
     # cuando hay mucha carga, y la carga se concentra en punto y a la media
     # porque es donde programa todo el mundo. Con :00/:30/:45 estos crons
     # llegaban entre 2 y 5 horas tarde TODOS los días.
-    - cron: "7 11 * * 1"
+    - cron: "23 13 * * *"
   workflow_dispatch:
     inputs:
       simulacion:

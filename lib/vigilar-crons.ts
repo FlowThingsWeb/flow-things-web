@@ -37,8 +37,9 @@ export const CRONS_DE_PRECIOS: CronVigilado[] = [
   { clave: 'precios-sugeridos', nombre: 'Precios sugeridos ML', hora: 12, minuto: 37, gracia: 6 },
   { clave: 'promociones-por-vencer', nombre: 'Promociones por vencer ML', hora: 12, minuto: 49, gracia: 6 },
   { clave: 'promociones-disponibles', nombre: 'Promociones disponibles ML', hora: 13, minuto: 11, gracia: 6 },
-  // Semanal, los lunes.
-  { clave: 'ajustar-precios', nombre: 'Ajustar precios de la tienda', hora: 11, minuto: 7, gracia: 8, dias: [1] },
+  // Corre último, después de que el ciclo del CRM actualizó los precios de ML.
+  // Gracia de 8 y no 6: históricamente es el que más tarde llegó (hasta 6h50).
+  { clave: 'ajustar-precios', nombre: 'Ajustar precios de la tienda', hora: 13, minuto: 23, gracia: 8 },
 ]
 
 /**
