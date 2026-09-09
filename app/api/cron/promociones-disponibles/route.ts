@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
+import { registrarLatido } from '@/lib/vigilar-crons'
 
 export const maxDuration = 60
 
@@ -19,6 +20,12 @@ export async function GET(request: NextRequest) {
   if (secret && request.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
+
+  // Deja constancia de que este cron corrió. Se registra ACÁ, apenas pasa la
+  // autorización y antes de hacer nada: lo que se vigila es que el cron haya
+  // arrancado. Si se registrara al final, un cron que arranca y muere a mitad
+  // se vería igual que uno que GitHub nunca disparó, y son problemas distintos.
+  await registrarLatido('promociones-disponibles')
 
   const url = process.env.CRM_URL
   const crmSecret = process.env.CRM_SECRET

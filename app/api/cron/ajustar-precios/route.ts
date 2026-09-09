@@ -9,6 +9,7 @@ import {
   type AjustePrecio,
   type ConfigPreciosWeb,
 } from '@/lib/precios-web'
+import { registrarLatido } from '@/lib/vigilar-crons'
 
 export const maxDuration = 60
 
@@ -138,6 +139,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
   }
+
+  // Deja constancia de que este cron corrió. Se registra ACÁ, apenas pasa la
+  // autorización y antes de hacer nada: lo que se vigila es que el cron haya
+  // arrancado. Si se registrara al final, un cron que arranca y muere a mitad
+  // se vería igual que uno que GitHub nunca disparó, y son problemas distintos.
+  await registrarLatido('ajustar-precios')
 
   // Con ?dry=1 calcula y avisa, pero no toca ningún precio.
   const params = new URL(request.url).searchParams
