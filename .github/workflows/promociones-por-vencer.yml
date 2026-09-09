@@ -12,7 +12,11 @@ name: Promociones por vencer ML
 on:
   schedule:
     # 9:45 de Buenos Aires, después del ciclo (8:00) y de los sugeridos (9:30).
-    - cron: "45 12 * * *"
+    # Minuto "raro" a propósito: GitHub documenta que los schedule se demoran
+    # cuando hay mucha carga, y la carga se concentra en punto y a la media
+    # porque es donde programa todo el mundo. Con :00/:30/:45 estos crons
+    # llegaban entre 2 y 5 horas tarde TODOS los días.
+    - cron: "49 12 * * *"
   workflow_dispatch:
     inputs:
       dias:

@@ -13,7 +13,11 @@ on:
   schedule:
     # Todos los días a las 9 de la mañana de Buenos Aires (12 UTC), después de
     # que corrió el workflow de precios.
-    - cron: "0 12 * * *"
+    # Minuto "raro" a propósito: GitHub documenta que los schedule se demoran
+    # cuando hay mucha carga, y la carga se concentra en punto y a la media
+    # porque es donde programa todo el mundo. Con :00/:30/:45 estos crons
+    # llegaban entre 2 y 5 horas tarde TODOS los días.
+    - cron: "13 12 * * *"
   workflow_dispatch:
     inputs:
       horas:

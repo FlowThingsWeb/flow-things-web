@@ -14,7 +14,11 @@ name: Ajustar precios de la tienda
 on:
   schedule:
     # Lunes a las 8 de la mañana (11 UTC).
-    - cron: "0 11 * * 1"
+    # Minuto "raro" a propósito: GitHub documenta que los schedule se demoran
+    # cuando hay mucha carga, y la carga se concentra en punto y a la media
+    # porque es donde programa todo el mundo. Con :00/:30/:45 estos crons
+    # llegaban entre 2 y 5 horas tarde TODOS los días.
+    - cron: "7 11 * * 1"
   workflow_dispatch:
     inputs:
       simulacion:

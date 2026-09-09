@@ -15,7 +15,11 @@ name: Precios sugeridos ML
 on:
   schedule:
     # 9:30 de Buenos Aires.
-    - cron: "30 12 * * *"
+    # Minuto "raro" a propósito: GitHub documenta que los schedule se demoran
+    # cuando hay mucha carga, y la carga se concentra en punto y a la media
+    # porque es donde programa todo el mundo. Con :00/:30/:45 estos crons
+    # llegaban entre 2 y 5 horas tarde TODOS los días.
+    - cron: "37 12 * * *"
   workflow_dispatch: {}
 
 jobs:
