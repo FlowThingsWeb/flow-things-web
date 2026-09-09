@@ -34,6 +34,16 @@ export type ConfigPreciosWeb = {
    *
    * No es una rebaja general: se aplica sólo a esa publicación y sólo mientras
    * dure la situación. Si ML sube, la publicación vuelve sola a los normales.
+   *
+   * El recorte del de envío es más profundo (3 puntos contra 2) y no es un
+   * capricho: arriba del umbral el flete va sumado al costo, así que el mismo
+   * recorte pesa menos en proporción. Con 15% el precio bajaba 2,74% y no
+   * llegaba a la tolerancia del 3%, así que las seis publicaciones con la
+   * brecha más grande contra ML no se movían ni un peso. Con 14% baja 4,05% y
+   * sí se mueven.
+   *
+   *   abajo del umbral   28% → 26%   baja 3,23%
+   *   arriba del umbral  17% → 14%   baja 4,05%
    */
   margen_propio_vs_ml: number;
   margen_con_envio_vs_ml: number;
@@ -53,7 +63,7 @@ export const CONFIG_WEB_DEFAULT: ConfigPreciosWeb = {
   margen_propio: 0.28,
   margen_con_envio: 0.17,
   margen_propio_vs_ml: 0.26,
-  margen_con_envio_vs_ml: 0.15,
+  margen_con_envio_vs_ml: 0.14,
   comision_cobro: 0.0149,
   costo_cuotas: 0.1049,
   envio: 15_000,
