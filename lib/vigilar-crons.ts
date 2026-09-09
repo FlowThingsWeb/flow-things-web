@@ -215,3 +215,95 @@ export function htmlDeFaltantes(faltantes: CronFaltante[]): string {
   </p>
 </div>`
 }
+
+/**
+ * Salud de la conexión con Mercado Libre, preguntada al CRM.
+ *
+ * Un token vencido no es problema: cada llamada del CRM lo renueva sola cuando
+ * le quedan menos de 30 minutos. El problema es que la RENOVACIÓN falle
+ * —refresh_token revocado, credenciales cambiadas— porque ahí se cae todo lo de
+ * ML junto y el motivo queda anotado en una columna que no mira nadie.
+ *
+ * Sin esto, de una renovación rota nos enteraríamos recién cuando falle el
+ * ciclo del día siguiente. Con esto, en la primera pasada.
+ */
+export type SaludML = {
+  sano: boolean
+  problemas: string[]
+  ultima_renovacion: string | null
+}
+
+export async function revisarSaludML(): Promise<SaludML | null> {
+  const url = process.env.CRM_URL
+  const secreto = process.env.CRM_SECRET
+  // Sin CRM configurado no hay nada que vigilar, y no es una falla que avisar:
+  // avisar de esto todos los días taparía los avisos que sí importan.
+  if (!url || !secreto) return null
+
+  try {
+    const r = await fetch(`${url}/api/integraciones/salud-ml`, {
+      headers: { Authorization: `Bearer ${secreto}` },
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (!r.ok) {
+      return {
+        sano: false,
+        problemas: [`el CRM contestó ${r.status} al preguntarle por la conexión con ML`],
+        ultima_renovacion: null,
+      }
+    }
+    const d = await r.json()
+    return {
+      sano: d.sano === true,
+      problemas: Array.isArray(d.problemas) ? d.problemas.map(String) : [],
+      ultima_renovacion: d.ultima_renovacion ?? null,
+    }
+  } catch (e: any) {
+    // No poder preguntar TAMBIÉN es una señal: si el CRM no contesta, lo de ML
+    // no está andando.
+    return {
+      sano: false,
+      problemas: [`no se pudo consultar al CRM: ${e?.message ?? e}`],
+      ultima_renovacion: null,
+    }
+  }
+}
+
+/** Marca genérica de "ya avisé hoy de esto", para lo que no es un cron. */
+export async function yaSeAviso(clave: string, ahora = new Date()): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from('crons_corridas')
+    .select('ultima_corrida')
+    .eq('clave', PREFIJO_AVISO + clave)
+    .maybeSingle()
+  return !!data && data.ultima_corrida.slice(0, 10) === ahora.toISOString().slice(0, 10)
+}
+
+export async function marcarAviso(clave: string, detalle: string, ahora = new Date()): Promise<void> {
+  await supabaseAdmin.from('crons_corridas').upsert(
+    {
+      clave: PREFIJO_AVISO + clave,
+      ultima_corrida: ahora.toISOString(),
+      ultimo_ok: true,
+      ultimo_detalle: detalle.slice(0, 300),
+    },
+    { onConflict: 'clave' },
+  )
+}
+
+export function htmlDeSaludML(salud: SaludML): string {
+  const items = salud.problemas.map(p => `<li style="margin-bottom:6px">${p}</li>`).join('')
+  return `<div style="font-family:Helvetica,Arial,sans-serif;max-width:640px">
+  <h2 style="font-size:18px;color:#b91c1c;margin:0 0 6px">La conexión con Mercado Libre está rota</h2>
+  <p style="font-size:14px;color:#444;line-height:1.6;margin:0 0 12px">
+    Esto no se arregla solo. Mientras siga así falla TODO lo de ML: precios, promociones, stock y ventas.
+  </p>
+  <ul style="font-size:14px;color:#111;line-height:1.6;margin:0 0 16px;padding-left:20px">${items}</ul>
+  <p style="font-size:13px;color:#666;line-height:1.6;margin:0">
+    Última renovación con éxito: ${salud.ultima_renovacion
+      ? new Date(salud.ultima_renovacion).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
+      : 'sin registro'}.
+    Se reconecta desde /admin/integraciones del CRM.
+  </p>
+</div>`
+}

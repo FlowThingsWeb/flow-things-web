@@ -4,8 +4,12 @@ import { sendEmail } from '@/lib/email'
 import {
   cronsFaltantes,
   htmlDeFaltantes,
+  htmlDeSaludML,
+  marcarAviso,
   marcarAvisados,
+  revisarSaludML,
   sinAvisarHoy,
+  yaSeAviso,
 } from '@/lib/vigilar-crons'
 
 // Batch chico para caber en el límite de duración de la función serverless.
@@ -30,7 +34,8 @@ export async function GET(request: NextRequest) {
 
   const resultado = await procesarJobsPendientes(BATCH)
   const vigilancia = await avisarCronsCaidos()
-  return NextResponse.json({ ...resultado, vigilancia })
+  const ml = await avisarMLRoto()
+  return NextResponse.json({ ...resultado, vigilancia, ml })
 }
 
 /**
@@ -76,5 +81,42 @@ async function avisarCronsCaidos(): Promise<{ faltantes: number; avisado: boolea
   } catch (e: any) {
     console.error('[vigilar-crons] No se pudo avisar:', e?.message ?? e)
     return { faltantes: 0, avisado: false, motivo: 'error al vigilar' }
+  }
+}
+
+/**
+ * Avisa si la conexión con Mercado Libre se rompió.
+ *
+ * Va aparte de los crons caídos porque son problemas de distinta urgencia: un
+ * cron que no corrió se resuelve solo mañana; una renovación de token rota no
+ * se arregla sola y deja sin funcionar precios, promociones, stock y ventas al
+ * mismo tiempo. Mezclarlos en el mismo mail escondería el grave adentro del
+ * leve.
+ */
+async function avisarMLRoto(): Promise<{ sano: boolean | null; avisado: boolean; motivo?: string }> {
+  try {
+    const salud = await revisarSaludML()
+    if (!salud) return { sano: null, avisado: false, motivo: 'CRM no configurado' }
+    if (salud.sano) return { sano: true, avisado: false }
+
+    // Una vez por día alcanza: mientras esté rota va a seguir rota en cada
+    // pasada, y repetir el mismo mail cada tres horas lo vuelve ruido.
+    if (await yaSeAviso('salud-ml')) {
+      return { sano: false, avisado: false, motivo: 'ya se avisó hoy' }
+    }
+
+    const to = process.env.ADMIN_EMAIL
+    if (!to) return { sano: false, avisado: false, motivo: 'falta ADMIN_EMAIL' }
+
+    await sendEmail({
+      to,
+      asunto: 'Mercado Libre: la conexión está rota',
+      cuerpo: htmlDeSaludML(salud),
+    })
+    await marcarAviso('salud-ml', salud.problemas.join(' | '))
+    return { sano: false, avisado: true }
+  } catch (e: any) {
+    console.error('[vigilar-crons] No se pudo revisar la salud de ML:', e?.message ?? e)
+    return { sano: null, avisado: false, motivo: 'error al revisar' }
   }
 }
