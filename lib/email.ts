@@ -1,6 +1,7 @@
 import { formatMonto } from './format'
 import { supabaseAdmin } from './supabaseAdmin'
 import { LOGO_EMAIL } from '@/lib/email-constants'
+import { linkBaja } from './baja-email'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const nodemailer = require('nodemailer')
 
@@ -39,6 +40,61 @@ export function renderTemplate(template: string, vars: Record<string, string>): 
   })
 }
 
+/**
+ * Marca que se reemplaza por el link de baja de cada destinatario.
+ *
+ * El cuerpo de la difusión se arma UNA vez para todos, pero el link de baja
+ * lleva la dirección firmada y es distinto para cada uno. Se deja esta marca al
+ * armar el HTML y se reemplaza al enviar, que es el único momento en que se
+ * sabe a quién va.
+ */
+export const MARCA_LINK_BAJA = '%%LINK_BAJA%%'
+
+/**
+ * Versión en texto plano del mail.
+ *
+ * Un mail sólo-HTML es una señal de spam: casi todo el correo legítimo va como
+ * multipart con las dos versiones, y el que manda una sola suele ser el que usa
+ * una herramienta de envío masivo y nada más. Además es lo único que ve quien
+ * lee con imágenes bloqueadas o con lector de pantalla.
+ *
+ * No pretende ser un conversor de HTML completo: los mails de la tienda son
+ * tablas con texto y links, y para eso alcanza.
+ */
+export function htmlATexto(html: string): string {
+  return html
+    // Lo que no es contenido.
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    // El preheader está oculto a propósito en el HTML; en texto sería un
+    // duplicado del asunto arriba de todo.
+    .replace(/<div style="display:none[\s\S]*?<\/div>/gi, '')
+    // Un link sin su destino no sirve para nada en texto plano.
+    .replace(/<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, texto) => {
+      const limpio = String(texto).replace(/<[^>]+>/g, '').trim()
+      const destino = String(href)
+      if (!limpio) return destino
+      // En un mailto: o un tel: el destino ES el texto; repetirlo sólo ensucia.
+      if (/^(mailto|tel):/i.test(destino)) return limpio
+      return limpio === destino ? limpio : `${limpio}: ${destino}`
+    })
+    // Cortes de línea que el HTML da por estructura.
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|tr|h1|h2|h3|li|table)>/gi, '\n')
+    .replace(/<\/td>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    // Entidades: la misma función que decodifica los asuntos, para no tener dos
+    // listas que se desincronicen.
+    .replace(/&[#\w]+;/g, (m) => decodificarEntidades(m))
+    .replace(/\u00a0/g, ' ')
+    // Espacios y líneas de más que dejó el markup.
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 // ─── Transport ────────────────────────────────────────────────────────────────
 
 function createTransport() {
@@ -71,6 +127,10 @@ const EMAIL_BCC = process.env.EMAIL_COPIA_BCC || 'contacto@flowthings.com.ar'
  */
 const NOMBRADAS: Record<string, string> = {
   amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0', middot: '\u00b7',
+  // Las que usan las plantillas de mail. Sin `copy`, el pie del mail en texto
+  // plano decía literalmente "&copy; 2026 Flow Things".
+  copy: '\u00a9', reg: '\u00ae', trade: '\u2122', deg: '\u00b0',
+  hellip: '\u2026', mdash: '\u2014', ndash: '\u2013', laquo: '\u00ab', raquo: '\u00bb',
 }
 
 export function decodificarEntidades(texto: string): string {
@@ -85,22 +145,49 @@ export async function sendEmail(params: {
   asunto: string
   cuerpo: string
   adjuntos?: { filename: string; content: string; encoding: 'base64'; contentType: string }[]
+  /** Difusión: lleva link de baja, encabezados de baja, y no se copia al comercio. */
+  difusion?: boolean
 }): Promise<void> {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
     console.warn('[email] GMAIL_USER o GMAIL_APP_PASSWORD no configurados')
     return
   }
   const transporter = createTransport()
-  // No duplicar si el destinatario ya es la propia casilla de copia.
-  const bcc = EMAIL_BCC && params.to.toLowerCase() !== EMAIL_BCC.toLowerCase()
+
+  // Una difusión NO se copia al comercio: son un mail por persona, así que la
+  // copia oculta multiplica la difusión entera dentro de la propia casilla —32
+  // destinatarios, 32 copias— y encima le suma a la casilla que manda un pico
+  // de correo entrante justo mientras está enviando, que es de las cosas que
+  // Gmail mira. La copia tiene sentido en lo transaccional, donde es el registro
+  // de lo que se le dijo a cada comprador.
+  const esDifusion = params.difusion === true
+  const bcc = !esDifusion && EMAIL_BCC && params.to.toLowerCase() !== EMAIL_BCC.toLowerCase()
     ? EMAIL_BCC
     : undefined
+
+  let html = params.cuerpo
+  const headers: Record<string, string> = {}
+  if (esDifusion) {
+    const baja = linkBaja(params.to)
+    html = html.split(MARCA_LINK_BAJA).join(baja)
+    // List-Unsubscribe le da a Gmail el botón de "cancelar suscripción" arriba
+    // del mail, que es donde la gente lo busca. Sin él, el que quiere dejar de
+    // recibir usa el botón que tiene a mano: "marcar como spam".
+    // El -Post habilita el de un solo click (RFC 8058), que Gmail exige para
+    // mostrar el botón sin intermediarios.
+    headers['List-Unsubscribe'] = `<${baja}>, <mailto:contacto@flowthings.com.ar?subject=baja>`
+    headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
+  }
+
   await transporter.sendMail({
     from: `"Flow Things" <${process.env.GMAIL_USER}>`,
     to: params.to,
     bcc,
     subject: decodificarEntidades(params.asunto),
-    html: params.cuerpo,
+    html,
+    // Multipart: sin la parte de texto el mail puntúa peor en los filtros.
+    text: htmlATexto(html),
+    ...(Object.keys(headers).length ? { headers } : {}),
     attachments: params.adjuntos?.map(a => ({
       filename: a.filename,
       content: a.content,
@@ -265,7 +352,11 @@ ${preheader}
     &nbsp;&#183;&nbsp; &#x1F4AC; <a href="https://wa.me/5491156075633" style="color:#7C3AED;text-decoration:none;font-weight:600">+54 9 11 5607-5633</a>
   </td></tr>
   <tr><td style="background:#1e0050;padding:24px 40px;text-align:center">
-    <p style="margin:0;font-size:12px;color:#c4b5fd">&copy; ${new Date().getFullYear()} Flow Things &#183; Librer&#xED;a &amp; Jugueter&#xED;a</p>
+    <p style="margin:0 0 10px;font-size:12px;color:#c4b5fd">&copy; ${new Date().getFullYear()} Flow Things &#183; Librer&#xED;a &amp; Jugueter&#xED;a</p>
+    <p style="margin:0;font-size:12px;color:#a78bfa;line-height:1.6">
+      Recib&#xED;s este mail porque tenés cuenta en Flow Things.<br/>
+      <a href="${MARCA_LINK_BAJA}" style="color:#ddd6fe;text-decoration:underline">Dejar de recibir novedades</a>
+    </p>
   </td></tr>
 </table>
 </td></tr>

@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminToken } from '@/lib/admin-auth'
 import { enqueueJobs } from '@/lib/jobs'
 import { buildDifusionHtml } from '@/lib/email'
+import { filtrarBajas } from '@/lib/baja-email'
 import type { User } from '@supabase/supabase-js'
 
 /** Lista TODOS los usuarios de Supabase Auth paginando (evita el cap de 1000). */
@@ -66,12 +67,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ encolados: 0, mensaje: 'No hay destinatarios.' })
     }
 
+    // Sacar a los que pidieron no recibir más. Se filtra ACÁ, al encolar, y no
+    // al enviar: así el número que devuelve el panel es el que realmente se va
+    // a mandar, y no quedan miles de jobs encolados para descartar de a uno.
+    const pedidos = emailsDestino.length
+    let excluidos = 0
+    try {
+      const permitidos = await filtrarBajas(emailsDestino)
+      excluidos = pedidos - permitidos.length
+      emailsDestino = permitidos
+    } catch (e: any) {
+      // filtrarBajas falla en vez de devolver la lista entera. Mandarle a
+      // alguien que se dio de baja es peor que no mandar la difusión.
+      console.error('[broadcast] Error leyendo bajas:', e.message)
+      return NextResponse.json(
+        { error: 'No se pudo verificar la lista de bajas. No se envió nada.' },
+        { status: 503 },
+      )
+    }
+
+    if (emailsDestino.length === 0) {
+      return NextResponse.json({
+        encolados: 0,
+        excluidos,
+        mensaje: 'Todos los destinatarios se dieron de baja de las novedades.',
+      })
+    }
+
     // Cuerpo final: envuelto en la plantilla de marca si corresponde.
     const cuerpoFinal = usarPlantilla ? buildDifusionHtml(cuerpo, { preheader: asunto }) : cuerpo
 
     // Encolar un job de email por destinatario. El cron los envía en lotes, así
     // el request responde rápido y no se corta por timeout con muchos usuarios.
-    const payloads = emailsDestino.map(to => ({ to, asunto, cuerpo: cuerpoFinal }))
+    const payloads = emailsDestino.map(to => ({ to, asunto, cuerpo: cuerpoFinal, difusion: true }))
 
     await enqueueJobs('email', payloads)
 
@@ -81,6 +109,7 @@ export async function POST(request: NextRequest) {
       encolados: payloads.length,
       enviados: payloads.length,
       total: emailsDestino.length,
+      excluidos,
     })
   } catch (err: any) {
     console.error('[broadcast] Error:', err.message)

@@ -32,9 +32,11 @@ export async function procesarJobsPendientes(batch: number): Promise<{ procesado
 async function procesarJob(job: Job): Promise<void> {
   switch (job.tipo) {
     case 'email': {
-      const { to, asunto, cuerpo } = job.payload
+      const { to, asunto, cuerpo, difusion } = job.payload
       if (!to || !asunto || !cuerpo) throw new Error('payload de email incompleto')
-      await sendEmail({ to, asunto, cuerpo })
+      // `difusion` viaja en el payload porque el link de baja y los encabezados
+      // de baja dependen del destinatario, y acá es donde se sabe quién es.
+      await sendEmail({ to, asunto, cuerpo, difusion: difusion === true })
       return
     }
     case 'post_pago': {

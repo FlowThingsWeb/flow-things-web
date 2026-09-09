@@ -175,7 +175,8 @@ export default function DifusionesPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Difusiones</h1>
         <p className="text-brand-text-muted mt-1 text-sm">
-          Armá campañas de email y enviálas a quien quieras. Copia oculta a tu casilla incluida.
+          Armá campañas de email y enviálas a quien quieras. Cada mail lleva su link de baja, y
+          los que ya se dieron de baja quedan afuera solos.
         </p>
       </div>
 
@@ -306,6 +307,10 @@ function brandPreview(contenido: string): string {
   <tr><td style="background:#fff;padding:32px;color:#1a0040;font-size:16px;line-height:1.6">${contenido || '<p style="color:#9ca3af">Tu contenido aparece acá…</p>'}</td></tr>
   <tr><td style="background:#fff;padding:0 32px 28px;text-align:center">
     <a href="#" style="display:inline-block;background:#7C3AED;color:#fff;font-weight:700;text-decoration:none;padding:12px 30px;border-radius:12px">Ver todos los productos</a></td></tr>
-  <tr><td style="background:#1e0050;padding:20px;text-align:center;font-size:12px;color:#c4b5fd">© ${new Date().getFullYear()} Flow Things</td></tr>
+  <tr><td style="background:#1e0050;padding:20px;text-align:center;font-size:12px;color:#c4b5fd">
+    © ${new Date().getFullYear()} Flow Things<br/>
+    <span style="color:#a78bfa">Recibís este mail porque tenés cuenta en Flow Things.<br/>
+    <span style="color:#ddd6fe;text-decoration:underline">Dejar de recibir novedades</span></span>
+  </td></tr>
   </table></td></tr></table></body></html>`
 }
