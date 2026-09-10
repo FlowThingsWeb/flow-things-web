@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { procesarJobsPendientes } from '@/lib/procesar-jobs'
 import { sendEmail } from '@/lib/email'
+import { revisarFeed, htmlDeProblemasFeed } from '@/lib/vigilar-feed'
 import {
   cronsFaltantes,
   htmlDeFaltantes,
@@ -35,7 +36,8 @@ export async function GET(request: NextRequest) {
   const resultado = await procesarJobsPendientes(BATCH)
   const vigilancia = await avisarCronsCaidos()
   const ml = await avisarMLRoto()
-  return NextResponse.json({ ...resultado, vigilancia, ml })
+  const feed = await avisarFeedRoto()
+  return NextResponse.json({ ...resultado, vigilancia, ml, feed })
 }
 
 /**
@@ -118,5 +120,40 @@ async function avisarMLRoto(): Promise<{ sano: boolean | null; avisado: boolean;
   } catch (e: any) {
     console.error('[vigilar-crons] No se pudo revisar la salud de ML:', e?.message ?? e)
     return { sano: null, avisado: false, motivo: 'error al revisar' }
+  }
+}
+
+/**
+ * Avisa si el feed que lee Google se rompió.
+ *
+ * Aparte del aviso de crons por la misma razón que el de ML: un cron que no
+ * corrió se resuelve solo mañana, un feed inválido saca la tienda entera de
+ * Google y no se arregla solo. Y aparte del de ML porque se arreglan en lugares
+ * distintos —uno es reconectar una cuenta, el otro es un deploy—.
+ */
+async function avisarFeedRoto(): Promise<{ problemas: number; avisado: boolean; motivo?: string }> {
+  try {
+    const problemas = await revisarFeed()
+    if (problemas.length === 0) return { problemas: 0, avisado: false }
+
+    // Mientras esté roto va a seguir roto en cada pasada; un mail por día basta.
+    if (await yaSeAviso('feed')) {
+      return { problemas: problemas.length, avisado: false, motivo: 'ya se avisó hoy' }
+    }
+
+    const to = process.env.ADMIN_EMAIL
+    if (!to) return { problemas: problemas.length, avisado: false, motivo: 'falta ADMIN_EMAIL' }
+
+    const n = problemas.length
+    await sendEmail({
+      to,
+      asunto: `Google Shopping: el feed tiene ${n} problema${n === 1 ? '' : 's'}`,
+      cuerpo: htmlDeProblemasFeed(problemas),
+    })
+    await marcarAviso('feed', problemas.map(p => p.clave).join(' | '))
+    return { problemas: n, avisado: true }
+  } catch (e: any) {
+    console.error('[vigilar-feed] No se pudo revisar el feed:', e?.message ?? e)
+    return { problemas: 0, avisado: false, motivo: 'error al revisar' }
   }
 }
