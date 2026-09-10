@@ -81,7 +81,7 @@ export function faqDeCategoria(nombreCategoria: string, cfg: Config): ItemFaq[] 
     respuesta:
       `Sí. Enviamos a CABA (${cfg.envio_tiempo_caba || 'hasta 24 hs hábiles'}), ` +
       `Gran Buenos Aires (${cfg.envio_tiempo_gba || '48-72 hs hábiles'}) y al interior ` +
-      `del país (${cfg.envio_tiempo_interior || 'hasta 12 días hábiles'}).`,
+      `del país (${cfg.envio_tiempo_interior || 'hasta 5 días hábiles'}).`,
   })
 
   if (caba || interior || cfg.envio_km_activo === '1') {
@@ -143,7 +143,7 @@ export function faqDeTienda(cfg: Config): ItemFaq[] {
     respuesta:
       `Sí. Enviamos a CABA (${cfg.envio_tiempo_caba || 'hasta 24 hs hábiles'}), ` +
       `Gran Buenos Aires (${cfg.envio_tiempo_gba || '48-72 hs hábiles'}) y al interior ` +
-      `del país (${cfg.envio_tiempo_interior || 'hasta 12 días hábiles'}).`,
+      `del país (${cfg.envio_tiempo_interior || 'hasta 5 días hábiles'}).`,
   })
 
   return faq

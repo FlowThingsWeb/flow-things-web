@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import { marcaDe } from '@/lib/marcas'
-import { getConfig } from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,39 +22,25 @@ function esc(s: string): string {
  * y Meta (Facebook/Instagram) para anuncios de catálogo.
  */
 export async function GET() {
-  const cfg = await getConfig()
 
   /**
-   * Envío: UN solo valor para todo el país, sin <g:region>.
+   * El envío NO viaja en el feed: lo define la política de la cuenta.
    *
-   * El feed mandaba tres zonas —CABA, Buenos Aires e interior— y las dos
-   * primeras con <g:region>. Google acepta ese atributo SÓLO en Australia,
-   * Estados Unidos y Japón; en Argentina es inválido, y no invalida el envío:
-   * invalida el producto. El 10/9/2026 Merchant Center reportaba "Región no
-   * válida" en 106 de 106 productos, todos "No aprobado". Con el catálogo
-   * entero desaprobado no había ni anuncios ni fichas gratuitas.
+   * Antes iban tres zonas con <g:region>, que en Argentina es inválido y
+   * desaprobó el catálogo entero durante ocho días. Después quedó un valor
+   * plano para todo el país. Ahora no va ninguno, y es a propósito.
    *
-   * Se manda el precio MÁS ALTO de las zonas configuradas. Google muestra este
-   * número al comprador antes de que entre, así que quedarse corto sería
-   * prometer un envío que después la caja no cumple —el mismo criterio que se
-   * usó para el umbral de envío gratis de la tienda—. Para CABA queda
-   * sobredeclarado; se corrige cuando el envío por zona se cargue en la
-   * configuración de envíos del propio Merchant Center, que es donde Argentina
-   * sí admite zonas.
+   * El feed sólo sabe decir "el envío cuesta X". No sabe decir "gratis a partir
+   * de $61.000", que es la condición que de verdad mueve una compra. Eso sólo
+   * existe en la política de envíos de Merchant Center, y un g:shipping en el
+   * feed la pisa: Google usa el del feed y la condición se pierde.
+   *
+   * Google tampoco admite zonas para Argentina por ningún camino —ni g:region
+   * en el feed, ni región o código postal en la tabla de costes, que sólo
+   * ofrece precio, peso y cantidad—. Así que el envío por cercanía de CABA no
+   * se puede declarar y la política usa el techo real de $15.000: el comprador
+   * de CABA paga menos en la caja de lo que vio, nunca más.
    */
-  const num = (v: string | undefined) => Number(v || 0)
-  const envioCaba = cfg.envio_km_activo === '1' ? num(cfg.envio_km_base) : num(cfg.envio_precio_caba)
-  const envioMax = Math.max(
-    envioCaba,
-    num(cfg.envio_precio_gba),
-    num(cfg.envio_precio_interior),
-  )
-  const ENVIOS = envioMax > 0
-    ? `      <g:shipping>
-        <g:country>AR</g:country>
-        <g:price>${envioMax.toFixed(2)} ARS</g:price>
-      </g:shipping>`
-    : ''
 
   const { data: productos } = await supabaseAdmin
     .from('productos')
@@ -127,7 +112,6 @@ export async function GET() {
       <g:brand>${esc(marcaDe(p.sku))}</g:brand>
       ${p.categorias?.nombre ? `<g:product_type>${esc(p.categorias.nombre)}</g:product_type>` : ''}
       <g:identifier_exists>no</g:identifier_exists>
-${ENVIOS}
     </item>`
     })
     .join('\n')

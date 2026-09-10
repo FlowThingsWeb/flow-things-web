@@ -49,7 +49,7 @@ ${cats}
 ## Envíos
 
 - ${textoEnvioPais(cfg)}
-- Entregas: CABA ${cfg.envio_tiempo_caba || 'hasta 24 hs hábiles'}, Gran Buenos Aires ${cfg.envio_tiempo_gba || '48-72 hs hábiles'}, interior del país ${cfg.envio_tiempo_interior || 'hasta 12 días hábiles'}.
+- Entregas: CABA ${cfg.envio_tiempo_caba || 'hasta 24 hs hábiles'}, Gran Buenos Aires ${cfg.envio_tiempo_gba || '48-72 hs hábiles'}, interior del país ${cfg.envio_tiempo_interior || 'hasta 5 días hábiles'}.
 
 ## Pagos
 
