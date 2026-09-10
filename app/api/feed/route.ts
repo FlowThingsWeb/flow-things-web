@@ -62,10 +62,47 @@ export async function GET() {
     .select('id, nombre, slug, sku, descripcion, precio, precio_anterior, imagen_url, imagenes, stock, categorias(nombre, slug)')
     .eq('activo', true)
 
+  /**
+   * Imagen de respaldo tomada de las variantes.
+   *
+   * Los productos con variantes no cargan imagen propia: la imagen vive en cada
+   * variante. Para la tienda da igual —la ficha muestra la de la variante
+   * elegida— pero al feed le faltaba el atributo obligatorio `image_link`, y
+   * Merchant Center no aprueba un producto sin imagen. Eran 24 de 106, entre
+   * ellos los cinco más caros del catálogo.
+   *
+   * Se toma la primera variante activa que tenga imagen. Cuál de las variantes
+   * sea importa poco: son el mismo producto en distinto color o modelo, y el
+   * comprador llega igual a la ficha, donde las ve todas.
+   */
+  const primeraImagen = (x: { imagen_url?: string | null; imagenes?: unknown }): string => {
+    const url = (x.imagen_url ?? '').trim()
+    if (url) return url
+    const arr = x.imagenes
+    if (Array.isArray(arr) && arr.length) return String(arr[0] ?? '').trim()
+    return ''
+  }
+
+  const sinImagen = (productos || []).filter((p: any) => !primeraImagen(p)).map((p: any) => p.id)
+  const imagenDeVariante = new Map<string, string>()
+  if (sinImagen.length) {
+    const { data: variantes } = await supabaseAdmin
+      .from('variantes')
+      .select('producto_id, imagen_url, imagenes, activo, created_at')
+      .in('producto_id', sinImagen)
+      .order('created_at', { ascending: true })
+    for (const v of variantes || []) {
+      if (v.activo === false) continue
+      if (imagenDeVariante.has(v.producto_id)) continue
+      const img = primeraImagen(v)
+      if (img) imagenDeVariante.set(v.producto_id, img)
+    }
+  }
+
   const items = (productos || [])
     .filter((p: any) => !CATEGORIAS_PAUSADAS.includes(p.categorias?.slug))
     .map((p: any) => {
-      const img = p.imagen_url || p.imagenes?.[0] || ''
+      const img = primeraImagen(p) || imagenDeVariante.get(p.id) || ''
       const desc = p.descripcion || p.nombre
       const disponibilidad = p.stock > 0 ? 'in stock' : 'out of stock'
 
