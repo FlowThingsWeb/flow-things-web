@@ -114,7 +114,12 @@ function envios(cfg: Record<string, string>) {
     salida.push(zona('Buenos Aires', { value: num(cfg.envio_precio_gba) }, 2, 3))
   }
   if (num(cfg.envio_precio_interior)) {
-    salida.push(zona('', { value: num(cfg.envio_precio_interior) }, 3, 12))
+    // 3-4 de tránsito más 0-1 de preparación = hasta 5 días hábiles, que es lo
+    // que promete envio_tiempo_interior y lo que declara la política de envíos
+    // de Merchant Center. Los tres números tienen que moverse juntos: acá
+    // quedaron en 12 cuando la tienda ya decía otra cosa, y Google estuvo ocho
+    // días prometiendo una demora que no era.
+    salida.push(zona('', { value: num(cfg.envio_precio_interior) }, 3, 4))
   }
   return salida.length ? salida : undefined
 }
@@ -198,6 +203,11 @@ export default async function ProductoLayout({
             // incompleta y, cuando la copia que tiene indexada envejece, deja
             // de mostrar el precio en el resultado. La página se rearma cada 5
             // minutos, así que la fecha siempre viaja fresca.
+            // Desde cuándo vale, no sólo hasta cuándo. Search Console lo
+            // reporta como "Falta el campo validFrom (en offers)": es un aviso
+            // leve, pero Google avisa que estos pueden pasar a graves, y sin él
+            // la oferta no tiene principio declarado.
+            validFrom: validoHasta(0),
             priceValidUntil: validoHasta(),
             availability: p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
             itemCondition: 'https://schema.org/NewCondition',
