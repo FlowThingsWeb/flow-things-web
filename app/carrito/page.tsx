@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { DatosComprador } from '@/types'
 import DireccionesManager, { Direccion } from '@/components/DireccionesManager'
 import MapaDireccion, { DireccionParseada } from '@/components/MapaDireccion'
-import { trackInitiateCheckout } from '@/lib/fbpixel'
+import { empezarCheckout, verCarrito, itemsDeCarrito } from '@/lib/eventos-compra'
 import CuotasMP from '@/components/CuotasMP'
 import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
@@ -54,6 +54,31 @@ interface OpcionEnvio {
 function CarritoContent() {
   const searchParams = useSearchParams()
   const { items, removeItem, total } = useCartStore()
+
+  /**
+   * Vio el carrito. Se manda una sola vez por visita a la página.
+   *
+   * Es el escalón que faltaba para leer el embudo: entre este evento y
+   * `begin_checkout` es donde el comprador ve cuánto sale el envío. Si la caída
+   * está acá, el problema es el precio del envío; si está después, es el pago.
+   */
+  const carritoVisto = useRef(false)
+  useEffect(() => {
+    if (carritoVisto.current || items.length === 0) return
+    carritoVisto.current = true
+    verCarrito({
+      total: total(),
+      items: itemsDeCarrito(
+        items.map(({ producto, cantidad }) => ({
+          id: producto.id,
+          sku: producto.sku,
+          nombre: producto.nombre,
+          precio: producto.precio,
+          cantidad,
+        })),
+      ),
+    })
+  }, [items, total])
   const { user, session } = useAuth()
   const [form, setForm] = useState<DatosComprador>(formInicial)
   const [loading, setLoading] = useState(false)
@@ -302,10 +327,18 @@ function CarritoContent() {
 
     setLoading(true)
 
-    // Meta Pixel: arrancó el checkout.
-    trackInitiateCheckout({
-      value: totalFinal,
-      numItems: items.reduce((s, i) => s + i.cantidad, 0),
+    // Arrancó el checkout: a Meta y a GA4.
+    empezarCheckout({
+      total: totalFinal,
+      items: itemsDeCarrito(
+        items.map(({ producto, cantidad }) => ({
+          id: producto.id,
+          sku: producto.sku,
+          nombre: producto.nombre,
+          precio: producto.precio,
+          cantidad,
+        })),
+      ),
     })
 
     try {

@@ -8,7 +8,7 @@ import FavoritoButton from '@/components/FavoritoButton'
 import Stars from '@/components/Stars'
 import { formatPrecio } from '@/lib/format'
 import { imagenDeProducto } from '@/lib/blur'
-import { trackAddToCart } from '@/lib/fbpixel'
+import { agregarAlCarrito } from '@/lib/eventos-compra'
 
 
 interface ProductCardProps {
@@ -61,7 +61,7 @@ export default function ProductCard({ producto, variante, rating, prioridad, blu
       imagen_url: imagenUrl,
       stock: stockVal,
     })
-    trackAddToCart({ id: producto.id, nombre, precio: producto.precio })
+    agregarAlCarrito({ id: producto.id, sku: producto.sku, nombre, precio: producto.precio })
   }
 
   return (

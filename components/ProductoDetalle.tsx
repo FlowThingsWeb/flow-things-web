@@ -13,7 +13,7 @@ import EnvioEstimador from '@/components/EnvioEstimador'
 import ShareButton from '@/components/ShareButton'
 import { formatPrecio } from '@/lib/format'
 import { estadoEnvioGratis, umbralEnvioGratis } from '@/lib/envio-gratis'
-import { trackViewContent, trackAddToCart } from '@/lib/fbpixel'
+import { verProducto, agregarAlCarrito } from '@/lib/eventos-compra'
 
 function waLink(telefono: string, texto: string) {
   const num = telefono.replace(/\D/g, '')
@@ -162,7 +162,7 @@ export default function ProductoDetalle({
   useEffect(() => {
     if (producto && viewTrackedRef.current !== producto.id) {
       viewTrackedRef.current = producto.id
-      trackViewContent({ id: producto.id, nombre: producto.nombre, precio: producto.precio })
+      verProducto({ id: producto.id, sku: producto.sku, nombre: producto.nombre, precio: producto.precio })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [producto?.id])
@@ -218,7 +218,7 @@ export default function ProductoDetalle({
     for (let i = 0; i < cantidad; i++) {
       addItem(productoParaCarrito, varianteSeleccionada?.id ?? undefined)
     }
-    trackAddToCart({ id: producto.id, nombre: producto.nombre, precio: producto.precio, cantidad })
+    agregarAlCarrito({ id: producto.id, sku: producto.sku, nombre: producto.nombre, precio: producto.precio, cantidad })
     setAgregado(true)
     setTimeout(() => setAgregado(false), 2000)
   }

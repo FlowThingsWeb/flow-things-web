@@ -1,5 +1,9 @@
 /**
  * Helpers del Meta Pixel para eventos estándar del embudo de compra.
+ *
+ * NO se importa desde los componentes: para eso está `lib/eventos-compra.ts`,
+ * que dispara Meta y GA4 juntos. Llamar a este archivo directo deja el evento
+ * en una sola plataforma, que es exactamente el agujero que hubo hasta ahora.
  * Seguros si el pixel no está cargado (no-op). El pixel se inicializa en
  * components/Analytics.tsx solo cuando hay NEXT_PUBLIC_META_PIXEL_ID.
  *
@@ -32,10 +36,23 @@ function fbq(...args: any[]) {
   }, 250)
 }
 
+/**
+ * El id que se le manda a Meta: el SKU.
+ *
+ * Antes iba `p.id`, el UUID del producto, mientras que el evento Purchase ya
+ * mandaba el SKU. Con dos identificadores distintos Meta veía un producto al
+ * agregar al carrito y otro al comprar: el embudo no cerraba y el catálogo de
+ * Meta no podía emparejar ninguno de los dos eventos con su publicación.
+ */
+function idMeta(p: { sku?: string | null; id: string }): string {
+  const sku = (p.sku ?? '').trim()
+  return sku || `sin-sku-${p.id}`
+}
+
 /** Vio la ficha de un producto. */
-export function trackViewContent(p: { id: string; nombre: string; precio: number }) {
+export function trackViewContent(p: { id: string; sku?: string | null; nombre: string; precio: number }) {
   fbq('track', 'ViewContent', {
-    content_ids: [p.id],
+    content_ids: [idMeta(p)],
     content_name: p.nombre,
     content_type: 'product',
     value: p.precio,
@@ -46,12 +63,13 @@ export function trackViewContent(p: { id: string; nombre: string; precio: number
 /** Agregó un producto al carrito. */
 export function trackAddToCart(p: {
   id: string
+  sku?: string | null
   nombre: string
   precio: number
   cantidad?: number
 }) {
   fbq('track', 'AddToCart', {
-    content_ids: [p.id],
+    content_ids: [idMeta(p)],
     content_name: p.nombre,
     content_type: 'product',
     value: p.precio * (p.cantidad ?? 1),

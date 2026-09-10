@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useCartStore } from '@/lib/store'
 import { formatPrecio } from '@/lib/format'
-import { trackAddToCart } from '@/lib/fbpixel'
+import { agregarAlCarrito } from '@/lib/eventos-compra'
 import type { SlideCarrusel } from '@/lib/carruselHome'
 
 const AUTOPLAY_MS = 6000
@@ -126,7 +126,7 @@ export default function HomeCarousel({
                 onAgregar={() => {
                   const p = slide.producto
                   addItem(p)
-                  trackAddToCart({ id: p.id, nombre: p.nombre, precio: p.precio })
+                  agregarAlCarrito({ id: p.id, sku: p.sku, nombre: p.nombre, precio: p.precio })
                 }}
               />
             ))}
