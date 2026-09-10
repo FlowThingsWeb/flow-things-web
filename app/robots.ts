@@ -7,6 +7,38 @@ const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').re
 const PRIVADO = ['/admin', '/api', '/cuenta', '/carrito', '/exito', '/confirmar', '/retomar']
 
 /**
+ * Filtros y variantes: mismo contenido con otra URL.
+ *
+ * Estas páginas ya declaran su canónica y apuntan a la URL limpia, así que
+ * Google nunca las indexó. El problema no era la indexación sino el RASTREO:
+ * el 3/9/2026 gastó 25 visitas en permutaciones de filtros de una sola marca
+ * —?min=20000, ?max=40000, ?disponible=1, seis variantes del mismo producto—
+ * mientras 44 subcategorías con producto real seguían sin visitar desde que
+ * las descubrió el 25/7. Google le da a cada sitio un presupuesto de rastreo
+ * según su autoridad; el de esta tienda es chico y se estaba yendo en copias.
+ *
+ * El patrón va como `/*?*x=` y no `/*?x=`: el segundo sólo agarra el
+ * parámetro cuando es el PRIMERO de la query, y se escaparían las
+ * combinaciones tipo ?max=40000&min=20000.
+ *
+ * `page` queda FUERA de la lista a propósito. Es paginación, no un filtro:
+ * bloquearla puede esconder productos a los que sólo se llega desde una
+ * página profunda. Google la maneja bien sola.
+ *
+ * El intercambio, que conviene tener presente: al bloquear el rastreo, Google
+ * deja de ver la canónica de estas URLs. Es lo recomendado para navegación
+ * por filtros, pero no sale gratis.
+ */
+const FACETAS = [
+  '/*?*variante=',
+  '/*?*min=',
+  '/*?*max=',
+  '/*?*orden=',
+  '/*?*disponible=',
+  '/*?*sub=',
+]
+
+/**
  * Los asistentes (ChatGPT, Perplexity, Claude, Gemini) recomiendan productos
  * leyendo sitios con sus propios crawlers, distintos del de Google. Con una
  * sola regla `*` quedaban permitidos por omisión, que funciona hasta el día
@@ -39,12 +71,12 @@ export default function robots(): MetadataRoute.Robots {
         allow: '/',
         // El feed de productos es público a propósito: lo consumen Merchant
         // Center y Meta, y vive bajo /api, que está bloqueado en general.
-        disallow: PRIVADO,
+        disallow: [...PRIVADO, ...FACETAS],
       },
       ...BOTS_IA.map((userAgent) => ({
         userAgent,
         allow: ['/', '/api/feed'],
-        disallow: PRIVADO,
+        disallow: [...PRIVADO, ...FACETAS],
       })),
     ],
     sitemap: `${BASE}/sitemap.xml`,
