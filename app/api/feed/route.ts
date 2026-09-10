@@ -25,22 +25,37 @@ function esc(s: string): string {
 export async function GET() {
   const cfg = await getConfig()
 
-  // Merchant aprueba antes y calcula mejor el total cuando el envío viaja en
-  // el feed. Van las tres zonas reales; en CABA se declara la base del envío
-  // por cercanía, que es el piso de lo que se cobra.
+  /**
+   * Envío: UN solo valor para todo el país, sin <g:region>.
+   *
+   * El feed mandaba tres zonas —CABA, Buenos Aires e interior— y las dos
+   * primeras con <g:region>. Google acepta ese atributo SÓLO en Australia,
+   * Estados Unidos y Japón; en Argentina es inválido, y no invalida el envío:
+   * invalida el producto. El 10/9/2026 Merchant Center reportaba "Región no
+   * válida" en 106 de 106 productos, todos "No aprobado". Con el catálogo
+   * entero desaprobado no había ni anuncios ni fichas gratuitas.
+   *
+   * Se manda el precio MÁS ALTO de las zonas configuradas. Google muestra este
+   * número al comprador antes de que entre, así que quedarse corto sería
+   * prometer un envío que después la caja no cumple —el mismo criterio que se
+   * usó para el umbral de envío gratis de la tienda—. Para CABA queda
+   * sobredeclarado; se corrige cuando el envío por zona se cargue en la
+   * configuración de envíos del propio Merchant Center, que es donde Argentina
+   * sí admite zonas.
+   */
   const num = (v: string | undefined) => Number(v || 0)
   const envioCaba = cfg.envio_km_activo === '1' ? num(cfg.envio_km_base) : num(cfg.envio_precio_caba)
-  const ENVIOS = [
-    { region: 'Ciudad Autónoma de Buenos Aires', precio: envioCaba },
-    { region: 'Buenos Aires', precio: num(cfg.envio_precio_gba) },
-    { region: '', precio: num(cfg.envio_precio_interior) },
-  ]
-    .filter((e) => e.precio > 0)
-    .map((e) => `      <g:shipping>
-        <g:country>AR</g:country>${e.region ? `\n        <g:region>${esc(e.region)}</g:region>` : ''}
-        <g:price>${e.precio.toFixed(2)} ARS</g:price>
-      </g:shipping>`)
-    .join('\n')
+  const envioMax = Math.max(
+    envioCaba,
+    num(cfg.envio_precio_gba),
+    num(cfg.envio_precio_interior),
+  )
+  const ENVIOS = envioMax > 0
+    ? `      <g:shipping>
+        <g:country>AR</g:country>
+        <g:price>${envioMax.toFixed(2)} ARS</g:price>
+      </g:shipping>`
+    : ''
 
   const { data: productos } = await supabaseAdmin
     .from('productos')
