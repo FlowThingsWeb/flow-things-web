@@ -184,7 +184,12 @@ export default async function ProductoLayout({
           '@context': 'https://schema.org',
           '@type': 'Product',
           name: p.nombre,
-          description: p.descripcion || undefined,
+          // Cae al nombre cuando el producto no tiene descripción, igual que el
+          // feed. Un `description` ausente hace que Google marque la ficha como
+          // mejorable y le quite funciones; el nombre es pobre pero es cierto y
+          // está. Los que caen acá hay que escribirlos: hoy son HB5400 y
+          // UDH121, y Search Console los cuenta de a uno.
+          description: p.descripcion || p.nombre,
           image: imagenDe(p) || undefined,
           sku: p.sku || undefined,
           category: categoriaNombre || undefined,
