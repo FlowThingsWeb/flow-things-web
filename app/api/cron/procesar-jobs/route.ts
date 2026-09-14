@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { procesarJobsPendientes } from '@/lib/procesar-jobs'
 import { sendEmail } from '@/lib/email'
 import { revisarFeed, htmlDeProblemasFeed } from '@/lib/vigilar-feed'
+import { anotarFallaML, fallaMLDesde, olvidarFallaML, sincronizarLatidoCiclo } from '@/lib/vigilar-crons'
 import {
   cronsFaltantes,
   htmlDeFaltantes,
@@ -99,7 +100,34 @@ async function avisarMLRoto(): Promise<{ sano: boolean | null; avisado: boolean;
   try {
     const salud = await revisarSaludML()
     if (!salud) return { sano: null, avisado: false, motivo: 'CRM no configurado' }
-    if (salud.sano) return { sano: true, avisado: false }
+
+    // El ciclo corre en el CRM: su latido lo trae esta misma consulta, sacado
+    // de los datos que dejó al trabajar.
+    await sincronizarLatidoCiclo(salud.ciclo_ultima_corrida)
+
+    if (salud.sano) {
+      // Se olvida la falla anterior: si volvió solo, no hay nada que avisar.
+      await olvidarFallaML()
+      return { sano: true, avisado: false }
+    }
+
+    /**
+     * Si NO se pudo hablar con el CRM, se exige que la falla persista.
+     *
+     * El 14/9/2026 este aviso salió por un 500 pasajero: el token de ML se
+     * había renovado cuatro horas antes y last_error estaba en null. Un
+     * arranque en frío no es una integración rota, y un aviso que grita por un
+     * pestañeo se deja de leer — que es exactamente lo que este vigilante
+     * existe para evitar.
+     *
+     * Cuando el CRM SÍ contesta y dice que está rota, se avisa de una: eso no
+     * se arregla solo.
+     */
+    const desde = await fallaMLDesde()
+    if (!salud.alcanzado && !desde) {
+      await anotarFallaML(salud.problemas.join(' | '))
+      return { sano: false, avisado: false, motivo: 'primera falla, se espera a la próxima pasada' }
+    }
 
     // Una vez por día alcanza: mientras esté rota va a seguir rota en cada
     // pasada, y repetir el mismo mail cada tres horas lo vuelve ruido.
@@ -112,10 +140,13 @@ async function avisarMLRoto(): Promise<{ sano: boolean | null; avisado: boolean;
 
     await sendEmail({
       to,
-      asunto: 'Mercado Libre: la conexión está rota',
-      cuerpo: htmlDeSaludML(salud),
+      asunto: salud.alcanzado
+        ? 'Mercado Libre: la conexión está rota'
+        : 'Mercado Libre: no se pudo consultar la conexión',
+      cuerpo: htmlDeSaludML(salud, desde),
     })
     await marcarAviso('salud-ml', salud.problemas.join(' | '))
+    if (!salud.alcanzado && !desde) await anotarFallaML(salud.problemas.join(' | '))
     return { sano: false, avisado: true }
   } catch (e: any) {
     console.error('[vigilar-crons] No se pudo revisar la salud de ML:', e?.message ?? e)

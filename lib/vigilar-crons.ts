@@ -230,9 +230,27 @@ export function htmlDeFaltantes(faltantes: CronFaltante[]): string {
  */
 export type SaludML = {
   sano: boolean
+  /**
+   * Si se pudo hablar con el CRM.
+   *
+   * Separa dos cosas que se veían iguales y no lo son: que el CRM diga "la
+   * integración está rota" —que es real y no se arregla solo— de que el CRM no
+   * conteste —que puede ser un arranque en frío, un hipo de Supabase o un
+   * pestañeo de Vercel—. El 14/9/2026 el vigilante mandó "la conexión con
+   * Mercado Libre está rota" por UN 500 pasajero, con el token renovado hacía
+   * cuatro horas y last_error en null. A los crons se les dan 6 a 8 horas de
+   * tolerancia por esto mismo; acá no había ninguna.
+   */
+  alcanzado: boolean
   problemas: string[]
   ultima_renovacion: string | null
+  /** Cuándo corrió por última vez el ciclo del CRM, según sus propios datos. */
+  ciclo_ultima_corrida: string | null
 }
+
+/** Reintentos cortos antes de dar por caído al CRM. */
+const INTENTOS_SALUD = 3
+const ESPERA_ENTRE_INTENTOS = [0, 1_500, 4_000]
 
 export async function revisarSaludML(): Promise<SaludML | null> {
   const url = process.env.CRM_URL
@@ -241,33 +259,100 @@ export async function revisarSaludML(): Promise<SaludML | null> {
   // avisar de esto todos los días taparía los avisos que sí importan.
   if (!url || !secreto) return null
 
-  try {
-    const r = await fetch(`${url}/api/integraciones/salud-ml`, {
-      headers: { Authorization: `Bearer ${secreto}` },
-      signal: AbortSignal.timeout(15_000),
-    })
-    if (!r.ok) {
-      return {
-        sano: false,
-        problemas: [`el CRM contestó ${r.status} al preguntarle por la conexión con ML`],
-        ultima_renovacion: null,
+  let ultimoMotivo = 'sin intentos'
+  for (let i = 0; i < INTENTOS_SALUD; i++) {
+    if (ESPERA_ENTRE_INTENTOS[i]) {
+      await new Promise(r => setTimeout(r, ESPERA_ENTRE_INTENTOS[i]))
+    }
+    try {
+      const r = await fetch(`${url}/api/integraciones/salud-ml`, {
+        headers: { Authorization: `Bearer ${secreto}` },
+        signal: AbortSignal.timeout(15_000),
+      })
+      if (r.ok) {
+        const d = await r.json()
+        return {
+          sano: d.sano === true,
+          alcanzado: true,
+          problemas: Array.isArray(d.problemas) ? d.problemas.map(String) : [],
+          ultima_renovacion: d.ultima_renovacion ?? null,
+          ciclo_ultima_corrida: d.ciclo_ultima_corrida ?? null,
+        }
       }
-    }
-    const d = await r.json()
-    return {
-      sano: d.sano === true,
-      problemas: Array.isArray(d.problemas) ? d.problemas.map(String) : [],
-      ultima_renovacion: d.ultima_renovacion ?? null,
-    }
-  } catch (e: any) {
-    // No poder preguntar TAMBIÉN es una señal: si el CRM no contesta, lo de ML
-    // no está andando.
-    return {
-      sano: false,
-      problemas: [`no se pudo consultar al CRM: ${e?.message ?? e}`],
-      ultima_renovacion: null,
+      // El cuerpo suele traer el motivo; sin él, "500" no dice nada accionable.
+      const cuerpo = await r.text().catch(() => '')
+      ultimoMotivo = `contestó ${r.status}${cuerpo ? `: ${cuerpo.slice(0, 200)}` : ''}`
+    } catch (e: any) {
+      ultimoMotivo = `no contestó: ${e?.message ?? e}`
     }
   }
+
+  return {
+    sano: false,
+    alcanzado: false,
+    problemas: [`tras ${INTENTOS_SALUD} intentos, el CRM ${ultimoMotivo}`],
+    ultima_renovacion: null,
+    ciclo_ultima_corrida: null,
+  }
+}
+
+/**
+ * Anota el latido del ciclo con la fecha que informa el CRM.
+ *
+ * El ciclo corre en el CRM, así que su latido no lo puede poner él mismo: lo
+ * intentó empujando a /api/cron/latido y no llegaba nunca —secreto distinto,
+ * 401 tapado por un `|| true`— y el vigilante avisó cuatro días seguidos que
+ * no corría mientras corría bien.
+ *
+ * Ahora la fecha viene del dato: el ciclo escribe en sus tablas cada vez que
+ * trabaja. Se guarda esa fecha y no `now()`, porque lo que importa es cuándo
+ * corrió el ciclo, no cuándo lo miramos.
+ */
+export async function sincronizarLatidoCiclo(cuando: string | null): Promise<void> {
+  if (!cuando) return
+  try {
+    const { data } = await supabaseAdmin
+      .from('crons_corridas')
+      .select('ultima_corrida')
+      .eq('clave', 'ciclo-promociones')
+      .maybeSingle()
+    if (data?.ultima_corrida && data.ultima_corrida >= cuando) return
+    await supabaseAdmin.from('crons_corridas').upsert(
+      {
+        clave: 'ciclo-promociones',
+        ultima_corrida: cuando,
+        ultimo_ok: true,
+        ultimo_detalle: 'según los datos que dejó el ciclo en el CRM',
+      },
+      { onConflict: 'clave' },
+    )
+  } catch (e: any) {
+    console.error('[vigilar-crons] No se pudo sincronizar el latido del ciclo:', e?.message ?? e)
+  }
+}
+
+/** Clave con la que se recuerda que el CRM ya venía fallando. */
+const CLAVE_FALLA_ML = '_falla:salud-ml'
+
+/** Desde cuándo viene fallando, o null si es la primera vez. */
+export async function fallaMLDesde(): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from('crons_corridas')
+    .select('ultima_corrida')
+    .eq('clave', CLAVE_FALLA_ML)
+    .maybeSingle()
+  return data?.ultima_corrida ?? null
+}
+
+export async function anotarFallaML(detalle: string, ahora = new Date()): Promise<void> {
+  await supabaseAdmin.from('crons_corridas').upsert(
+    { clave: CLAVE_FALLA_ML, ultima_corrida: ahora.toISOString(), ultimo_ok: false, ultimo_detalle: detalle.slice(0, 300) },
+    { onConflict: 'clave' },
+  )
+}
+
+export async function olvidarFallaML(): Promise<void> {
+  await supabaseAdmin.from('crons_corridas').delete().eq('clave', CLAVE_FALLA_ML)
 }
 
 /** Marca genérica de "ya avisé hoy de esto", para lo que no es un cron. */
@@ -292,19 +377,35 @@ export async function marcarAviso(clave: string, detalle: string, ahora = new Da
   )
 }
 
-export function htmlDeSaludML(salud: SaludML): string {
+export function htmlDeSaludML(salud: SaludML, desde?: string | null): string {
   const items = salud.problemas.map(p => `<li style="margin-bottom:6px">${p}</li>`).join('')
+
+  /**
+   * Dos mensajes distintos porque son dos problemas distintos.
+   *
+   * "El CRM dice que la integración está rota" es real y no se arregla solo.
+   * "No pude hablar con el CRM" puede ser un arranque en frío. Mandar el texto
+   * alarmante para el segundo caso es cómo un aviso se vuelve ruido.
+   */
+  const roto = salud.alcanzado
+  const titulo = roto
+    ? 'La conexión con Mercado Libre está rota'
+    : 'No se pudo consultar la conexión con Mercado Libre'
+  const bajada = roto
+    ? 'Esto no se arregla solo. Mientras siga así falla TODO lo de ML: precios, promociones, stock y ventas.'
+    : `El CRM no contestó en varios intentos${desde ? `, y viene así desde ${new Date(desde).toISOString().slice(0, 16).replace('T', ' ')} UTC` : ''}. ` +
+      'Puede ser el CRM caído o un problema de red. No sabemos si la integración con ML está bien o mal: no se pudo preguntar.'
+
   return `<div style="font-family:Helvetica,Arial,sans-serif;max-width:640px">
-  <h2 style="font-size:18px;color:#b91c1c;margin:0 0 6px">La conexión con Mercado Libre está rota</h2>
-  <p style="font-size:14px;color:#444;line-height:1.6;margin:0 0 12px">
-    Esto no se arregla solo. Mientras siga así falla TODO lo de ML: precios, promociones, stock y ventas.
-  </p>
+  <h2 style="font-size:18px;color:${roto ? '#b91c1c' : '#b45309'};margin:0 0 6px">${titulo}</h2>
+  <p style="font-size:14px;color:#444;line-height:1.6;margin:0 0 12px">${bajada}</p>
   <ul style="font-size:14px;color:#111;line-height:1.6;margin:0 0 16px;padding-left:20px">${items}</ul>
   <p style="font-size:13px;color:#666;line-height:1.6;margin:0">
-    Última renovación con éxito: ${salud.ultima_renovacion
-      ? new Date(salud.ultima_renovacion).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
-      : 'sin registro'}.
-    Se reconecta desde /admin/integraciones del CRM.
+    ${roto
+      ? `Última renovación con éxito: ${salud.ultima_renovacion
+          ? new Date(salud.ultima_renovacion).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
+          : 'sin registro'}. Se reconecta desde /admin/integraciones del CRM.`
+      : 'Si el CRM vuelve solo, este aviso no se repite.'}
   </p>
 </div>`
 }
