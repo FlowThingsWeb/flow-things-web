@@ -7,6 +7,17 @@ export const dynamic = 'force-dynamic'
 
 const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
 
+/**
+ * Cuántas imágenes extra van además de la principal.
+ *
+ * Google acepta hasta 10 additional_image_link por producto y descarta el
+ * resto. El catálogo tiene con qué —la mayoría de los productos guarda entre 4
+ * y 8 fotos, y los que no tienen imagen propia llegan a 35 entre sus
+ * variantes— pero el feed mandaba una sola, así que Merchant Center puntuaba
+ * "Imágenes por oferta: 0" cuando el rango bueno arranca en 1 y termina en 8.
+ */
+const MAX_ADICIONALES = 10
+
 function esc(s: string): string {
   return String(s ?? '')
     .replace(/&/g, '&amp;')
@@ -56,20 +67,24 @@ export async function GET() {
    * Merchant Center no aprueba un producto sin imagen. Eran 24 de 106, entre
    * ellos los cinco más caros del catálogo.
    *
-   * Se toma la primera variante activa que tenga imagen. Cuál de las variantes
-   * sea importa poco: son el mismo producto en distinto color o modelo, y el
-   * comprador llega igual a la ficha, donde las ve todas.
+   * Se juntan las imágenes de todas las variantes activas, en orden de carga.
+   * Cuál quede primera importa poco: son el mismo producto en distinto color o
+   * modelo, y el comprador llega igual a la ficha, donde las ve todas. El resto
+   * viaja como additional_image_link.
    */
-  const primeraImagen = (x: { imagen_url?: string | null; imagenes?: unknown }): string => {
-    const url = (x.imagen_url ?? '').trim()
-    if (url) return url
-    const arr = x.imagenes
-    if (Array.isArray(arr) && arr.length) return String(arr[0] ?? '').trim()
-    return ''
+  const imagenesDe = (x: { imagen_url?: string | null; imagenes?: unknown }): string[] => {
+    const salida: string[] = []
+    const sumar = (u: unknown) => {
+      const url = String(u ?? '').trim()
+      if (url && !salida.includes(url)) salida.push(url)
+    }
+    sumar(x.imagen_url)
+    if (Array.isArray(x.imagenes)) x.imagenes.forEach(sumar)
+    return salida
   }
 
-  const sinImagen = (productos || []).filter((p: any) => !primeraImagen(p)).map((p: any) => p.id)
-  const imagenDeVariante = new Map<string, string>()
+  const sinImagen = (productos || []).filter((p: any) => !imagenesDe(p).length).map((p: any) => p.id)
+  const imagenesDeVariantes = new Map<string, string[]>()
   if (sinImagen.length) {
     const { data: variantes } = await supabaseAdmin
       .from('variantes')
@@ -78,16 +93,21 @@ export async function GET() {
       .order('created_at', { ascending: true })
     for (const v of variantes || []) {
       if (v.activo === false) continue
-      if (imagenDeVariante.has(v.producto_id)) continue
-      const img = primeraImagen(v)
-      if (img) imagenDeVariante.set(v.producto_id, img)
+      const acumulado = imagenesDeVariantes.get(v.producto_id) ?? []
+      for (const img of imagenesDe(v)) {
+        if (!acumulado.includes(img)) acumulado.push(img)
+      }
+      imagenesDeVariantes.set(v.producto_id, acumulado)
     }
   }
 
   const items = (productos || [])
     .filter((p: any) => !CATEGORIAS_PAUSADAS.includes(p.categorias?.slug))
     .map((p: any) => {
-      const img = primeraImagen(p) || imagenDeVariante.get(p.id) || ''
+      const propias = imagenesDe(p)
+      const galeria = propias.length ? propias : (imagenesDeVariantes.get(p.id) ?? [])
+      const img = galeria[0] ?? ''
+      const adicionales = galeria.slice(1, 1 + MAX_ADICIONALES)
       const desc = p.descripcion || p.nombre
       const disponibilidad = p.stock > 0 ? 'in stock' : 'out of stock'
 
@@ -105,6 +125,7 @@ export async function GET() {
       <description>${esc(desc)}</description>
       <link>${BASE}/productos/${esc(p.slug)}</link>
       <g:image_link>${esc(img)}</g:image_link>
+${adicionales.map((u: string) => `      <g:additional_image_link>${esc(u)}</g:additional_image_link>`).join('\n')}
       <g:price>${precioLista.toFixed(2)} ARS</g:price>
       ${enOferta ? `<g:sale_price>${actual.toFixed(2)} ARS</g:sale_price>` : ''}
       <g:availability>${disponibilidad}</g:availability>
