@@ -65,9 +65,26 @@ export async function revisarFeed(base?: string): Promise<ProblemaFeed[]> {
   const url = `${(base || process.env.NEXT_PUBLIC_APP_URL || 'https://www.flowthings.com.ar').replace(/\/$/, '')}/api/feed`
   const problemas: ProblemaFeed[] = []
 
+  /**
+   * El feed se sirve con `max-age=3600` y el CDN lo cachea. `cache: 'no-store'`
+   * evita la caché de fetch del server, no la del borde: la respuesta llegaba
+   * con `x-vercel-cache: HIT` y podía ser de hasta una hora antes.
+   *
+   * Comparar un feed de hace una hora contra el catálogo de ahora hace que
+   * cualquier alta se vea como una falta. El 24/9/2026, minutos después de
+   * activar 44 productos, el vigilante leyó 109 items cacheados contra 153
+   * activos y avisó de una diferencia que no existía.
+   *
+   * El parámetro cambia la clave de caché sin cambiar la respuesta: el feed
+   * ignora el query string, así que esto es el mismo XML que recibe Google,
+   * recién generado. La caché de una hora se queda como está, que es la que
+   * aguanta las ráfagas de rastreo.
+   */
+  const urlFresca = `${url}?v=${Date.now()}`
+
   let xml: string
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(30_000), cache: 'no-store' })
+    const r = await fetch(urlFresca, { signal: AbortSignal.timeout(30_000), cache: 'no-store' })
     if (!r.ok) {
       return [{
         clave: 'feed-caido',
