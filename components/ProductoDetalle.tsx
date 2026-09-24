@@ -57,6 +57,15 @@ export default function ProductoDetalle({
   const [agregado, setAgregado] = useState(false)
   const [sinStockMsg, setSinStockMsg] = useState(false)
   const touchStartX = useRef(0)
+  /**
+   * El botón de comprar arranca a 1.326px del tope: 1,63 pantallas de teléfono.
+   * Entre la foto, el título y la descripción, quien llega a la ficha tiene que
+   * scrollear una pantalla y media antes de ver cómo se compra, y si sigue
+   * bajando —envío, beneficios, relacionados, reseñas— lo pierde de vista otra
+   * vez. La barra de abajo lo devuelve en cuanto el botón real sale de pantalla.
+   */
+  const ctaRef = useRef<HTMLButtonElement | null>(null)
+  const [ctaVisible, setCtaVisible] = useState(true)
 
   const { telefono, email, gratisCaba, gratisAmba, gratisInterior } = config
   /**
@@ -199,6 +208,24 @@ export default function ProductoDetalle({
   }
 
   const tieneDescuento = producto.precio_anterior && producto.precio_anterior > producto.precio
+
+  /**
+   * Vigila el botón real para saber si hace falta la barra.
+   *
+   * Se mira el botón y no una posición fija de scroll: la ficha cambia de
+   * alto según la descripción, las variantes y la cantidad de fotos, así que
+   * cualquier número que se elija queda mal en la mitad del catálogo.
+   */
+  useEffect(() => {
+    const boton = ctaRef.current
+    if (!boton) { setCtaVisible(false); return }
+    const obs = new IntersectionObserver(
+      ([entrada]) => setCtaVisible(entrada.isIntersecting),
+      { threshold: 0 },
+    )
+    obs.observe(boton)
+    return () => obs.disconnect()
+  }, [seleccionCompleta, stockEfectivo])
 
   function handleAgregar() {
     if (!seleccionCompleta || stockEfectivo === 0) return
@@ -609,6 +636,7 @@ export default function ProductoDetalle({
               )}
 
               <button
+                ref={ctaRef}
                 onClick={handleAgregar}
                 disabled={sinStockMsg}
                 className={`w-full py-4 rounded-2xl font-semibold text-base transition-all ${
@@ -723,6 +751,45 @@ export default function ProductoDetalle({
         {/* Reseñas */}
         <ProductReviews productoId={producto.id} />
       </div>
+
+      {/*
+        Barra de compra fija — sólo teléfono y tablet.
+
+        En escritorio la columna de la derecha queda a la vista mientras se
+        baja, así que no hace falta. Aparece sólo cuando el botón real no está
+        en pantalla, hay stock y la variante ya está elegida: si todavía falta
+        elegir, mandar al carrito desde acá compraría lo que no se eligió.
+
+        El contenido reserva 80px a la derecha para no quedar debajo del botón
+        de WhatsApp, que está fijo en esa esquina.
+      */}
+      {!ctaVisible && seleccionCompleta && stockEfectivo > 0 && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-brand-bg-card/95 backdrop-blur border-t border-brand-border">
+          <div className="flex items-center gap-3 px-4 py-3 pr-20">
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold text-brand-neon leading-none">
+                {formatPrecio(producto.precio)}
+              </p>
+              <p className="text-[11px] text-brand-text-muted mt-1 truncate">
+                {envioGratis.estado === 'gratis' ? 'Con envío gratis' : 'Envío a todo el país'}
+              </p>
+            </div>
+            <button
+              onClick={handleAgregar}
+              disabled={sinStockMsg}
+              className={`shrink-0 px-5 py-3 rounded-xl font-semibold text-sm transition-all ${
+                agregado
+                  ? 'bg-green-500 text-white'
+                  : sinStockMsg
+                  ? 'bg-brand-bg-soft text-brand-text-muted border border-brand-border cursor-not-allowed'
+                  : 'bg-brand-purple hover:bg-brand-purple-dark text-white'
+              }`}
+            >
+              {agregado ? '✓ Agregado' : sinStockMsg ? 'Sin stock' : 'Agregar al carrito'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

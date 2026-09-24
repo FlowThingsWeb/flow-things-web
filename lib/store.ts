@@ -115,8 +115,19 @@ export const useCartStore = create<CartState>()(
        * render, cuando ya no hay nada que comparar.
        */
       skipHydration: true,
-      // El flag no se guarda: se recalcula en cada carga.
-      partialize: (state) => ({ items: state.items, isOpen: state.isOpen }) as CartState,
+      /**
+       * Sólo se guardan los items. `isOpen` NO.
+       *
+       * El comentario ya decía que el flag no se guardaba, pero el código sí
+       * lo guardaba: quien se iba del sitio con el cajón abierto —que es lo
+       * que queda después de agregar algo, porque `addItem` lo abre— volvía
+       * días después y la tienda lo recibía con el panel del carrito tapando
+       * la página. Le pasaba al 33,6% de las sesiones, que son de usuarios
+       * recurrentes.
+       *
+       * El carrito en sí se conserva, que es lo que hay que conservar.
+       */
+      partialize: (state) => ({ items: state.items }) as CartState,
       onRehydrateStorage: () => () => {
         useCartStore.setState({ hidratado: true })
       },
