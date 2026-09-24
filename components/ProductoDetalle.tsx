@@ -494,7 +494,14 @@ export default function ProductoDetalle({
           {/* Descripción */}
           {producto.descripcion && (
             <div className="text-brand-text-muted text-sm leading-relaxed border-t border-brand-border pt-5">
-              <p>{producto.descripcion}</p>
+              {/*
+                `whitespace-pre-line` como en la descripción de variante de
+                abajo. 28 descripciones del catálogo están escritas en párrafos
+                separados por una línea en blanco, y sin esto el HTML los junta:
+                el comprador recibe un bloque corrido de 1.400 caracteres donde
+                el autor había separado qué es, cómo viene y qué trae.
+              */}
+              <p className="whitespace-pre-line">{producto.descripcion}</p>
             </div>
           )}
 
