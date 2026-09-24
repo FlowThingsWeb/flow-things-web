@@ -1,6 +1,22 @@
 'use client'
 
 import Script from 'next/script'
+import { useEffect, useState } from 'react'
+
+/**
+ * Los dominios donde medir de verdad.
+ *
+ * Sin esto, `localhost` aparecía en las estadísticas de producción: 9 páginas
+ * vistas en 30 días sobre 240, más lo que sumen los deploys de preview de
+ * Vercel, que tienen su propia URL y cargaban los mismos scripts. Cada sesión
+ * de desarrollo entraba al mismo proyecto de Clarity que las visitas reales y
+ * contaminaba mapas de calor, embudos y grabaciones.
+ *
+ * Se decide por hostname y no por NODE_ENV: un `next build` local también es
+ * "production", y la pregunta acá no es cómo se compiló sino dónde se está
+ * sirviendo.
+ */
+const DOMINIOS_MEDIBLES = ['flowthings.com.ar', 'www.flowthings.com.ar']
 
 /**
  * Google Analytics 4 + Meta Pixel + Microsoft Clarity. Cada uno se activa solo
@@ -35,6 +51,19 @@ export default function Analytics() {
    * proyecto.
    */
   const clarity = process.env.NEXT_PUBLIC_CLARITY_ID || 'ycrn0tm5kv'
+
+  /**
+   * Se resuelve en el cliente, no al renderizar: el servidor no sabe con qué
+   * host lo pidieron, y decidirlo en el render daría un desajuste de
+   * hidratación. Los tres scripts son `lazyOnload`, así que esperar un tick
+   * no cambia nada.
+   */
+  const [medible, setMedible] = useState(false)
+  useEffect(() => {
+    setMedible(DOMINIOS_MEDIBLES.includes(window.location.hostname))
+  }, [])
+
+  if (!medible) return null
 
   return (
     <>

@@ -12,7 +12,6 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import CartDrawer from '@/components/CartDrawer'
 import AnnouncementBar from '@/components/AnnouncementBar'
-import RegistrationBanner from '@/components/RegistrationBanner'
 import CartSync from '@/components/CartSync'
 import ProfileGuard from '@/components/ProfileGuard'
 import RegistrationPopup from '@/components/RegistrationPopup'
@@ -47,7 +46,6 @@ export default function UserShell({ cfg, categorias, subcategorias, marcas, chil
       <ProfileGuard />
       <RegistrationPopup />
       <CartSync />
-      <RegistrationBanner />
       <AnnouncementBar gratisDesde={Number(cfg.envio_gratis_interior_desde) || 61000} />
       <Header cfg={cfg} categorias={categorias} subcategorias={subcategorias} marcas={marcas} />
       <main className="min-h-screen">{children}</main>

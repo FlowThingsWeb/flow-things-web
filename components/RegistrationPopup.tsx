@@ -1,13 +1,55 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 
 const STORAGE_KEY = 'ft_popup_dismissed'
 /** Días que el popup queda oculto después de cerrarlo. */
 const DIAS_OCULTO = 7
 const MS_OCULTO = DIAS_OCULTO * 24 * 60 * 60 * 1000
+
+/**
+ * El popup aparecía a los 2 segundos de cargar la página.
+ *
+ * Con eso, el visitante que llega de Instagram —el 29% de las visitas— toca
+ * un link, espera a que cargue, y lo primero que ve es un formulario tapando
+ * la pantalla entera antes que un solo producto. En Clarity, el 39,5% de las
+ * sesiones son "retrocesos rápidos": entran y vuelven atrás enseguida.
+ *
+ * Ahora espera a que el visitante muestre interés. Se pide una de tres cosas,
+ * la que pase primero, y nunca antes de los 8 segundos:
+ *
+ *   - recorrió la mitad de la página,
+ *   - lleva 25 segundos adentro,
+ *   - o el mouse se va hacia arriba, camino a cerrar la pestaña (sólo
+ *     escritorio: en un teléfono no existe esa señal).
+ *
+ * La oferta es la misma; cambia cuándo se ofrece. A alguien que ya recorrió
+ * medio catálogo un 10% le interesa. A alguien que todavía no vio nada, no.
+ */
+const MS_MINIMO = 8_000
+const MS_MAXIMO = 25_000
+/**
+ * Cuánto hay que recorrer para que cuente como "la miró".
+ *
+ * La mitad de la página, pero con un tope de dos pantallas: el home mide
+ * 6.600px en un teléfono, y pedir la mitad serían 3.300px de scroll, más de lo
+ * que recorre el visitante promedio (54,8% según Clarity, y ése es el
+ * promedio de todas las páginas, no del home). Con el tope, en una página
+ * larga alcanza con pasar el hero y la primera fila de productos.
+ */
+const SCROLL_INTERES = 0.5
+const SCROLL_TOPE_PANTALLAS = 2
+
+/**
+ * Dónde no interrumpir: el visitante ya está comprando.
+ *
+ * Un modal encima del carrito o del checkout no gana un registro, pierde una
+ * venta — y son justo las pantallas donde menos gente llega.
+ */
+const RUTAS_SILENCIO = ['/carrito', '/checkout', '/confirmar', '/exito', '/cuenta']
 
 /**
  * ¿Sigue vigente el "no me lo muestres" del visitante?
@@ -27,23 +69,56 @@ function descarteVigente(): boolean {
 
 export default function RegistrationPopup() {
   const { user, loading } = useAuth()
+  const pathname = usePathname()
   const [visible, setVisible] = useState(false)
+  /** Pasaron los 8 segundos de gracia: ya se puede mostrar. */
+  const listo = useRef(false)
+
+  const enSilencio = RUTAS_SILENCIO.some(r => pathname.startsWith(r))
 
   useEffect(() => {
-    if (loading) return
-    if (user) return
+    if (loading || user || enSilencio) return
     if (descarteVigente()) return
 
-    const timer = setTimeout(() => setVisible(true), 2000)
-    return () => clearTimeout(timer)
-  }, [loading, user])
+    let vivo = true
+    const mostrar = () => {
+      if (!vivo || !listo.current) return
+      vivo = false
+      setVisible(true)
+    }
+
+    const gracia = setTimeout(() => { listo.current = true }, MS_MINIMO)
+    const limite = setTimeout(() => { listo.current = true; mostrar() }, MS_MAXIMO)
+
+    const alScrollear = () => {
+      const alto = document.documentElement.scrollHeight - window.innerHeight
+      if (alto <= 0) return
+      const meta = Math.min(alto * SCROLL_INTERES, window.innerHeight * SCROLL_TOPE_PANTALLAS)
+      if (window.scrollY >= meta) mostrar()
+    }
+    const alSalir = (e: MouseEvent) => {
+      // Sólo cuando el puntero se va por arriba, que es el gesto de cerrar la
+      // pestaña. Salir por los costados es mirar otra ventana, no irse.
+      if (e.clientY <= 0) mostrar()
+    }
+
+    window.addEventListener('scroll', alScrollear, { passive: true })
+    document.addEventListener('mouseout', alSalir)
+    return () => {
+      vivo = false
+      clearTimeout(gracia)
+      clearTimeout(limite)
+      window.removeEventListener('scroll', alScrollear)
+      document.removeEventListener('mouseout', alSalir)
+    }
+  }, [loading, user, enSilencio])
 
   function dismiss() {
     localStorage.setItem(STORAGE_KEY, String(Date.now()))
     setVisible(false)
   }
 
-  if (!visible) return null
+  if (!visible || enSilencio) return null
 
   return (
     <div
