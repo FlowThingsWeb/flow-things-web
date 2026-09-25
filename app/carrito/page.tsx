@@ -105,13 +105,23 @@ function CarritoContent() {
       setEditandoDatos(false)
       /**
        * Si ya dijo dónde vive en la ficha del producto, el checkout arranca con
-       * la provincia y el CP puestos: el envío se cotiza solo y el comprador ve
-       * el total real sin haber cargado todavía un solo dato personal.
+       * los datos de envío puestos: se cotiza solo y el comprador ve el total
+       * real sin haber cargado todavía un solo dato personal.
+       *
+       * La calle viene sólo de CABA, que es donde la ficha la pide para cobrar
+       * por distancia. Igual queda editable: el resumen de dirección la
+       * muestra y tiene su "Editar a mano".
        */
       const destino = leerDestino()
       setForm(
         destino
-          ? { ...formInicial, provincia: destino.provincia, codigo_postal: destino.cp }
+          ? {
+              ...formInicial,
+              provincia: destino.provincia,
+              codigo_postal: destino.cp,
+              direccion: destino.direccion ?? '',
+              ciudad: destino.direccion ? destino.provincia : '',
+            }
           : formInicial
       )
       setPrimerCompraDescuento(false)
@@ -273,7 +283,13 @@ function CarritoContent() {
 
       // El destino queda recordado para la próxima ficha y la próxima visita.
       if (form.provincia.trim()) {
-        guardarDestino({ provincia: form.provincia.trim(), cp: form.codigo_postal.trim() })
+        guardarDestino({
+          provincia: form.provincia.trim(),
+          cp: form.codigo_postal.trim(),
+          // Sólo donde la ficha la usa; en el resto del país no cambiaría nada
+          // y no hay motivo para dejarla guardada.
+          direccion: form.provincia.trim() === 'CABA' ? form.direccion.trim() : '',
+        })
       }
     } catch {
       envioPedido.current = ''

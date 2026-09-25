@@ -11,10 +11,14 @@
  * cargar nombre, email, teléfono y DNI— el número aparecía solo.
  *
  * Guardando el destino una sola vez, la ficha puede contestar la pregunta
- * antes de que la vuelvan a hacer, y el checkout ya llega con la provincia y
- * el CP puestos.
+ * antes de que la vuelvan a hacer, y el checkout ya llega con los datos de
+ * envío puestos.
  *
- * Es provincia y código postal: nada que identifique a una persona.
+ * Qué se guarda: provincia, código postal y —sólo si lo escribieron en la
+ * ficha para cotizar por cercanía— la calle y altura. Es lo mismo que el
+ * comprador va a cargar en el checkout, vive únicamente en su navegador y no
+ * viaja a ningún lado que no sea nuestra propia cotización de envío. No se
+ * guarda nombre, teléfono, mail ni documento.
  */
 
 const CLAVE = 'ft_destino_envio'
@@ -22,6 +26,8 @@ const CLAVE = 'ft_destino_envio'
 export interface DestinoEnvio {
   provincia: string
   cp: string
+  /** Calle y altura. Sólo se pide en CABA, donde se cobra por distancia. */
+  direccion?: string
 }
 
 export function leerDestino(): DestinoEnvio | null {
@@ -31,7 +37,11 @@ export function leerDestino(): DestinoEnvio | null {
     if (!raw) return null
     const d = JSON.parse(raw) as Partial<DestinoEnvio>
     if (!d || typeof d.provincia !== 'string' || !d.provincia) return null
-    return { provincia: d.provincia, cp: typeof d.cp === 'string' ? d.cp : '' }
+    return {
+      provincia: d.provincia,
+      cp: typeof d.cp === 'string' ? d.cp : '',
+      direccion: typeof d.direccion === 'string' ? d.direccion : '',
+    }
   } catch {
     // localStorage puede estar bloqueado (modo privado, cookies de terceros).
     // Sin destino recordado el estimador funciona igual, sólo arranca vacío.

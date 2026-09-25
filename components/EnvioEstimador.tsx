@@ -18,6 +18,32 @@ function cpValido(cp: string): boolean {
 }
 
 /**
+ * Dónde se cobra por distancia y no por zona.
+ *
+ * En CABA el envío se cotiza contra los kilómetros reales desde el local
+ * (base + $/km), y eso casi siempre sale menos que la tarifa plana de la
+ * zona: a 8,4 km son $7.000 contra los $8.000 de la plana. Pero para medir
+ * kilómetros hace falta una calle: con provincia y CP solos, la cotización
+ * cae a la tarifa plana.
+ *
+ * Por eso la calle se pide sólo acá. En el resto del país la tarifa es por
+ * zona y el dato no cambiaría el número: pedirlo sería un campo más a cambio
+ * de nada.
+ */
+const PROVINCIAS_POR_DISTANCIA = ['CABA']
+
+/**
+ * ¿La calle alcanza para buscarla en el mapa?
+ *
+ * Se pide altura porque sin número Google resuelve el centro de la calle, y
+ * una avenida de CABA mide 10 km de punta a punta.
+ */
+function calleUtil(calle: string): boolean {
+  const c = calle.trim()
+  return c.length >= 5 && /\d/.test(c)
+}
+
+/**
  * Cuánto sale el envío a tu casa, dicho antes de comprar y no después.
  *
  * Antes esto era un formulario: elegí provincia, escribí el CP, apretá
@@ -48,6 +74,7 @@ function cpValido(cp: string): boolean {
 export default function EnvioEstimador({ precio }: { precio: number }) {
   const [provincia, setProvincia] = useState('')
   const [cp, setCp] = useState('')
+  const [calle, setCalle] = useState('')
   const [cargando, setCargando] = useState(false)
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const [error, setError] = useState('')
@@ -68,9 +95,12 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
   /** Último destino ya cotizado: evita repetir la consulta por el mismo dato. */
   const ultimo = useRef('')
 
-  const cotizar = useCallback(async (prov: string, codigo: string) => {
+  const cotizar = useCallback(async (prov: string, codigo: string, direccion: string) => {
     if (!prov) return
-    const clave = `${prov}|${codigo.trim()}`
+    // La calle sólo entra si sirve para buscarla: a medio escribir daría una
+    // distancia inventada, y es mejor la tarifa plana que un número falso.
+    const dir = calleUtil(direccion) ? direccion.trim() : ''
+    const clave = `${prov}|${codigo.trim()}|${dir}`
     if (clave === ultimo.current) return
     ultimo.current = clave
     const nro = ++pedido.current
@@ -79,7 +109,13 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
       const r = await fetch('/api/envio/cotizar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provincia: prov, codigo_postal: codigo, subtotal: precio }),
+        body: JSON.stringify({
+          provincia: prov,
+          codigo_postal: codigo,
+          direccion: dir || undefined,
+          ciudad: dir ? prov : undefined,
+          subtotal: precio,
+        }),
       })
       const d = await r.json()
       if (nro !== pedido.current) return
@@ -92,9 +128,10 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
         tiempo_estimado: op.tiempo_estimado,
         descripcion: op.descripcion,
       })
-      // El CP manda cuando está: es más preciso que el centro de la provincia.
-      setDestino([codigo.trim(), prov, 'Argentina'].filter(Boolean).join(', '))
-      guardarDestino({ provincia: prov, cp: codigo })
+      // Lo más preciso que haya: calle si la dieron, si no el CP, si no la
+      // provincia sola.
+      setDestino([dir, codigo.trim(), prov, 'Argentina'].filter(Boolean).join(', '))
+      guardarDestino({ provincia: prov, cp: codigo, direccion: dir })
     } catch {
       ultimo.current = ''
       if (nro === pedido.current) setError('Error de conexión. Probá de nuevo.')
@@ -109,8 +146,9 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
     if (!guardado) return
     setProvincia(guardado.provincia)
     setCp(guardado.cp)
+    setCalle(guardado.direccion ?? '')
     setEditando(false)
-    cotizar(guardado.provincia, guardado.cp)
+    cotizar(guardado.provincia, guardado.cp, guardado.direccion ?? '')
   }, [cotizar])
 
   /**
@@ -123,11 +161,12 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
   useEffect(() => {
     if (!editando || !provincia) return
     if (cp.trim() && !cpValido(cp)) return
-    const t = setTimeout(() => cotizar(provincia, cp), 500)
+    const t = setTimeout(() => cotizar(provincia, cp, calle), 500)
     return () => clearTimeout(t)
-  }, [provincia, cp, editando, cotizar])
+  }, [provincia, cp, calle, editando, cotizar])
 
   const gratis = resultado?.precio === 0
+  const pideCalle = PROVINCIAS_POR_DISTANCIA.includes(provincia)
 
   return (
     <div className="bg-brand-bg-soft rounded-2xl p-4">
@@ -136,8 +175,13 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm text-brand-text">
-              📦 Envío a <span className="font-semibold">{provincia}</span>
-              {cp.trim() && <span className="text-brand-text-muted"> ({cp.trim()})</span>}
+              📦 Envío a{' '}
+              <span className="font-semibold">
+                {calleUtil(calle) ? calle.trim() : provincia}
+              </span>
+              {!calleUtil(calle) && cp.trim() && (
+                <span className="text-brand-text-muted"> ({cp.trim()})</span>
+              )}
               {': '}
               <span className={`font-bold ${gratis ? 'text-green-400' : 'text-brand-neon'}`}>
                 {gratis ? '¡Gratis!' : formatPrecio(resultado.precio)}
@@ -179,12 +223,37 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
               className="input-dark text-sm sm:w-36"
             />
           </div>
+
+          {/*
+            La calle, sólo en CABA y sólo porque cambia el precio.
+
+            Es el único lugar donde el envío se cobra por distancia, así que
+            es el único donde el dato sirve para algo. El campo se explica
+            solo y queda claro que es opcional: sin él igual hay un número,
+            el de la tarifa plana.
+          */}
+          {pideCalle && (
+            <input
+              type="text"
+              value={calle}
+              onChange={(e) => setCalle(e.target.value)}
+              placeholder="Calle y altura (ej: Av. Corrientes 1234)"
+              aria-label="Calle y altura"
+              autoComplete="street-address"
+              className="input-dark text-sm w-full mt-2"
+            />
+          )}
+
           {/* El estado reemplaza al botón: se cotiza solo, esto cuenta qué pasa. */}
           <p className="text-xs text-brand-text-muted mt-2" aria-live="polite">
             {cargando
               ? 'Calculando…'
               : !provincia
               ? 'Elegí tu provincia y te decimos cuánto sale y cuándo llega.'
+              : pideCalle && !calleUtil(calle)
+              ? 'En CABA cobramos por distancia: poné tu calle y altura y te damos el precio exacto, que suele ser más barato.'
+              : pideCalle
+              ? 'Listo: éste es el costo hasta tu puerta.'
               : !cp.trim()
               ? 'Agregá tu código postal para un cálculo más preciso.'
               : !cpValido(cp)
