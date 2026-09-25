@@ -15,6 +15,7 @@ import CuotasMP from '@/components/CuotasMP'
 import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
 import { leerDestino, guardarDestino } from '@/lib/destino-envio'
+import { getZonaEnvio, seCobraPorDistancia } from '@/lib/zonas-envio'
 
 function validarDNI(dni: string): boolean {
   const limpio = (dni || '').replace(/\./g, '').trim()
@@ -108,9 +109,9 @@ function CarritoContent() {
        * los datos de envío puestos: se cotiza solo y el comprador ve el total
        * real sin haber cargado todavía un solo dato personal.
        *
-       * La calle viene sólo de CABA, que es donde la ficha la pide para cobrar
-       * por distancia. Igual queda editable: el resumen de dirección la
-       * muestra y tiene su "Editar a mano".
+       * La calle viene sólo de CABA y el AMBA, que es donde la ficha la pide
+       * para cobrar por distancia. Igual queda editable: el resumen de
+       * dirección la muestra y tiene su "Editar a mano".
        */
       const destino = leerDestino()
       setForm(
@@ -120,7 +121,11 @@ function CarritoContent() {
               provincia: destino.provincia,
               codigo_postal: destino.cp,
               direccion: destino.direccion ?? '',
-              ciudad: destino.direccion ? destino.provincia : '',
+              // En el AMBA la ficha guardó el partido; en CABA la ciudad es la
+              // provincia misma.
+              ciudad: destino.direccion
+                ? destino.localidad?.trim() || destino.provincia
+                : '',
             }
           : formInicial
       )
@@ -283,12 +288,17 @@ function CarritoContent() {
 
       // El destino queda recordado para la próxima ficha y la próxima visita.
       if (form.provincia.trim()) {
+        // La dirección sólo se recuerda donde la ficha la usa para cotizar por
+        // distancia; en el resto del país no cambiaría nada y no hay motivo
+        // para dejarla guardada.
+        const porDistancia = seCobraPorDistancia(
+          getZonaEnvio(form.provincia.trim(), form.codigo_postal.trim())
+        )
         guardarDestino({
           provincia: form.provincia.trim(),
           cp: form.codigo_postal.trim(),
-          // Sólo donde la ficha la usa; en el resto del país no cambiaría nada
-          // y no hay motivo para dejarla guardada.
-          direccion: form.provincia.trim() === 'CABA' ? form.direccion.trim() : '',
+          direccion: porDistancia ? form.direccion.trim() : '',
+          localidad: porDistancia ? form.ciudad.trim() : '',
         })
       }
     } catch {

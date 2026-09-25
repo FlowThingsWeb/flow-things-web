@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { PROVINCIAS } from '@/lib/format'
 import { formatPrecio } from '@/lib/format'
 import { leerDestino, guardarDestino } from '@/lib/destino-envio'
+import { getZonaEnvio, seCobraPorDistancia } from '@/lib/zonas-envio'
 
 interface Resultado {
   nombre: string
@@ -18,21 +19,6 @@ function cpValido(cp: string): boolean {
 }
 
 /**
- * Dónde se cobra por distancia y no por zona.
- *
- * En CABA el envío se cotiza contra los kilómetros reales desde el local
- * (base + $/km), y eso casi siempre sale menos que la tarifa plana de la
- * zona: a 8,4 km son $7.000 contra los $8.000 de la plana. Pero para medir
- * kilómetros hace falta una calle: con provincia y CP solos, la cotización
- * cae a la tarifa plana.
- *
- * Por eso la calle se pide sólo acá. En el resto del país la tarifa es por
- * zona y el dato no cambiaría el número: pedirlo sería un campo más a cambio
- * de nada.
- */
-const PROVINCIAS_POR_DISTANCIA = ['CABA']
-
-/**
  * ¿La calle alcanza para buscarla en el mapa?
  *
  * Se pide altura porque sin número Google resuelve el centro de la calle, y
@@ -41,6 +27,57 @@ const PROVINCIAS_POR_DISTANCIA = ['CABA']
 function calleUtil(calle: string): boolean {
   const c = calle.trim()
   return c.length >= 5 && /\d/.test(c)
+}
+
+/** La localidad alcanza cuando es un nombre y no una inicial suelta. */
+function localidadUtil(localidad: string): boolean {
+  return localidad.trim().length >= 3
+}
+
+type CampoFaltante = 'cp' | 'calle' | 'localidad'
+
+/**
+ * Qué datos le faltan al comprador para que le podamos dar el precio exacto.
+ *
+ * En CABA y el AMBA el envío se cobra por kilómetros desde el local y no por
+ * tarifa plana, y casi siempre sale menos: en General San Martín son $8.400 a
+ * 10,7 km contra los $15.000 de la tarifa AMBA. Pero medir kilómetros pide
+ * una dirección, y cada zona pide algo distinto:
+ *
+ *   - CABA: alcanza la calle. La localidad es "CABA" y el servidor ni siquiera
+ *     la valida, porque Google devuelve "Buenos Aires" para los 48 barrios.
+ *   - AMBA: hace falta ADEMÁS el partido. Sin él Google resuelve las calles
+ *     homónimas en CABA —media docena de avenidas se repiten en todos los
+ *     partidos— y el servidor descarta la cotización por cambio de
+ *     jurisdicción. Y antes del partido hace falta el CP: es lo que distingue
+ *     el conurbano del resto de la provincia.
+ *   - El resto del país: nada. La tarifa es por zona y ningún dato extra
+ *     cambiaría el número, así que pedirlo sería un campo a cambio de nada.
+ *
+ * Todo lo que devuelve es opcional: sin completarlo igual hay un precio, el
+ * de la tarifa plana. Lo que falta sólo significa "todavía podés pagar menos".
+ */
+function camposQueFaltan(
+  provincia: string,
+  cp: string,
+  calle: string,
+  localidad: string,
+): { faltan: CampoFaltante[]; porDistancia: boolean; localidadExigida: boolean } {
+  const zona = getZonaEnvio(provincia, cp)
+  const porDistancia = seCobraPorDistancia(zona)
+  const localidadExigida = zona === 'amba'
+
+  // En provincia de Buenos Aires el CP es lo que decide si es AMBA. Sin CP la
+  // zona da 'bsas' y no se cobra por distancia, así que se lo pide primero.
+  if (provincia === 'Buenos Aires' && !cpValido(cp)) {
+    return { faltan: ['cp'], porDistancia: false, localidadExigida: false }
+  }
+  if (!porDistancia) return { faltan: [], porDistancia, localidadExigida }
+
+  const faltan: CampoFaltante[] = []
+  if (!calleUtil(calle)) faltan.push('calle')
+  if (localidadExigida && !localidadUtil(localidad)) faltan.push('localidad')
+  return { faltan, porDistancia, localidadExigida }
 }
 
 /**
@@ -58,12 +95,15 @@ function calleUtil(calle: string): boolean {
  *   - el destino se recuerda entre productos y entre visitas (ver
  *     `lib/destino-envio`), así que se pregunta una vez y no una por ficha;
  *   - cotiza solo apenas hay provincia —y CP, si lo escribieron—, sin botón;
- *   - con el dato ya cargado se muestra en una línea ("A tu zona: $3.600 ·
- *     hasta 48hs"), con un "Cambiar" para corregirlo.
+ *   - con el dato ya cargado se muestra en una línea ("Envío a CABA: $8.000 ·
+ *     hasta 24hs"), con un "Cambiar" para corregirlo.
  *
- * La diferencia no es cosmética: para alguien en CABA el envío sale $3.600 y
- * llega en 48hs, cuatro veces menos que la tarifa del interior. Esa es una
- * razón para comprar, y estaba escondida atrás de un botón.
+ * La diferencia no es cosmética: para alguien en CABA el envío sale $7.000 y
+ * llega en 48hs, la mitad que la tarifa del interior. Esa es una razón para
+ * comprar, y estaba escondida atrás de un botón.
+ *
+ * En CABA y en el AMBA se cobra por kilómetros desde el local y no por zona,
+ * y ahí el estimador pide la dirección — ver `camposQueFaltan` más abajo.
  *
  * Con `NEXT_PUBLIC_GOOGLE_MAPS_KEY` configurada muestra además el destino en
  * un mapa (Embed API: un iframe, sin librería ni JS de terceros). Si la clave
@@ -75,6 +115,7 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
   const [provincia, setProvincia] = useState('')
   const [cp, setCp] = useState('')
   const [calle, setCalle] = useState('')
+  const [localidad, setLocalidad] = useState('')
   const [cargando, setCargando] = useState(false)
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const [error, setError] = useState('')
@@ -95,12 +136,29 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
   /** Último destino ya cotizado: evita repetir la consulta por el mismo dato. */
   const ultimo = useRef('')
 
-  const cotizar = useCallback(async (prov: string, codigo: string, direccion: string) => {
+  const cotizar = useCallback(async (
+    prov: string,
+    codigo: string,
+    direccion: string,
+    loc: string,
+  ) => {
     if (!prov) return
-    // La calle sólo entra si sirve para buscarla: a medio escribir daría una
-    // distancia inventada, y es mejor la tarifa plana que un número falso.
-    const dir = calleUtil(direccion) ? direccion.trim() : ''
-    const clave = `${prov}|${codigo.trim()}|${dir}`
+    /**
+     * La dirección sólo se manda cuando está completa para la zona.
+     *
+     * Incompleta no sirve de nada y encima hace daño: en el AMBA, "Av. Ricardo
+     * Balbín 2500, 1650, Buenos Aires" sin el partido lo resuelve en la Av.
+     * Ricardo Balbín de CABA, el servidor detecta que cambió de jurisdicción y
+     * cae a la tarifa plana igual — pero recién después de gastar una consulta
+     * al geocodificador. Mejor no preguntar hasta poder preguntar bien.
+     */
+    const { faltan, localidadExigida } = camposQueFaltan(prov, codigo, direccion, loc)
+    const completa = faltan.length === 0
+    const dir = completa ? direccion.trim() : ''
+    // En CABA la localidad es la provincia misma; en el AMBA es el partido.
+    const ciudad = completa ? (localidadExigida ? loc.trim() : prov) : ''
+
+    const clave = `${prov}|${codigo.trim()}|${dir}|${ciudad}`
     if (clave === ultimo.current) return
     ultimo.current = clave
     const nro = ++pedido.current
@@ -113,7 +171,7 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
           provincia: prov,
           codigo_postal: codigo,
           direccion: dir || undefined,
-          ciudad: dir ? prov : undefined,
+          ciudad: ciudad || undefined,
           subtotal: precio,
         }),
       })
@@ -130,8 +188,13 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
       })
       // Lo más preciso que haya: calle si la dieron, si no el CP, si no la
       // provincia sola.
-      setDestino([dir, codigo.trim(), prov, 'Argentina'].filter(Boolean).join(', '))
-      guardarDestino({ provincia: prov, cp: codigo, direccion: dir })
+      setDestino([dir, ciudad, codigo.trim(), prov, 'Argentina'].filter(Boolean).join(', '))
+      guardarDestino({
+        provincia: prov,
+        cp: codigo,
+        direccion: dir,
+        localidad: localidadExigida ? ciudad : '',
+      })
     } catch {
       ultimo.current = ''
       if (nro === pedido.current) setError('Error de conexión. Probá de nuevo.')
@@ -147,8 +210,9 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
     setProvincia(guardado.provincia)
     setCp(guardado.cp)
     setCalle(guardado.direccion ?? '')
+    setLocalidad(guardado.localidad ?? '')
     setEditando(false)
-    cotizar(guardado.provincia, guardado.cp, guardado.direccion ?? '')
+    cotizar(guardado.provincia, guardado.cp, guardado.direccion ?? '', guardado.localidad ?? '')
   }, [cotizar])
 
   /**
@@ -161,12 +225,14 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
   useEffect(() => {
     if (!editando || !provincia) return
     if (cp.trim() && !cpValido(cp)) return
-    const t = setTimeout(() => cotizar(provincia, cp, calle), 500)
+    const t = setTimeout(() => cotizar(provincia, cp, calle, localidad), 500)
     return () => clearTimeout(t)
-  }, [provincia, cp, calle, editando, cotizar])
+  }, [provincia, cp, calle, localidad, editando, cotizar])
 
   const gratis = resultado?.precio === 0
-  const pideCalle = PROVINCIAS_POR_DISTANCIA.includes(provincia)
+  const { faltan, porDistancia, localidadExigida } = camposQueFaltan(provincia, cp, calle, localidad)
+  /** La dirección que se mostró en el resultado, cuando la hubo. */
+  const dirCompleta = porDistancia && faltan.length === 0
 
   return (
     <div className="bg-brand-bg-soft rounded-2xl p-4">
@@ -177,9 +243,13 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
             <p className="text-sm text-brand-text">
               📦 Envío a{' '}
               <span className="font-semibold">
-                {calleUtil(calle) ? calle.trim() : provincia}
+                {dirCompleta
+                  ? [calle.trim(), localidadExigida ? localidad.trim() : null]
+                      .filter(Boolean)
+                      .join(', ')
+                  : provincia}
               </span>
-              {!calleUtil(calle) && cp.trim() && (
+              {!dirCompleta && cp.trim() && (
                 <span className="text-brand-text-muted"> ({cp.trim()})</span>
               )}
               {': '}
@@ -225,23 +295,37 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
           </div>
 
           {/*
-            La calle, sólo en CABA y sólo porque cambia el precio.
+            La dirección, sólo donde cambia el precio: CABA y AMBA.
 
-            Es el único lugar donde el envío se cobra por distancia, así que
-            es el único donde el dato sirve para algo. El campo se explica
-            solo y queda claro que es opcional: sin él igual hay un número,
-            el de la tarifa plana.
+            Son las dos zonas donde el envío se cobra por kilómetros, así que
+            son las dos donde el dato sirve para algo. En el AMBA hace falta
+            además el partido, porque sin él Google resuelve la calle homónima
+            de CABA. Los campos son opcionales: sin completarlos igual hay un
+            número, el de la tarifa plana.
           */}
-          {pideCalle && (
-            <input
-              type="text"
-              value={calle}
-              onChange={(e) => setCalle(e.target.value)}
-              placeholder="Calle y altura (ej: Av. Corrientes 1234)"
-              aria-label="Calle y altura"
-              autoComplete="street-address"
-              className="input-dark text-sm w-full mt-2"
-            />
+          {porDistancia && (
+            <div className={`flex flex-col ${localidadExigida ? 'sm:flex-row' : ''} gap-2 mt-2`}>
+              <input
+                type="text"
+                value={calle}
+                onChange={(e) => setCalle(e.target.value)}
+                placeholder="Calle y altura (ej: Av. Corrientes 1234)"
+                aria-label="Calle y altura"
+                autoComplete="street-address"
+                className="input-dark text-sm flex-1"
+              />
+              {localidadExigida && (
+                <input
+                  type="text"
+                  value={localidad}
+                  onChange={(e) => setLocalidad(e.target.value)}
+                  placeholder="Localidad o partido"
+                  aria-label="Localidad o partido"
+                  autoComplete="address-level2"
+                  className="input-dark text-sm sm:w-48"
+                />
+              )}
+            </div>
           )}
 
           {/* El estado reemplaza al botón: se cotiza solo, esto cuenta qué pasa. */}
@@ -250,9 +334,17 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
               ? 'Calculando…'
               : !provincia
               ? 'Elegí tu provincia y te decimos cuánto sale y cuándo llega.'
-              : pideCalle && !calleUtil(calle)
-              ? 'En CABA cobramos por distancia: poné tu calle y altura y te damos el precio exacto, que suele ser más barato.'
-              : pideCalle
+              : faltan.includes('cp')
+              ? 'Poné tu código postal: si estás en el AMBA cotizamos por distancia y suele salir menos.'
+              : faltan.length > 0
+              ? `En ${localidadExigida ? 'el AMBA' : 'CABA'} cobramos por distancia: ${
+                  faltan.includes('calle') && faltan.includes('localidad')
+                    ? 'poné tu calle, altura y partido'
+                    : faltan.includes('calle')
+                    ? 'poné tu calle y altura'
+                    : 'poné tu localidad o partido'
+                } y te damos el precio exacto, que suele ser más barato.`
+              : porDistancia
               ? 'Listo: éste es el costo hasta tu puerta.'
               : !cp.trim()
               ? 'Agregá tu código postal para un cálculo más preciso.'
