@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -14,6 +14,7 @@ import { empezarCheckout, verCarrito, itemsDeCarrito } from '@/lib/eventos-compr
 import CuotasMP from '@/components/CuotasMP'
 import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
+import { leerDestino, guardarDestino } from '@/lib/destino-envio'
 
 function validarDNI(dni: string): boolean {
   const limpio = (dni || '').replace(/\./g, '').trim()
@@ -102,7 +103,17 @@ function CarritoContent() {
     if (!user) {
       setPerfilCargado(false)
       setEditandoDatos(false)
-      setForm(formInicial)
+      /**
+       * Si ya dijo dónde vive en la ficha del producto, el checkout arranca con
+       * la provincia y el CP puestos: el envío se cotiza solo y el comprador ve
+       * el total real sin haber cargado todavía un solo dato personal.
+       */
+      const destino = leerDestino()
+      setForm(
+        destino
+          ? { ...formInicial, provincia: destino.provincia, codigo_postal: destino.cp }
+          : formInicial
+      )
       setPrimerCompraDescuento(false)
       return
     }
@@ -215,7 +226,17 @@ function CarritoContent() {
 
   const puedeCalcularEnvio = !!form.provincia.trim()
 
-  const calcularEnvio = async () => {
+  /**
+   * El destino que define la cotización, como una sola cadena.
+   *
+   * Sirve de dos cosas: saber si ya se cotizó exactamente esto (y no repetir la
+   * consulta) y disparar de nuevo el cálculo cuando algo cambia.
+   */
+  const claveEnvio = [form.direccion, form.ciudad, form.provincia, form.codigo_postal, subtotal].join('|')
+  const envioPedido = useRef('')
+
+  const calcularEnvio = useCallback(async () => {
+    envioPedido.current = claveEnvio
     setEnvioError('')
     setCalculandoEnvio(true)
     setEnvioSeleccionado(null)
@@ -237,6 +258,8 @@ function CarritoContent() {
       const data = await res.json()
 
       if (!res.ok || data.error) {
+        // Se olvida el pedido para que "Recalcular" vuelva a intentar.
+        envioPedido.current = ''
         setEnvioError(data.error || 'No se pudo calcular el envío.')
         return
       }
@@ -247,12 +270,105 @@ function CarritoContent() {
       if (data.opciones?.length === 1) {
         setEnvioSeleccionado(data.opciones[0])
       }
+
+      // El destino queda recordado para la próxima ficha y la próxima visita.
+      if (form.provincia.trim()) {
+        guardarDestino({ provincia: form.provincia.trim(), cp: form.codigo_postal.trim() })
+      }
     } catch {
+      envioPedido.current = ''
       setEnvioError('Error de conexión. Intentá de nuevo.')
     } finally {
       setCalculandoEnvio(false)
     }
-  }
+  }, [claveEnvio, form.direccion, form.ciudad, form.provincia, form.codigo_postal, subtotal])
+
+  /**
+   * El envío se cotiza solo, apenas alcanza con lo que hay cargado.
+   *
+   * Antes había que apretar "Calcular costo" y después elegir una opción: dos
+   * pasos más entre el carrito y el pago, y si el comprador no los hacía, el
+   * botón de pagar decía "Seleccioná una opción de envío para continuar" sin
+   * que nada arriba pareciera estar esperándolo. Ahora se dispara al cambiar la
+   * dirección, y el botón de recalcular queda sólo por si algo falló.
+   *
+   * Medio segundo de espera desde el último cambio: alcanza para que quien
+   * escribe el CP a mano no dispare una consulta por dígito.
+   */
+  useEffect(() => {
+    if (!form.provincia.trim()) return
+    if (envioPedido.current === claveEnvio) return
+    const t = setTimeout(() => { calcularEnvio() }, 600)
+    return () => clearTimeout(t)
+  }, [claveEnvio, form.provincia, calcularEnvio])
+
+  /**
+   * Qué falta para poder pagar, dicho como instrucción y no como reproche.
+   *
+   * El botón decía "Seleccioná una opción de envío para continuar" en gris
+   * desde el primer segundo, cuando todavía no se había cargado ni el nombre:
+   * parecía roto, o parecía que el comprador ya había hecho algo mal. Ahora
+   * nombra el paso siguiente, uno por vez y en el orden en que se completan.
+   *
+   * Devuelve null cuando no falta nada: ahí el botón dice cuánto se paga.
+   */
+  const faltaParaPagar = (() => {
+    if (!form.nombre.trim() || !form.email.trim() || !form.telefono.trim() || !form.dni?.trim())
+      return 'Completá tus datos de contacto'
+    if (!form.direccion.trim() || !form.ciudad.trim() || !form.provincia.trim() || !form.codigo_postal.trim())
+      return 'Cargá tu dirección de envío'
+    if (calculandoEnvio) return 'Calculando el envío…'
+    if (envioError) return 'Revisá tu dirección para calcular el envío'
+    if (!envioSeleccionado) return 'Elegí cómo querés recibir el pedido'
+    return null
+  })()
+
+  /**
+   * El botón de pagar y su letra chica, para colgar en la columna que
+   * corresponda según el tamaño de pantalla. Es una función y no un componente
+   * a propósito: así lee el estado de acá sin pasar diez props, y hay un solo
+   * lugar donde se toca el botón que cobra.
+   *
+   * El botón no se deshabilita cuando falta algo: apretarlo corre las
+   * validaciones y muestra el error concreto, que es más útil que un botón
+   * apagado que no explica nada.
+   */
+  const bloquePagar = (clase: string) => (
+    <div className={`space-y-4 ${clase}`}>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-4 text-sm">
+          {error}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        form="checkout"
+        disabled={loading}
+        className={`w-full font-semibold py-4 rounded-2xl transition-all text-base flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+          faltaParaPagar
+            ? 'bg-brand-bg-soft border border-brand-border text-brand-text-muted'
+            : 'bg-brand-purple hover:bg-brand-purple-dark hover:shadow-soft text-white'
+        }`}
+      >
+        {loading ? (
+          <>
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Procesando...
+          </>
+        ) : (
+          faltaParaPagar ?? `Pagar ${formatPrecio(totalFinal)} con Mercado Pago`
+        )}
+      </button>
+
+      <p className="text-center text-xs text-brand-text-light">
+        Serás redirigido a Mercado Pago para completar el pago de forma segura
+      </p>
+      <div className="flex justify-center">
+        <MercadoPagoBadge />
+      </div>
+    </div>
+  )
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -458,9 +574,22 @@ function CarritoContent() {
         </div>
       )}
 
+      {/*
+        En celular el orden es: datos → resumen → botón de pagar.
+
+        Antes el botón de pagar cerraba el formulario y el resumen quedaba 260px
+        MÁS ABAJO, fuera de pantalla: había que pagar primero y ver qué se
+        pagaba después. El resumen es donde aparecen el envío, los descuentos y
+        el total; esconderlo detrás del botón es pedir un pago a ciegas.
+
+        En escritorio no cambia nada: el resumen sigue siendo la columna
+        derecha. Por eso el botón está dos veces —uno por columna— y cada uno se
+        muestra en el tamaño que le toca; el de celular vive fuera del <form> y
+        lo envía por `form="checkout"`.
+      */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Formulario */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form id="checkout" onSubmit={handleSubmit} className="space-y-6">
 
           {/* Datos de contacto: resumen (logueado) o formulario completo */}
           {perfilCargado && !editandoDatos && !!form.dni ? (
@@ -710,26 +839,33 @@ function CarritoContent() {
           <div className="bg-brand-bg-card border border-brand-border rounded-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-white">Envío</h2>
-              <button
-                type="button"
-                onClick={calcularEnvio}
-                disabled={calculandoEnvio || !puedeCalcularEnvio}
-                className="text-sm bg-brand-purple hover:bg-brand-purple-light disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-              >
-                {calculandoEnvio ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Calculando...
-                  </>
-                ) : (
-                  envioCalculado ? '↻ Recalcular' : 'Calcular costo'
-                )}
-              </button>
+              {/*
+                El cálculo ya no depende de este botón: se dispara solo cuando
+                cambia la dirección. Queda como salida de emergencia —una
+                consulta que falló, una dirección que Google ubicó raro— y por
+                eso ahora es discreto y no la acción principal de la tarjeta.
+              */}
+              {calculandoEnvio ? (
+                <span className="text-sm text-brand-text-muted flex items-center gap-1.5">
+                  <div className="w-3.5 h-3.5 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+                  Calculando...
+                </span>
+              ) : (
+                puedeCalcularEnvio && (
+                  <button
+                    type="button"
+                    onClick={calcularEnvio}
+                    className="text-xs text-brand-text-muted hover:text-brand-purple transition-colors"
+                  >
+                    ↻ Recalcular
+                  </button>
+                )
+              )}
             </div>
 
             {!puedeCalcularEnvio && !envioCalculado && (
               <p className="text-xs text-brand-text-muted">
-                Seleccioná tu provincia para calcular el costo de envío.
+                Cargá tu dirección y calculamos el costo del envío al instante.
               </p>
             )}
 
@@ -836,35 +972,8 @@ function CarritoContent() {
             )}
           </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-4 text-sm">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-brand-purple hover:bg-brand-purple-dark disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-2xl transition-all hover:shadow-soft text-base flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Procesando...
-              </>
-            ) : (
-              envioSeleccionado
-                ? `Pagar ${formatPrecio(totalFinal)} con Mercado Pago`
-                : 'Seleccioná una opción de envío para continuar'
-            )}
-          </button>
-
-          <p className="text-center text-xs text-brand-text-light">
-            Serás redirigido a Mercado Pago para completar el pago de forma segura
-          </p>
-          <div className="flex justify-center">
-            <MercadoPagoBadge />
-          </div>
+          {/* En celular este bloque va después del resumen, más abajo. */}
+          {bloquePagar('hidden lg:block')}
         </form>
 
         {/* Resumen del pedido */}
@@ -961,6 +1070,9 @@ function CarritoContent() {
               )}
             </div>
           </div>
+
+          {/* En celular el botón de pagar cierra acá, después del total. */}
+          {bloquePagar('lg:hidden')}
         </div>
       </div>
     </div>

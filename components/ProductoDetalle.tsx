@@ -588,6 +588,17 @@ export default function ProductoDetalle({
             </div>
           )}
 
+          {/*
+            El envío, arriba del botón y no abajo.
+
+            Estaba debajo del "Agregar al carrito", o sea después del momento
+            en que se decide. El costo del envío es la duda que frena la
+            compra —y acá cambia de $3.600 a $15.000 según dónde viva el
+            comprador—, así que se contesta antes. Con el destino recordado
+            ocupa una sola línea y no empuja el botón.
+          */}
+          <EnvioEstimador precio={producto.precio} />
+
           {/* ── Cantidad + Agregar ── (stock > 0 y selección completa) */}
           {stockEfectivo > 0 && seleccionCompleta && (
             <div className="space-y-3 pt-2">
@@ -704,9 +715,6 @@ export default function ProductoDetalle({
               Seleccioná una opción para agregar
             </button>
           )}
-
-          {/* Estimador de envío */}
-          <EnvioEstimador precio={producto.precio} />
 
           {/* Beneficios */}
           <div className="bg-brand-bg-soft rounded-2xl p-4 space-y-3 text-sm text-brand-text-muted">
