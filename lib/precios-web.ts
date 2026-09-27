@@ -136,6 +136,11 @@ export type AjustePrecio = {
   precio_nuevo: number;
   /** true si a este precio la tienda regala el envío. */
   absorbe_envio: boolean;
+  /**
+   * El precio se subió hasta el umbral a propósito, para que el producto lleve
+   * envío gratis por sí solo. Ver `objetivoCon` en `calcularPrecioWeb`.
+   */
+  empujado_al_umbral: boolean;
   /** Margen sobre lo facturado, al precio actual y al nuevo. */
   margen_actual_pct: number;
   margen_nuevo_pct: number;
@@ -161,6 +166,13 @@ export type AjustePrecio = {
 
 /** A la centena, para que el precio se lea como precio y no como cuenta. */
 const aCentena = (n: number) => Math.round(n / 100) * 100;
+/**
+ * A la centena de arriba. Es para el precio empujado al umbral, donde el
+ * producto está en el punto más barato en que la tienda regala el envío y por
+ * eso el margen es más sensible al redondeo: bajar $50 ahí cuesta 0,06 puntos
+ * de margen, y da un 16,9% donde el objetivo dice 17%.
+ */
+const aCentenaArriba = (n: number) => Math.ceil(n / 100) * 100;
 const redondear1 = (n: number) => Math.round(n * 1000) / 10;
 
 /**
@@ -212,13 +224,58 @@ export function calcularPrecioWeb(
    */
   const objetivoCon = (margenPropio: number, margenConEnvio: number) => {
     const propio = aCentena(precioParaMargen(costoConIva, margenPropio, cfg, false));
-    const absorbe = propio >= cfg.umbral_envio_gratis;
-    return {
-      precio: absorbe
-        ? aCentena(precioParaMargen(costoConIva, margenConEnvio, cfg, true))
-        : propio,
-      absorbe,
-    };
+    if (propio >= cfg.umbral_envio_gratis) {
+      return {
+        precio: aCentena(precioParaMargen(costoConIva, margenConEnvio, cfg, true)),
+        absorbe: true,
+        empujado: false,
+      };
+    }
+
+    /**
+     * Empujar hasta el umbral al que le falta poco.
+     *
+     * Un producto de $46.200 le cuesta al comprador $61.200 con el envío
+     * puesto. Pero en la tienda se anuncia como $46.200 + "sumá $14.800 y
+     * tenés envío gratis", y el envío recién aparece en el checkout, después
+     * de cargar nombre, mail, teléfono y dirección. Es el peor lugar para un
+     * número que el comprador no esperaba.
+     *
+     * Al precio de acá abajo el producto cruza el umbral y lleva envío gratis
+     * por sí solo: el precio que se anuncia pasa a ser el que se paga, y el
+     * checkout deja de tener sorpresas.
+     *
+     * La condición `propio + envío ≥ conEnvio` es la que mantiene esto
+     * honesto, y vale la pena leerla como lo que garantiza: el precio nuevo
+     * NUNCA supera al precio viejo más el envío. Quien hoy paga el flete
+     * completo —el interior, que es donde el envío cuesta los $15.000 que
+     * asume el cálculo— paga lo mismo o menos que antes.
+     *
+     * Quien vive cerca del local paga más, porque su envío real son $7.000 y
+     * no $15.000. Eso no lo introduce esta regla: es el precio de tener un
+     * umbral nacional y un envío que no lo es, y ya les pasa a todos los
+     * productos que están arriba del umbral. Lo que hace esta regla es
+     * extenderlo a los que estaban justo abajo.
+     *
+     * El piso en el umbral es necesario: para los costos más bajos de la
+     * franja, el precio del margen objetivo con el flete adentro cae DEBAJO
+     * del umbral, y ahí el producto no regalaría el envío y el cálculo se
+     * contradiría a sí mismo. Quedarse en el umbral deja un margen algo mejor
+     * que el objetivo, no peor.
+     */
+    const conEnvio = aCentenaArriba(
+      Math.max(
+        cfg.umbral_envio_gratis,
+        precioParaMargen(costoConIva, margenConEnvio, cfg, true),
+      ),
+    );
+    if (propio + cfg.envio >= conEnvio) {
+      return { precio: conEnvio, absorbe: true, empujado: true };
+    }
+
+    // Le falta demasiado: subirlo hasta el umbral sería cobrarle al comprador
+    // más de lo que hoy paga por el producto y el envío juntos.
+    return { precio: propio, absorbe: false, empujado: false };
   };
 
   const normal = objetivoCon(cfg.margen_propio, cfg.margen_con_envio);
@@ -248,6 +305,7 @@ export function calcularPrecioWeb(
 
   const precioNuevo = objetivo.precio;
   const absorbe = objetivo.absorbe;
+  const empujado = objetivo.empujado;
 
   const cuotas = precioNuevo * cfg.costo_cuotas;
   const comision = precioNuevo * cfg.comision_cobro;
@@ -263,10 +321,15 @@ export function calcularPrecioWeb(
   const objetivoPct = absorbe
     ? (cedeAnteMl ? cfg.margen_con_envio_vs_ml : cfg.margen_con_envio)
     : (cedeAnteMl ? cfg.margen_propio_vs_ml : cfg.margen_propio);
+  const umbralTxt = cfg.umbral_envio_gratis.toLocaleString("es-AR");
   const nota =
-    (absorbe
-      ? `Arriba de ${cfg.umbral_envio_gratis.toLocaleString("es-AR")}: la tienda paga el envío, `
-      : `Abajo de ${cfg.umbral_envio_gratis.toLocaleString("es-AR")}: el envío lo paga el cliente, `) +
+    (empujado
+      ? `Subido hasta ${umbralTxt} para que lleve envío gratis solo: sin empujar salía ` +
+        `${aCentena(precioParaMargen(costoConIva, cedeAnteMl ? cfg.margen_propio_vs_ml : cfg.margen_propio, cfg, false)).toLocaleString("es-AR")} ` +
+        `más ${cfg.envio.toLocaleString("es-AR")} de envío, `
+      : absorbe
+        ? `Arriba de ${umbralTxt}: la tienda paga el envío, `
+        : `Abajo de ${umbralTxt}: el envío lo paga el cliente, `) +
     `objetivo ${(objetivoPct * 100).toFixed(0)}%` +
     (cedeAnteMl ? " (recortado porque el precio normal superaba a ML)" : "");
 
@@ -278,6 +341,7 @@ export function calcularPrecioWeb(
     precio_actual: producto.precio,
     precio_nuevo: precioNuevo,
     absorbe_envio: absorbe,
+    empujado_al_umbral: empujado,
     margen_actual_pct: redondear1(margenActual),
     margen_nuevo_pct: redondear1(margenNuevo),
     cuotas_monto: Math.round(cuotas),

@@ -97,13 +97,14 @@ function armarMail(
   const suben = aplicados.filter(a => a.direccion === 'sube').length
   const bajan = aplicados.filter(a => a.direccion === 'baja').length
   const caros = ajustes.filter(a => a.mas_caro_que_ml)
+  const empujados = aplicados.filter(a => a.empujado_al_umbral)
 
   const filas = aplicados
     .map(a => `<tr>
 <td>${a.nombre}<br><small style="color:#888">SKU ${a.sku}</small></td>
 <td>${money(a.costo_con_iva)}</td>
 <td>${money(a.precio_actual)}</td>
-<td><b>${money(a.precio_nuevo)}</b> ${a.direccion === 'sube' ? '↑' : a.direccion === 'baja' ? '↓' : ''}</td>
+<td><b>${money(a.precio_nuevo)}</b> ${a.direccion === 'sube' ? '↑' : a.direccion === 'baja' ? '↓' : ''}${a.empujado_al_umbral ? '<br><small style="color:#0a7">🚚 empujado al umbral</small>' : ''}</td>
 <td>${a.absorbe_envio ? `−${money(a.envio_monto)}` : '<small style="color:#888">lo paga el cliente</small>'}</td>
 <td><b>${money(a.ganancia)}</b></td>
 <td>${a.margen_nuevo_pct}%</td>
@@ -124,6 +125,14 @@ envío ${money(cfg.envio)} a cualquier punto del país.</p>
 <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial;font-size:14px">
 <tr><th>Producto</th><th>Costo c/IVA</th><th>Antes</th><th>Ahora</th><th>Envío</th><th>Ganancia</th><th>Margen</th><th>En ML</th></tr>
 ${filas}</table>
+
+${empujados.length === 0 ? '' : `<h3>${empujados.length} subieron hasta el umbral para llevar envío gratis</h3>
+<p style="color:#666;font-size:14px">Estaban justo abajo de ${money(cfg.umbral_envio_gratis)}, así que el comprador
+igual pagaba el envío aparte. Ahora el precio que se anuncia es el que se paga y el checkout no sorprende con
+${money(cfg.envio)}. El precio nuevo nunca supera al viejo más el envío, así que quien paga flete completo paga lo
+mismo o menos; quien vive cerca del local paga más, como ya pasa con todo lo que está arriba del umbral.</p>
+<ul>${empujados.map(a => `<li>${a.nombre} — ${money(a.precio_actual)} + ${money(cfg.envio)} de envío pasa a
+${money(a.precio_nuevo)} con envío gratis (margen ${a.margen_nuevo_pct}%)</li>`).join('')}</ul>`}
 
 ${caros.length === 0 ? '' : `<h3>${caros.length} quedan más caros que en Mercado Libre</h3>
 <p style="color:#666;font-size:14px">No se les bajó el precio a propósito: hacerlo rompería el margen, y el
@@ -218,6 +227,14 @@ export async function GET(request: NextRequest) {
         umbral_envio_gratis: cfg.umbral_envio_gratis,
       },
       absorben_envio: ajustes.filter(a => a.absorbe_envio).length,
+      // Los que cruzan el umbral porque se los subió a propósito, no porque su
+      // costo los llevara ahí. Es la parte del resultado que hay que mirar.
+      empujados_al_umbral: ajustes.filter(a => a.empujado_al_umbral).map(a => ({
+        sku: a.sku,
+        antes: a.precio_actual,
+        ahora: a.precio_nuevo,
+        margen: a.margen_nuevo_pct,
+      })),
       // El umbral con el que se calcularon los precios contra el que cobra el
       // checkout. Si no coinciden, hay ventas donde el envío lo termina
       // pagando la tienda sin que el precio lo haya previsto.
