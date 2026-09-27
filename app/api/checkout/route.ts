@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { crearPreferencia } from '@/lib/mercadopago'
 import { calcularEnvio } from '@/lib/envio'
+import { marcarCheckoutConvertido } from '@/lib/checkout-en-progreso'
 import { ItemOrden, DatosComprador } from '@/types'
 
 export async function POST(request: NextRequest) {
@@ -222,6 +223,14 @@ export async function POST(request: NextRequest) {
       console.error('[checkout] error al crear orden:', ordenError)
       return NextResponse.json({ error: 'No se pudo crear la orden' }, { status: 500 })
     }
+
+    // Llegó hasta el pago: el borrador que se venía guardando mientras
+    // completaba el formulario deja de ser candidato a recordatorio. A partir
+    // de acá lo persigue el mail de orden pendiente, que es el que corresponde.
+    // No se deja que una falla acá tumbe un checkout que ya está encaminado.
+    marcarCheckoutConvertido(comprador?.email).catch((e) =>
+      console.error('[checkout] no se pudo marcar el borrador:', e),
+    )
 
     // ─── 5. Crear preferencia MP ─────────────────────────────────────────────
     // El envío va en el campo `shipments` de la preferencia (no como ítem),

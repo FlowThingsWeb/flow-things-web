@@ -5,6 +5,7 @@ import { CARRITO_ETAPAS, type EtapaCarrito } from '@/lib/email-constants'
 import { armarMailCarrito } from '@/lib/carrito-abandonado'
 import { formatMonto } from '@/lib/format'
 import { enviarRecordatorioCheckout } from '@/lib/checkout-abandonado'
+import { enviarRecordatorioCheckoutEnProgreso } from '@/lib/checkout-en-progreso'
 
 export const maxDuration = 60
 
@@ -212,6 +213,62 @@ export async function GET(request: NextRequest) {
     if (res.ok) enviadosCk++
   }
 
+  // ── Checkouts en progreso: dejaron el email y nunca llegaron al pago ──
+  //
+  // Es la única de las tres listas que alcanza a los invitados antes del botón
+  // de pagar, o sea la única que ve la mayor parte de lo que se abandona.
+  // Misma secuencia de etapas que el carrito guardado.
+  const { data: enProgreso } = await supabaseAdmin
+    .from('checkouts_en_progreso')
+    .select('id, email, items, updated_at, recordatorio_2h_at, recordatorio_24h_at, recordatorio_7d_at')
+    .is('convertido_at', null)
+    .is('recordatorio_7d_at', null)
+    .gt('updated_at', desde)
+    .lt('updated_at', hasta)
+    .order('updated_at', { ascending: true })
+    .limit(BATCH)
+
+  let enviadosEp = 0
+  const porEtapaEp: Record<string, number> = {}
+  for (const c of enProgreso || []) {
+    const items = Array.isArray(c.items) ? c.items : []
+    if (items.length === 0) continue
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fila = c as any
+    const horas = (ahora - new Date(c.updated_at).getTime()) / 3600_000
+    const vencidas = ETAPAS.filter((e) => horas >= e.horas && !fila[e.columna])
+    if (vencidas.length === 0) continue
+    const etapa = vencidas[0]
+
+    // Compró con el mismo mail después de dejar el carrito: no se le insiste.
+    // `convertido_at` ya cubre el camino normal; esto agarra la compra hecha
+    // por otra vía, como una orden cargada a mano.
+    const ultima = compraPorEmail.get(String(c.email).toLowerCase())
+    if (ultima && ultima > c.updated_at) {
+      await supabaseAdmin
+        .from('checkouts_en_progreso')
+        .update({ convertido_at: ultima })
+        .eq('id', c.id)
+      yaCompraron++
+      continue
+    }
+
+    const res = await enviarRecordatorioCheckoutEnProgreso(c.id, etapa.clave)
+    if (!res.ok) {
+      console.error('[checkout-en-progreso] no se pudo enviar a', c.email, res.error)
+      continue
+    }
+    // Se marcan TODAS las etapas vencidas, no sólo la que salió: las
+    // anteriores ya no tienen sentido.
+    const marca = new Date().toISOString()
+    const update: Record<string, string> = {}
+    for (const v of vencidas) update[v.columna] = marca
+    await supabaseAdmin.from('checkouts_en_progreso').update(update).eq('id', c.id)
+    enviadosEp++
+    porEtapaEp[etapa.clave] = (porEtapaEp[etapa.clave] ?? 0) + 1
+  }
+
   return NextResponse.json({
     candidatos: carritos?.length ?? 0,
     enviados,
@@ -220,5 +277,8 @@ export async function GET(request: NextRequest) {
     salteados_por_compra: yaCompraron,
     checkouts_candidatos: pendientes?.length ?? 0,
     checkouts_enviados: enviadosCk,
+    en_progreso_candidatos: enProgreso?.length ?? 0,
+    en_progreso_enviados: enviadosEp,
+    en_progreso_por_etapa: porEtapaEp,
   })
 }

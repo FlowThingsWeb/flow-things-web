@@ -329,6 +329,58 @@ function CarritoContent() {
   }, [claveEnvio, form.provincia, calcularEnvio])
 
   /**
+   * Guardar el carrito en cuanto hay un email, sin esperar al botón de pagar.
+   *
+   * El carrito sólo se guardaba para usuarios logueados, y en 30 días hubo UN
+   * inicio de sesión sobre 399 visitas: el panel de carritos abandonados
+   * estaba vacío porque no le entraba nada. La orden pendiente —la otra mitad
+   * del panel— tampoco alcanza: esa fila recién existe cuando el comprador
+   * aprieta "Pagar", así que el que se traba eligiendo el envío no queda
+   * registrado en ningún lado.
+   *
+   * Acá se guarda apenas el email es plausible y hay algo en el carrito. Van
+   * sólo ids y cantidades: los precios y los nombres los pone el servidor.
+   *
+   * Dos segundos de espera desde la última tecla, para no mandar una consulta
+   * por letra mientras se escribe la dirección.
+   */
+  const ultimoBorrador = useRef('')
+  useEffect(() => {
+    const email = (form.email ?? '').trim().toLowerCase()
+    if (items.length === 0) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return
+
+    const cuerpo = {
+      email,
+      nombre: form.nombre || null,
+      telefono: form.telefono || null,
+      items: items.map(({ producto, cantidad, varianteId }) => ({
+        id: producto.id,
+        cantidad,
+        variante_id: varianteId ?? null,
+      })),
+    }
+    const clave = JSON.stringify(cuerpo)
+    if (clave === ultimoBorrador.current) return
+
+    const t = setTimeout(() => {
+      ultimoBorrador.current = clave
+      fetch('/api/checkout/en-progreso', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: clave,
+        // Si el visitante cierra la pestaña justo ahora, que el pedido salga
+        // igual: es el momento exacto que interesa capturar.
+        keepalive: true,
+      }).catch(() => { ultimoBorrador.current = '' })
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [form.email, form.nombre, form.telefono, items, session])
+
+  /**
    * Qué falta para poder pagar, dicho como instrucción y no como reproche.
    *
    * El botón decía "Seleccioná una opción de envío para continuar" en gris
