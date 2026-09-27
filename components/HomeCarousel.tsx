@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useCartStore } from '@/lib/store'
 import { formatPrecio } from '@/lib/format'
 import { agregarAlCarrito } from '@/lib/eventos-compra'
+import { useUmbralEnvioGratis } from '@/components/EnvioGratisProvider'
 import type { SlideCarrusel } from '@/lib/carruselHome'
 
 const AUTOPLAY_MS = 6000
@@ -220,6 +221,11 @@ function Slide({
 
   const et = ETIQUETAS[etiqueta]
 
+  // Igual que en la tarjeta de producto: si este solo ya pasa el umbral, el
+  // envío es gratis en cualquier provincia y conviene decirlo acá.
+  const umbral = useUmbralEnvioGratis()
+  const conEnvioGratis = umbral > 0 && producto.precio >= umbral
+
   return (
     <div
       className="min-w-full snap-center px-0 sm:px-14"
@@ -288,7 +294,12 @@ function Slide({
             )}
           </div>
           <p className="text-brand-text-muted text-sm mt-1">
-            3 cuotas sin interés · Envío a todo el país
+            3 cuotas sin interés ·{' '}
+            {conEnvioGratis ? (
+              <span className="text-green-400 font-semibold">🚚 Envío gratis</span>
+            ) : (
+              'Envío a todo el país'
+            )}
           </p>
 
           <div className="mt-6 flex flex-col sm:flex-row gap-3">

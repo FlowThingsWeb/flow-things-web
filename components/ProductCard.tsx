@@ -9,6 +9,7 @@ import Stars from '@/components/Stars'
 import { formatPrecio } from '@/lib/format'
 import { imagenDeProducto } from '@/lib/blur'
 import { agregarAlCarrito } from '@/lib/eventos-compra'
+import { useUmbralEnvioGratis } from '@/components/EnvioGratisProvider'
 
 
 interface ProductCardProps {
@@ -27,6 +28,20 @@ interface ProductCardProps {
 
 export default function ProductCard({ producto, variante, rating, prioridad, blurDataURL }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem)
+
+  /**
+   * Este producto solo ya paga el envío gratis.
+   *
+   * Se compara contra el umbral más alto de los que cobra la caja, que es el
+   * que anuncia el sitio: si lo supera, el envío es gratis en cualquier
+   * provincia y la promesa se cumple mire quien mire la tarjeta.
+   *
+   * Vale decirlo acá y no sólo en la ficha: el visitante que recorre la grilla
+   * está comparando precios, y "$68.000 con envío gratis" contra "$55.000 más
+   * $15.000 de envío" son dos números distintos de los que se leen.
+   */
+  const umbralEnvioGratis = useUmbralEnvioGratis()
+  const conEnvioGratis = umbralEnvioGratis > 0 && producto.precio >= umbralEnvioGratis
 
   // Imagen en cascada: variante propia → galería variante → imagen producto
   // → galería producto → imagen de alguna variante. La lógica vive en
@@ -153,6 +168,11 @@ export default function ProductCard({ producto, variante, rating, prioridad, blu
             <p className="text-brand-text-muted text-[11px]">
               3 cuotas sin interés
             </p>
+            {conEnvioGratis && (
+              <p className="text-green-400 text-[11px] font-semibold">
+                🚚 Envío gratis
+              </p>
+            )}
           </div>
 
           <button

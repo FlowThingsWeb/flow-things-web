@@ -26,6 +26,14 @@
  */
 export const CERCA_DEL_UMBRAL = 0.35
 
+/**
+ * El umbral que se usa cuando la configuración no dice nada.
+ *
+ * Es el mismo número que la tienda cobra hoy; está acá para que quien lo
+ * necesite sin acceso a la config no tenga que inventarlo ni repetirlo.
+ */
+export const UMBRAL_POR_DEFECTO = 61_000
+
 export type EstadoEnvioGratis =
   /** Ya lo tiene: se anuncia y listo. */
   | { estado: 'gratis'; falta: 0; umbral: number }
@@ -42,7 +50,7 @@ export type EstadoEnvioGratis =
  */
 export function umbralEnvioGratis(
   cfg: Record<string, string | undefined>,
-  porDefecto = 61_000,
+  porDefecto = UMBRAL_POR_DEFECTO,
 ): number {
   const valores = [
     cfg.envio_gratis_interior_desde,

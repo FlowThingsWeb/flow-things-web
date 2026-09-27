@@ -18,6 +18,8 @@ import RegistrationPopup from '@/components/RegistrationPopup'
 import FloatingWhatsApp from '@/components/FloatingWhatsApp'
 import Analytics from '@/components/Analytics'
 import CarritoHidratador from '@/components/CarritoHidratador'
+import { EnvioGratisProvider } from '@/components/EnvioGratisProvider'
+import { umbralEnvioGratis } from '@/lib/envio-gratis'
 import type { ConfigMap } from '@/lib/config'
 import type { Categoria, MarcaCatalogo, Subcategoria } from '@/lib/catalogo'
 
@@ -48,7 +50,10 @@ export default function UserShell({ cfg, categorias, subcategorias, marcas, chil
       <CartSync />
       <AnnouncementBar gratisDesde={Number(cfg.envio_gratis_interior_desde) || 61000} />
       <Header cfg={cfg} categorias={categorias} subcategorias={subcategorias} marcas={marcas} />
-      <main className="min-h-screen">{children}</main>
+      {/* El umbral de envío gratis, para las tarjetas de producto de adentro. */}
+      <EnvioGratisProvider umbral={umbralEnvioGratis(cfg)}>
+        <main className="min-h-screen">{children}</main>
+      </EnvioGratisProvider>
       <CartDrawer
         gratisCaba={Number(cfg.envio_gratis_caba_desde) || 40000}
         gratisAmba={Number(cfg.envio_gratis_amba_desde || cfg.envio_gratis_gba_desde) || 60000}
