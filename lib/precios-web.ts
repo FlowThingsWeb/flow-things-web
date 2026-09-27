@@ -269,12 +269,29 @@ export function calcularPrecioWeb(
         precioParaMargen(costoConIva, margenConEnvio, cfg, true),
       ),
     );
-    if (propio + cfg.envio >= conEnvio) {
+    /**
+     * No empujar por encima de la propia publicación de Mercado Libre.
+     *
+     * Ceder margen —lo que hace `cedeAnteMl` más abajo— no alcanza para
+     * arreglar esto: el precio empujado tiene piso en el umbral, y por debajo
+     * del umbral el producto no regala el envío, así que no hay margen que
+     * resignar que lo baje más. Cuando ni con el margen recortado entra, la
+     * única salida es no empujarlo.
+     *
+     * Sin este corte, siete productos del catálogo cruzaban el umbral para
+     * quedar más caros que su propio ML: los dos Garfield pasaban de $48.600
+     * a $61.000 contra $50.000 en ML. Ganaban el cartel de envío gratis y
+     * perdían la razón por la que alguien compra en la tienda y no en ML.
+     */
+    const superaAMl = precioMl != null && conEnvio > precioMl;
+
+    if (propio + cfg.envio >= conEnvio && !superaAMl) {
       return { precio: conEnvio, absorbe: true, empujado: true };
     }
 
-    // Le falta demasiado: subirlo hasta el umbral sería cobrarle al comprador
-    // más de lo que hoy paga por el producto y el envío juntos.
+    // Le falta demasiado, o empujarlo lo dejaría más caro que en ML. Subirlo
+    // hasta el umbral sería cobrarle al comprador más de lo que hoy paga por
+    // el producto y el envío juntos, o mandarlo a comprar a otro lado.
     return { precio: propio, absorbe: false, empujado: false };
   };
 
