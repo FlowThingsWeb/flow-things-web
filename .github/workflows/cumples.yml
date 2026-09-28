@@ -1,0 +1,39 @@
+name: Regalo de cumpleaños
+
+# Manda el código de descuento a quien cumple años este mes.
+#
+# Diario y no mensual: quien completa su perfil el día 12 con un cumpleaños de
+# ese mismo mes lo recibe igual, y si un día falla el cron no se pierde el mes
+# entero. Repetir no duplica nada — lo impide el UNIQUE (user_id, anio) de
+# cumples_enviados.
+#
+# 11:20 UTC son las 08:20 en Argentina: el mail cae a la mañana y no a la
+# madrugada. El minuto es "raro" a propósito, como en los demás workflows:
+# GitHub demora los schedule programados en punto y a la media porque ahí se
+# concentra la carga de todo el mundo.
+#
+# OJO con el dominio: flowthings.com.ar responde 308 hacia www. Sin -L, curl
+# imprime "Redirecting..." y sale con código 0 — el workflow figura en verde y
+# el endpoint nunca se ejecutó. Y con -L tampoco alcanzaría: curl descarta el
+# header Authorization al seguir un redirect que cambia de host, así que
+# llegaría un 401. La URL tiene que apuntar a www directamente.
+on:
+  schedule:
+    - cron: '20 11 * * *'
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: 'Simulación: dice a quién le mandaría, sin mandar nada'
+        type: boolean
+        default: false
+
+jobs:
+  regalar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar /api/cron/cumples
+        run: |
+          URL="https://www.flowthings.com.ar/api/cron/cumples"
+          if [ "${{ inputs.dry }}" = "true" ]; then URL="$URL?dry=1"; fi
+          curl -sS --fail-with-body -X GET "$URL" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

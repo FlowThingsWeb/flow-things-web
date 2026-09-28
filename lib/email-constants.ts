@@ -188,6 +188,48 @@ export const CARRITO_ETAPAS = {
 
 export type EtapaCarrito = keyof typeof CARRITO_ETAPAS
 
+// ─── Regalo de cumpleaños ───────────────────────────────────────────────────
+
+/** Cuánto descuento lleva el regalo. Lo pisa `cumple_descuento_pct` del sitio. */
+export const CUMPLE_PCT_DEFAULT = 15
+
+export const CUMPLE_ASUNTO = '&#x1F382; Tu regalo de cumpleaños te está esperando'
+
+/**
+ * El recuadro del cupón, con código y vencimiento propios.
+ *
+ * El de carrito abandonado es un texto fijo porque su cupón es uno solo para
+ * todos. Acá cada persona tiene el suyo, así que el bloque se arma.
+ */
+export function bloqueCupon(opciones: {
+  codigo: string
+  pct: number
+  /** Qué dice abajo del código. Ej: "Válido hasta el 31 de octubre". */
+  vigencia: string
+  /** El sobretítulo del recuadro. */
+  encabezado?: string
+  subtitulo?: string
+}): string {
+  const { codigo, pct, vigencia, encabezado = 'Sólo para vos', subtitulo = 'en toda la tienda' } = opciones
+  return `<tr><td style="background:#ffffff;padding:4px 40px 20px">
+  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-radius:20px;background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 55%,#c026d3 100%)">
+    <tr><td style="padding:26px 24px 24px;text-align:center">
+      <p style="margin:0 0 2px;font-size:12px;font-weight:700;color:#e9d5ff;letter-spacing:.16em;text-transform:uppercase">${encabezado}</p>
+      <p style="margin:0;font-size:56px;line-height:1.05;font-weight:800;color:#ffffff;letter-spacing:-.02em">${pct}% OFF</p>
+      <p style="margin:2px 0 18px;font-size:15px;color:#f3e8ff">${subtitulo}</p>
+
+      <table cellpadding="0" cellspacing="0" align="center" style="border-collapse:separate;background:#ffffff;border-radius:12px">
+        <tr><td style="padding:12px 26px;text-align:center">
+          <span style="font-size:26px;font-weight:800;color:#5b21b6;letter-spacing:.14em">${codigo}</span>
+        </td></tr>
+      </table>
+
+      <p style="margin:14px 0 0;font-size:13px;color:#e9d5ff">${vigencia}</p>
+    </td></tr>
+  </table>
+</td></tr>`
+}
+
 /** El recuadro del cupón, sólo para el mail de la semana. */
 export const BLOQUE_CUPON_CARRITO = `<tr><td style="background:#ffffff;padding:4px 40px 20px">
   <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-radius:20px;background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 55%,#c026d3 100%)">
