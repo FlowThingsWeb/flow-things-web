@@ -41,6 +41,42 @@ export function renderTemplate(template: string, vars: Record<string, string>): 
 }
 
 /**
+ * Igual que `renderTemplate`, pero se planta si al template le falta un hueco.
+ *
+ * `renderTemplate` deja el `{{hueco}}` tal cual cuando no le pasan el valor, a
+ * propósito: las plantillas que edita el admin tienen que poder previsualizarse
+ * a medio llenar, y un hueco visible se entiende mejor que un espacio en blanco.
+ *
+ * En las plantillas que escribimos nosotros esa tolerancia es una trampa. El
+ * 28/9/2026 salieron dos mails de "terminá tu compra" con `{{titulo}}`,
+ * `{{emoji}}`, `{{bajada}}`, `{{bloque_extra}}` y `{{cta}}` impresos en el
+ * cuerpo: a la plantilla del carrito se le habían agregado los huecos de cada
+ * etapa y uno de los tres remitentes seguía pasándole los tres de antes. Nada
+ * falló —el envío devolvió ok— y se vio recién cuando llegó a la casilla.
+ *
+ * Se revisa el TEMPLATE y no el resultado: los valores que se inyectan (nombres
+ * de productos, por ejemplo) pueden traer llaves sin que eso sea un error.
+ *
+ * Usarla sólo con plantillas nuestras, donde los huecos se conocen al escribir
+ * el código. Sobre una plantilla editable por el admin, un hueco de más le
+ * tiraría abajo el mail al comprador por un typo en el panel.
+ */
+export function renderTemplateEstricto(
+  template: string,
+  vars: Record<string, string>,
+  nombrePlantilla: string,
+): string {
+  const faltan = [...new Set(Array.from(template.matchAll(/\{\{(\w+)\}\}/g), m => m[1]))]
+    .filter(k => vars[k] == null)
+  if (faltan.length > 0) {
+    throw new Error(
+      `La plantilla ${nombrePlantilla} quedó con huecos sin llenar: ${faltan.join(', ')}.`,
+    )
+  }
+  return renderTemplate(template, vars)
+}
+
+/**
  * Marca que se reemplaza por el link de baja de cada destinatario.
  *
  * El cuerpo de la difusión se arma UNA vez para todos, pero el link de baja

@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { sendEmail, renderTemplate, escapeHtml, filaProducto } from '@/lib/email'
+import { sendEmail, renderTemplateEstricto, escapeHtml, filaProducto } from '@/lib/email'
 import {
   BLOQUE_CUPON_CARRITO, CARRITO_ETAPAS, DEFAULT_CARRITO_CUERPO, type EtapaCarrito,
 } from '@/lib/email-constants'
@@ -21,7 +21,7 @@ export function armarMailCarrito(
   const nombreSeguro = escapeHtml(nombre)
   return {
     asunto: e.asunto,
-    cuerpo: renderTemplate(DEFAULT_CARRITO_CUERPO, {
+    cuerpo: renderTemplateEstricto(DEFAULT_CARRITO_CUERPO, {
       nombre: nombreSeguro,
       titulo: e.titulo.replace('{{nombre}}', nombreSeguro),
       bajada: e.bajada,
@@ -30,7 +30,7 @@ export function armarMailCarrito(
       productos_lista: productosLista,
       bloque_extra: e.conCupon ? BLOQUE_CUPON_CARRITO : '',
       link,
-    }),
+    }, `carrito (${etapa})`),
   }
 }
 

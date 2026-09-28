@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { sendEmail, renderTemplate, escapeHtml } from '@/lib/email'
+import { sendEmail, renderTemplateEstricto, escapeHtml } from '@/lib/email'
 import {
   CUMPLE_CIERRE_PCT_DEFAULT, CUMPLE_PCT_DEFAULT, CUMPLE_VARIANTES,
   DEFAULT_CARRITO_CUERPO, URL_SITIO, bloqueCupon, type VarianteCumple,
@@ -227,7 +227,7 @@ export async function enviarRegaloCumple(
   if (!creado) return { ok: false, error: 'no se pudo crear el código' }
 
   const copy = CUMPLE_VARIANTES[variante]
-  const cuerpo = renderTemplate(DEFAULT_CARRITO_CUERPO, {
+  const cuerpo = renderTemplateEstricto(DEFAULT_CARRITO_CUERPO, {
     nombre: escapeHtml(nombre),
     emoji: '&#x1F382;',
     titulo: copy.titulo.replace('{{nombre}}', escapeHtml(nombre)),
@@ -244,7 +244,7 @@ export async function enviarRegaloCumple(
     productos_lista: '',
     cta: `Usar mi ${pct}% de regalo`,
     link: `${URL_SITIO}/productos`,
-  })
+  }, `cumple (${variante})`)
 
   try {
     await sendEmail({ to: email, asunto: copy.asunto, cuerpo })
