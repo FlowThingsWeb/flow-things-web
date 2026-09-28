@@ -17,6 +17,7 @@ import ProfileGuard from '@/components/ProfileGuard'
 import RegistrationPopup from '@/components/RegistrationPopup'
 import FloatingWhatsApp from '@/components/FloatingWhatsApp'
 import Analytics from '@/components/Analytics'
+import BotonVolver from '@/components/BotonVolver'
 import CarritoHidratador from '@/components/CarritoHidratador'
 import { EnvioGratisProvider } from '@/components/EnvioGratisProvider'
 import { umbralEnvioGratis } from '@/lib/envio-gratis'
@@ -50,6 +51,8 @@ export default function UserShell({ cfg, categorias, subcategorias, marcas, chil
       <CartSync />
       <AnnouncementBar gratisDesde={Number(cfg.envio_gratis_interior_desde) || 61000} />
       <Header cfg={cfg} categorias={categorias} subcategorias={subcategorias} marcas={marcas} />
+      {/* En el webview de Instagram no hay flecha de atrás del navegador. */}
+      <BotonVolver />
       {/* El umbral de envío gratis, para las tarjetas de producto de adentro. */}
       <EnvioGratisProvider umbral={umbralEnvioGratis(cfg)}>
         <main className="min-h-screen">{children}</main>
