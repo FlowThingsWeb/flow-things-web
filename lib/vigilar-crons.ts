@@ -32,7 +32,12 @@ export type CronVigilado = {
 }
 
 export const CRONS_DE_PRECIOS: CronVigilado[] = [
-  { clave: 'ciclo-promociones', nombre: 'Ciclo de promociones ML (CRM)', hora: 11, minuto: 9, gracia: 6 },
+  // Gracia de 8 y no 6: sobre 27 corridas programadas la demora mediana es de
+  // 3,9 h y el p90 de 5,8, así que 6 corta justo arriba de lo habitual. El
+  // 28/9/2026 GitHub lo largó 7h25 tarde, el aviso salió a las 17:09 y la
+  // corrida llegó a las 18:34 — hizo su trabajo entero y bien. Con 8 ninguna de
+  // las 27 se habría perdido de vista y no hay falsas alarmas.
+  { clave: 'ciclo-promociones', nombre: 'Ciclo de promociones ML (CRM)', hora: 11, minuto: 9, gracia: 8 },
   { clave: 'avisar-ml', nombre: 'Avisar cambios de precios de ML', hora: 12, minuto: 13, gracia: 6 },
   { clave: 'precios-sugeridos', nombre: 'Precios sugeridos ML', hora: 12, minuto: 37, gracia: 6 },
   { clave: 'promociones-por-vencer', nombre: 'Promociones por vencer ML', hora: 12, minuto: 49, gracia: 6 },
