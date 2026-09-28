@@ -26,8 +26,17 @@ export default function EnviosAdminPage() {
   const [amba, setAmba] = useState<ZonaConfig>(DEFAULTS.amba)
   const [bsas, setBsas] = useState<ZonaConfig>(DEFAULTS.bsas)
   const [interior, setInterior] = useState<ZonaConfig>(DEFAULTS.interior)
-  // Mínimos de cuotas sin interés (deben coincidir con el panel de MP).
-  const [cuotas, setCuotas] = useState({ c2: '95000', c3: '115000', c6: '311000' })
+  /**
+   * Mínimos de cuotas sin interés (deben coincidir con el panel de MP).
+   *
+   * Vacío significa QUE NO SE OFRECE ese plan, y es distinto de 0, que
+   * significa "desde el primer peso". Antes no había forma de decir que un
+   * plan no existía: el formulario guardaba los tres siempre, y vaciar el
+   * campo de 6 lo dejaba en `min: 0` — o sea, seis cuotas sin interés para
+   * todo el catálogo. Así fue como la ficha del Mazinger de $501.700 terminó
+   * prometiendo "6 cuotas sin interés de $83.617" que Mercado Pago no da.
+   */
+  const [cuotas, setCuotas] = useState({ c2: '', c3: '', c6: '' })
   // Envío por cercanía (km) — reemplaza CABA/AMBA cuando está activo.
   const [km, setKm] = useState({
     activo: false,
@@ -76,12 +85,14 @@ export default function EnviosAdminPage() {
         // Cuotas sin interés: se guardan como JSON [{cuotas,min}].
         try {
           const planes = JSON.parse(cfg.cuotas_sin_interes || '[]') as { cuotas: number; min: number }[]
-          const get = (n: number) => planes.find(p => Number(p.cuotas) === n)?.min
-          setCuotas({
-            c2: String(get(2) ?? 95000),
-            c3: String(get(3) ?? 115000),
-            c6: String(get(6) ?? 311000),
-          })
+          // Un plan que no está en la config vuelve como campo vacío, no como
+          // un default: es la forma de que "no lo ofrecemos" sobreviva a
+          // abrir la pantalla y volver a guardar.
+          const get = (n: number) => {
+            const p = planes.find(x => Number(x.cuotas) === n)
+            return p ? String(p.min) : ''
+          }
+          setCuotas({ c2: get(2), c3: get(3), c6: get(6) })
         } catch { /* deja los defaults */ }
         setKm({
           activo: cfg.envio_km_activo === '1',
@@ -118,11 +129,13 @@ export default function EnviosAdminPage() {
         envio_precio_interior: interior.precio,
         envio_gratis_interior_desde: interior.gratis_desde,
         envio_tiempo_interior: interior.tiempo,
-        cuotas_sin_interes: JSON.stringify([
-          { cuotas: 2, min: Number(cuotas.c2) || 0 },
-          { cuotas: 3, min: Number(cuotas.c3) || 0 },
-          { cuotas: 6, min: Number(cuotas.c6) || 0 },
-        ]),
+        // Sólo entran los planes con un mínimo cargado. El campo vacío saca el
+        // plan de la lista en vez de guardarlo en 0, que lo ofrecería siempre.
+        cuotas_sin_interes: JSON.stringify(
+          ([[2, cuotas.c2], [3, cuotas.c3], [6, cuotas.c6]] as const)
+            .filter(([, min]) => String(min).trim() !== '' && Number.isFinite(Number(min)))
+            .map(([n, min]) => ({ cuotas: n, min: Number(min) })),
+        ),
         envio_km_activo: km.activo ? '1' : '0',
         envio_km_origen: km.origen,
         envio_km_base: km.base,
@@ -359,13 +372,17 @@ export default function EnviosAdminPage() {
           <p className="text-xs text-yellow-300/90">
             ⚠️ Estos valores tienen que coincidir con los mínimos que cargaste en
             Mercado Pago (Costos y cuotas). Si los cambiás allá, actualizalos acá.
+            <br />
+            <strong>Dejá el campo vacío si ese plan no existe.</strong> Un 0 no lo
+            apaga: significa &quot;desde el primer peso&quot;, y la ficha lo va a
+            prometer en todos los productos.
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {([
-            ['2 cuotas sin interés desde ($)', 'c2', '95000'],
-            ['3 cuotas sin interés desde ($)', 'c3', '115000'],
-            ['6 cuotas sin interés desde ($)', 'c6', '311000'],
+            ['2 cuotas sin interés desde ($)', 'c2', 'vacío = no se ofrece'],
+            ['3 cuotas sin interés desde ($)', 'c3', 'vacío = no se ofrece'],
+            ['6 cuotas sin interés desde ($)', 'c6', 'vacío = no se ofrece'],
           ] as const).map(([label, key, ph]) => (
             <div key={key}>
               <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
@@ -379,10 +396,14 @@ export default function EnviosAdminPage() {
                 className="input-dark w-full"
                 placeholder={ph}
               />
-              {cuotas[key] && Number(cuotas[key]) > 0 && (
+              {String(cuotas[key]).trim() === '' ? (
+                <p className="text-xs text-brand-text-muted mt-1">No se ofrece</p>
+              ) : Number(cuotas[key]) > 0 ? (
                 <p className="text-xs text-green-400 mt-1">
                   Desde {formatPrecio(cuotas[key])}
                 </p>
+              ) : (
+                <p className="text-xs text-green-400 mt-1">En todos los productos</p>
               )}
             </div>
           ))}

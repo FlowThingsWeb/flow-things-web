@@ -27,11 +27,19 @@ interface Plan { cuotas: number; monto: number }
 interface Proximo { cuotas: number; falta: number; min: number }
 interface PlanSinInteres { cuotas: number; min: number }
 
-// Fallback si la config no está cargada (coincide con lo seteado en MP).
+/**
+ * Fallback si la config no está cargada. Tiene que coincidir con lo que el
+ * comercio realmente tiene puesto en Mercado Pago.
+ *
+ * No incluye 6 cuotas a propósito: ese plan no existe. Estaba acá y en la
+ * configuración, y hacía que la ficha de todo producto de más de $311.000
+ * prometiera "6 cuotas sin interés" que Mercado Pago no da. Un plan de más
+ * en este arreglo es una promesa de financiación que después no se cumple:
+ * si se agrega uno, tiene que estar puesto en MP primero.
+ */
 const PLANES_DEFAULT: PlanSinInteres[] = [
-  { cuotas: 2, min: 95000 },
-  { cuotas: 3, min: 115000 },
-  { cuotas: 6, min: 311000 },
+  { cuotas: 2, min: 0 },
+  { cuotas: 3, min: 0 },
 ]
 
 async function getPlanesSinInteres(): Promise<PlanSinInteres[]> {
