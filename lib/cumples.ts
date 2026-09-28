@@ -1,7 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { sendEmail, renderTemplate, escapeHtml } from '@/lib/email'
 import {
-  CUMPLE_ASUNTO, CUMPLE_PCT_DEFAULT, DEFAULT_CARRITO_CUERPO, URL_SITIO, bloqueCupon,
+  CUMPLE_CIERRE_PCT_DEFAULT, CUMPLE_PCT_DEFAULT, CUMPLE_VARIANTES,
+  DEFAULT_CARRITO_CUERPO, URL_SITIO, bloqueCupon, type VarianteCumple,
 } from '@/lib/email-constants'
 
 /**
@@ -16,15 +17,31 @@ import {
  * cumpleaños. Con el mes entero hay tiempo de mirar, pensarlo y volver.
  */
 
+/**
+ * Cuántos días del mes le quedan al regalo para ser usado.
+ *
+ * Abajo de este número el mail cambia de tono: deja de decir "es tu mes" y
+ * pasa a despedirlo. Una semana es el corte porque abajo de eso la frase "lo
+ * usás cuando quieras" deja de ser cierta.
+ */
+export const DIAS_PARA_CIERRE = 7
+
+export function varianteDelDia(anio: number, mes: number, dia: number): VarianteCumple {
+  const ultimo = Number(ultimoDiaDelMes(anio, mes).slice(-2))
+  return ultimo - dia < DIAS_PARA_CIERRE ? 'cierre' : 'mes'
+}
+
 /** Cuánto vale el regalo. Se puede mover desde la configuración del sitio. */
-export async function pctDeCumple(): Promise<number> {
+export async function pctDeCumple(variante: VarianteCumple = 'mes'): Promise<number> {
+  const clave = variante === 'cierre' ? 'cumple_descuento_cierre_pct' : 'cumple_descuento_pct'
+  const porDefecto = variante === 'cierre' ? CUMPLE_CIERRE_PCT_DEFAULT : CUMPLE_PCT_DEFAULT
   const { data } = await supabaseAdmin
     .from('configuracion')
     .select('valor')
-    .eq('clave', 'cumple_descuento_pct')
+    .eq('clave', clave)
     .maybeSingle()
   const n = Number(data?.valor)
-  return Number.isFinite(n) && n > 0 && n <= 90 ? n : CUMPLE_PCT_DEFAULT
+  return Number.isFinite(n) && n > 0 && n <= 90 ? n : porDefecto
 }
 
 /**
@@ -181,7 +198,25 @@ export async function enviarRegaloCumple(
   pct: number,
   anio: number,
   mes: number,
+  variante: VarianteCumple = 'mes',
 ): Promise<{ ok: boolean; codigo?: string; error?: string }> {
+  /**
+   * Sin casilla configurada no se intenta nada.
+   *
+   * `sendEmail` no rompe cuando faltan GMAIL_USER / GMAIL_APP_PASSWORD: avisa
+   * por consola y vuelve como si hubiera enviado. Para el resto de la app es
+   * lo correcto —que falte una variable no puede tumbar un checkout—, pero acá
+   * es una trampa: el código se crea, la fila se anota como enviada y la
+   * persona no recibe nada. Y como el registro es por año, se queda sin su
+   * regalo hasta el año que viene.
+   *
+   * Me pasó probando esto desde un entorno sin las credenciales: dos personas
+   * quedaron marcadas como avisadas sin que saliera un solo mail.
+   */
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    return { ok: false, error: 'la casilla de envío no está configurada' }
+  }
+
   const { data: userRes } = await supabaseAdmin.auth.admin.getUserById(persona.user_id)
   const email = userRes?.user?.email
   if (!email) return { ok: false, error: 'sin email' }
@@ -191,15 +226,16 @@ export async function enviarRegaloCumple(
   const creado = await crearCodigoCumple({ nombre, pct, anio, mes })
   if (!creado) return { ok: false, error: 'no se pudo crear el código' }
 
+  const copy = CUMPLE_VARIANTES[variante]
   const cuerpo = renderTemplate(DEFAULT_CARRITO_CUERPO, {
     nombre: escapeHtml(nombre),
     emoji: '&#x1F382;',
-    titulo: `¡Feliz cumple, ${escapeHtml(nombre)}!`,
-    bajada: `Es tu mes, así que te dejamos un regalo para que lo uses cuando quieras.`,
+    titulo: copy.titulo.replace('{{nombre}}', escapeHtml(nombre)),
+    bajada: copy.bajada,
     bloque_extra: bloqueCupon({
       codigo: creado.codigo,
       pct,
-      encabezado: 'Tu regalo de cumpleaños',
+      encabezado: copy.encabezado,
       subtitulo: 'en toda la tienda',
       vigencia: `Válido hasta el ${fechaLarga(creado.vence)} &#xB7; se usa una sola vez`,
     }),
@@ -211,7 +247,7 @@ export async function enviarRegaloCumple(
   })
 
   try {
-    await sendEmail({ to: email, asunto: CUMPLE_ASUNTO, cuerpo })
+    await sendEmail({ to: email, asunto: copy.asunto, cuerpo })
   } catch (e) {
     // El código queda creado y sin usar: se lo lleva el vencimiento de fin de
     // mes. Anotarlo como enviado sería peor, porque nadie lo recibió.

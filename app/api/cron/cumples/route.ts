@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { registrarLatido } from '@/lib/vigilar-crons'
 import {
   actualizarUsos, cumpleanerosPendientes, enviarRegaloCumple,
-  hoyEnArgentina, pctDeCumple, ultimoDiaDelMes,
+  hoyEnArgentina, pctDeCumple, ultimoDiaDelMes, varianteDelDia,
 } from '@/lib/cumples'
 
 export const maxDuration = 60
@@ -33,7 +33,11 @@ export async function GET(request: NextRequest) {
 
   const dry = new URL(request.url).searchParams.get('dry') === '1'
   const { anio, mes, dia } = hoyEnArgentina()
-  const pct = await pctDeCumple()
+  // Cerca de fin de mes el mail cambia de tono y de porcentaje: al que lo
+  // recibe el día 28 le quedan dos días, no se le puede prometer lo mismo que
+  // al del día 1. Ver `varianteDelDia`.
+  const variante = varianteDelDia(anio, mes, dia)
+  const pct = await pctDeCumple(variante)
 
   let pendientes
   try {
@@ -51,6 +55,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       simulacion: true,
       hoy_en_argentina: `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
+      variante,
       descuento_pct: pct,
       vence: ultimoDiaDelMes(anio, mes),
       candidatos: pendientes.length,
@@ -67,7 +72,7 @@ export async function GET(request: NextRequest) {
   const fallados: { nombre: string | null; error: string }[] = []
 
   for (const persona of pendientes) {
-    const res = await enviarRegaloCumple(persona, pct, anio, mes)
+    const res = await enviarRegaloCumple(persona, pct, anio, mes, variante)
     if (res.ok && res.codigo) enviados.push({ nombre: persona.nombre, codigo: res.codigo })
     else fallados.push({ nombre: persona.nombre, error: res.error ?? 'desconocido' })
   }
@@ -77,6 +82,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     mes: `${anio}-${String(mes).padStart(2, '0')}`,
+    variante,
     descuento_pct: pct,
     vence: ultimoDiaDelMes(anio, mes),
     candidatos: pendientes.length,

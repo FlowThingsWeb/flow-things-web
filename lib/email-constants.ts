@@ -193,7 +193,43 @@ export type EtapaCarrito = keyof typeof CARRITO_ETAPAS
 /** Cuánto descuento lleva el regalo. Lo pisa `cumple_descuento_pct` del sitio. */
 export const CUMPLE_PCT_DEFAULT = 15
 
-export const CUMPLE_ASUNTO = '&#x1F382; Tu regalo de cumpleaños te está esperando'
+/**
+ * El regalo cuando el mes ya se está terminando. Lo pisa
+ * `cumple_descuento_cierre_pct`.
+ *
+ * Es menos que el del mes completo y tiene que serlo: al que le llega el día
+ * 28 le quedan dos días para usarlo, así que no se le puede prometer lo mismo
+ * que al que lo recibió el día 1 y tuvo el mes entero.
+ */
+export const CUMPLE_CIERRE_PCT_DEFAULT = 10
+
+/**
+ * Los dos momentos en que puede salir el regalo.
+ *
+ * El mismo mail no sirve para los dos: "es tu mes, tenés todo el mes para
+ * usarlo" es raro si el mes se termina el jueves. El de cierre lo dice de
+ * frente, que además es lo que le da la urgencia.
+ */
+export const CUMPLE_VARIANTES = {
+  mes: {
+    asunto: '&#x1F382; Tu regalo de cumpleaños te está esperando',
+    titulo: '¡Feliz cumple, {{nombre}}!',
+    bajada: 'Es tu mes, así que te dejamos un regalo para que lo uses cuando quieras.',
+    encabezado: 'Tu regalo de cumpleaños',
+  },
+  cierre: {
+    asunto: '&#x1F382; Antes de que se termine tu mes de cumpleaños',
+    titulo: '{{nombre}}, tu mes se está por terminar',
+    bajada:
+      'No queríamos dejar pasar tu cumpleaños sin saludarte. Para cerrar el mes te dejamos un extra, y es tuyo hasta el último día.',
+    encabezado: 'Para cerrar tu mes',
+  },
+} as const
+
+export type VarianteCumple = keyof typeof CUMPLE_VARIANTES
+
+/** @deprecated Usá `CUMPLE_VARIANTES[variante].asunto`. */
+export const CUMPLE_ASUNTO = CUMPLE_VARIANTES.mes.asunto
 
 /**
  * El recuadro del cupón, con código y vencimiento propios.
