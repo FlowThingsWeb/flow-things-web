@@ -18,6 +18,21 @@ const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').re
  */
 const MAX_ADICIONALES = 10
 
+/**
+ * Tope explícito de filas para la consulta de variantes.
+ *
+ * PostgREST corta en 1000 por defecto y no avisa: devuelve las primeras mil sin
+ * error y sin marca de que faltan. Ese corte silencioso reproduce exactamente
+ * el bug del 29/9/2026 —productos que salen con la imagen vacía y Merchant los
+ * desaprueba— pero sin un `error` que mirar, así que no habría con qué
+ * agarrarlo.
+ *
+ * Puesto a mano, y con aire: hoy la consulta trae 88 filas. Si algún día
+ * devuelve exactamente este número hay que asumir que se cortó, porque desde
+ * afuera un tope alcanzado y un resultado completo se ven igual.
+ */
+const MAX_VARIANTES = 5000
+
 function esc(s: string): string {
   return String(s ?? '')
     .replace(/&/g, '&amp;')
@@ -112,6 +127,7 @@ export async function GET() {
       .select('producto_id, imagen_url, imagenes, activo, created_at')
       .in('producto_id', sinImagen)
       .order('created_at', { ascending: true })
+      .limit(MAX_VARIANTES)
 
     /**
      * Esta consulta es la única imagen que tienen 25 de los 156 productos del
@@ -127,6 +143,32 @@ export async function GET() {
     if (errorVariantes) {
       console.error('[feed] No se pudieron leer las variantes:', errorVariantes.message)
       return new NextResponse('No se pudieron leer las imágenes de las variantes.', {
+        status: 503,
+        headers: { 'Cache-Control': 'no-store' },
+      })
+    }
+
+    /**
+     * Tope alcanzado: se corta igual que si la consulta hubiera fallado.
+     *
+     * Traer 5000 de 5001 no es traer casi todo: son productos concretos que se
+     * quedan sin su única imagen, y cuáles depende del orden. Servir el feed
+     * así lo desaprueba en Merchant; el 503 hace que Google conserve la última
+     * versión buena y reintente.
+     *
+     * El aviso sale por dos lados. Acá queda el log con el número, y el
+     * vigilante del feed —que pide este mismo endpoint— manda el mail "El feed
+     * de Google no responde" al ver el 503, que es el que de verdad se lee.
+     *
+     * Si esto llega a saltar, la salida no es subir el tope: es pedir las
+     * variantes por páginas.
+     */
+    if ((variantes?.length ?? 0) >= MAX_VARIANTES) {
+      console.error(
+        `[feed] La consulta de variantes tocó el tope de ${MAX_VARIANTES} filas. ` +
+          'Hay que paginarla: así salen productos sin imagen y Merchant los desaprueba.',
+      )
+      return new NextResponse('La consulta de variantes quedó cortada por el tope.', {
         status: 503,
         headers: { 'Cache-Control': 'no-store' },
       })
