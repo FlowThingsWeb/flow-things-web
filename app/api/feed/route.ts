@@ -53,10 +53,31 @@ export async function GET() {
    * de CABA paga menos en la caja de lo que vio, nunca más.
    */
 
-  const { data: productos } = await supabaseAdmin
+  /**
+   * Si la base no contesta, el feed NO se sirve a medias.
+   *
+   * El cliente de Supabase no tira excepción: devuelve `{ data: null, error }` y
+   * sigue. Sin mirar el error, una consulta caída se veía igual que un catálogo
+   * vacío, y el feed contestaba 200 con un RSS bien formado y sin un solo item.
+   * Google no tiene forma de distinguir eso de "cerraron la tienda": da los
+   * productos por vencidos.
+   *
+   * Un 503 es lo contrario: Google reintenta y mientras tanto conserva la
+   * última versión buena. Un feed vacío es una respuesta; un 503 es no haber
+   * contestado, que es la verdad.
+   */
+  const { data: productos, error: errorProductos } = await supabaseAdmin
     .from('productos')
     .select('id, nombre, slug, sku, descripcion, precio, precio_anterior, imagen_url, imagenes, stock, categorias(nombre, slug)')
     .eq('activo', true)
+
+  if (errorProductos) {
+    console.error('[feed] No se pudo leer el catálogo:', errorProductos.message)
+    return new NextResponse('No se pudo leer el catálogo.', {
+      status: 503,
+      headers: { 'Cache-Control': 'no-store' },
+    })
+  }
 
   /**
    * Imagen de respaldo tomada de las variantes.
@@ -86,11 +107,31 @@ export async function GET() {
   const sinImagen = (productos || []).filter((p: any) => !imagenesDe(p).length).map((p: any) => p.id)
   const imagenesDeVariantes = new Map<string, string[]>()
   if (sinImagen.length) {
-    const { data: variantes } = await supabaseAdmin
+    const { data: variantes, error: errorVariantes } = await supabaseAdmin
       .from('variantes')
       .select('producto_id, imagen_url, imagenes, activo, created_at')
       .in('producto_id', sinImagen)
       .order('created_at', { ascending: true })
+
+    /**
+     * Esta consulta es la única imagen que tienen 25 de los 156 productos del
+     * feed, así que si falla no se sigue de largo.
+     *
+     * El 29/9/2026 a las 9:50 el vigilante avisó "25 producto(s) sin
+     * g:image_link" y para cuando se miró el feed estaba entero: 25 es
+     * exactamente la cantidad que depende de esta consulta. Se cayó una vez,
+     * `data` vino null, el `|| []` lo tapó y esos 25 salieron con el atributo
+     * obligatorio vacío — que para Merchant no es "falta un dato", es motivo de
+     * desaprobación, y revertirla tarda un día entero de rastreo.
+     */
+    if (errorVariantes) {
+      console.error('[feed] No se pudieron leer las variantes:', errorVariantes.message)
+      return new NextResponse('No se pudieron leer las imágenes de las variantes.', {
+        status: 503,
+        headers: { 'Cache-Control': 'no-store' },
+      })
+    }
+
     for (const v of variantes || []) {
       if (v.activo === false) continue
       const acumulado = imagenesDeVariantes.get(v.producto_id) ?? []
@@ -101,12 +142,33 @@ export async function GET() {
     }
   }
 
+  const galeriaDe = (p: any): string[] => {
+    const propias = imagenesDe(p)
+    return propias.length ? propias : (imagenesDeVariantes.get(p.id) ?? [])
+  }
+
+  /**
+   * Un producto sin ninguna foto no entra al feed.
+   *
+   * Mandarlo igual con `<g:image_link></g:image_link>` no es mandar menos: es
+   * mandar un producto que Merchant desaprueba, y la desaprobación queda pegada
+   * al artículo hasta que un rastreo posterior la levante. Dejarlo afuera hace
+   * que Google conserve lo que ya tenía.
+   *
+   * Hoy no hay ninguno; esto es para que el día que haya uno no se lleve puesta
+   * su propia ficha. Si llegaran a ser muchos, el vigilante avisa por otro lado:
+   * compara la cantidad de items contra el catálogo activo.
+   */
   const items = (productos || [])
     .filter((p: any) => !CATEGORIAS_PAUSADAS.includes(p.categorias?.slug))
+    .filter((p: any) => {
+      if (galeriaDe(p).length) return true
+      console.warn(`[feed] ${p.slug} queda afuera: no tiene ninguna imagen.`)
+      return false
+    })
     .map((p: any) => {
-      const propias = imagenesDe(p)
-      const galeria = propias.length ? propias : (imagenesDeVariantes.get(p.id) ?? [])
-      const img = galeria[0] ?? ''
+      const galeria = galeriaDe(p)
+      const img = galeria[0]
       const adicionales = galeria.slice(1, 1 + MAX_ADICIONALES)
       const desc = p.descripcion || p.nombre
       const disponibilidad = p.stock > 0 ? 'in stock' : 'out of stock'
