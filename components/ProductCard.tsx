@@ -68,8 +68,19 @@ export default function ProductCard({ producto, variante, rating, prioridad, blu
     ? Math.round(((producto.precio_anterior! - producto.precio) / producto.precio_anterior!) * 100)
     : null
 
+  /**
+   * La tarjeta es del producto base y el producto tiene variantes activas.
+   *
+   * El catálogo abre una tarjeta por variante, así que ahí no pasa; pasa en la
+   * home, en "también te puede gustar", en el carrusel y en los sugeridos del
+   * carrito, que dibujan el producto suelto. Agregarlo así deja el item sin
+   * variante y la venta no se puede registrar en el CRM.
+   */
+  const hayQueElegir =
+    !variante && (producto.variantes ?? []).some((v) => v.activo)
+
   const handleAgregar = () => {
-    if (sinStock) return
+    if (sinStock || hayQueElegir) return
     addItem({
       ...producto,
       nombre,
@@ -175,13 +186,25 @@ export default function ProductCard({ producto, variante, rating, prioridad, blu
             )}
           </div>
 
-          <button
-            onClick={handleAgregar}
-            disabled={sinStock}
-            className="w-full bg-brand-purple hover:bg-brand-purple-light disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors whitespace-nowrap"
-          >
-            {sinStock ? 'Agotado' : '+ Agregar'}
-          </button>
+          {hayQueElegir ? (
+            /* Con variantes y sin una elegida, el botón lleva a la ficha en vez
+               de agregar: agregar en blanco termina en una venta que el CRM no
+               puede registrar. */
+            <Link
+              href={href}
+              className="block w-full text-center bg-brand-purple hover:bg-brand-purple-light text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors whitespace-nowrap"
+            >
+              Elegir opción
+            </Link>
+          ) : (
+            <button
+              onClick={handleAgregar}
+              disabled={sinStock}
+              className="w-full bg-brand-purple hover:bg-brand-purple-light disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors whitespace-nowrap"
+            >
+              {sinStock ? 'Agotado' : '+ Agregar'}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -72,6 +72,31 @@ export async function POST(request: NextRequest) {
 
       let varianteNombre: string | null = null
 
+      /**
+       * Un producto con variantes NO se puede comprar sin elegir una.
+       *
+       * Hasta acá el servidor sólo validaba la variante cuando venía: si no
+       * venía, la venta pasaba igual. Los botones de "+ Agregar" de la home,
+       * del carrusel, de "también te puede gustar" y del carrito agregan sin
+       * preguntar, así que un producto con variantes entraba al carrito en
+       * blanco y se cobraba. Después el CRM la rechazaba —"el producto tiene
+       * variantes activas"— y la venta no se registraba en ningún lado: pasó
+       * con la orden del 5/10, un HEY! BEAUTY PUPA CIRCULAR que tiene Surtido
+       * A y Surtido C.
+       *
+       * Cortar acá es antes de cobrar, que es el único momento en que el
+       * comprador todavía puede elegir.
+       */
+      const variantesActivas = ((prod.variantes as any[] | null) ?? []).filter(
+        (v) => v.activo
+      )
+      if (!item.variante_id && variantesActivas.length > 0) {
+        return NextResponse.json(
+          { error: `Elegí una opción de "${item.nombre}" antes de comprarlo.` },
+          { status: 409 }
+        )
+      }
+
       if (item.variante_id) {
         const variante = (prod.variantes as any[] | null)?.find(
           (v) => v.id === item.variante_id && v.activo

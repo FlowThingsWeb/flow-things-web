@@ -35,7 +35,9 @@ export default function CartDrawer({ gratisCaba = 40000, gratisAmba = 60000, gra
     let cancelado = false
     supabase
       .from('productos')
-      .select('*')
+      // Las variantes vienen para saber si el producto se puede sumar de un
+      // click: si tiene, hay que elegir una y el botón lleva a la ficha.
+      .select('*, variantes(id, activo)')
       .eq('activo', true)
       .eq('destacado', true)
       .gt('stock', 0)
@@ -226,6 +228,7 @@ export default function CartDrawer({ gratisCaba = 40000, gratisAmba = 60000, gra
                 <p className="text-xs font-semibold text-brand-text-muted uppercase tracking-wide">Sumá a tu pedido</p>
                 {sugeridos.map((p) => {
                   const img = p.imagen_url || p.imagenes?.[0] || null
+                  const hayQueElegir = (p.variantes ?? []).some((v) => v.activo)
                   return (
                     <div key={p.id} className="flex items-center gap-3">
                       <div className="relative w-10 h-10 bg-brand-bg-soft rounded-lg overflow-hidden flex-shrink-0">
@@ -239,12 +242,22 @@ export default function CartDrawer({ gratisCaba = 40000, gratisAmba = 60000, gra
                         <p className="text-xs text-brand-text line-clamp-1">{p.nombre}</p>
                         <p className="text-xs font-semibold text-brand-neon">{formatPrecio(p.precio)}</p>
                       </div>
-                      <button
-                        onClick={() => { addItem(p); agregarAlCarrito({ id: p.id, sku: p.sku, nombre: p.nombre, precio: p.precio }) }}
-                        className="text-xs font-semibold bg-brand-purple/15 text-brand-purple-light hover:bg-brand-purple hover:text-white px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
-                      >
-                        + Sumar
-                      </button>
+                      {hayQueElegir ? (
+                        <Link
+                          href={`/productos/${p.slug}`}
+                          onClick={closeCart}
+                          className="text-xs font-semibold bg-brand-purple/15 text-brand-purple-light hover:bg-brand-purple hover:text-white px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          Elegir
+                        </Link>
+                      ) : (
+                        <button
+                          onClick={() => { addItem(p); agregarAlCarrito({ id: p.id, sku: p.sku, nombre: p.nombre, precio: p.precio }) }}
+                          className="text-xs font-semibold bg-brand-purple/15 text-brand-purple-light hover:bg-brand-purple hover:text-white px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          + Sumar
+                        </button>
+                      )}
                     </div>
                   )
                 })}

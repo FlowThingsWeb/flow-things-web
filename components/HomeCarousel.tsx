@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useCartStore } from '@/lib/store'
 import { formatPrecio } from '@/lib/format'
 import { agregarAlCarrito } from '@/lib/eventos-compra'
@@ -47,6 +48,7 @@ export default function HomeCarousel({
   const [indice, setIndice] = useState(0)
   const [pausado, setPausado] = useState(false)
   const addItem = useCartStore((s) => s.addItem)
+  const router = useRouter()
 
   const irA = useCallback((i: number) => {
     const pista = pistaRef.current
@@ -126,6 +128,13 @@ export default function HomeCarousel({
                 esPrimero={i === 0}
                 onAgregar={() => {
                   const p = slide.producto
+                  /* Con variantes activas hay que elegir una: agregarlo suelto
+                     deja el item sin variante y el CRM no puede registrar la
+                     venta. Se manda a la ficha, que es donde se elige. */
+                  if ((p.variantes ?? []).some((v) => v.activo)) {
+                    router.push(`/productos/${p.slug}`)
+                    return
+                  }
                   addItem(p)
                   agregarAlCarrito({ id: p.id, sku: p.sku, nombre: p.nombre, precio: p.precio })
                 }}
