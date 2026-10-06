@@ -296,12 +296,51 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
 
   // ─── Notificación Telegram al negocio ────────────────────────────────────────
   const comprador = orden.datos_comprador ?? {}
+
+  /**
+   * Los slugs no están en el snapshot del item, así que se buscan por id para
+   * poder enlazar cada producto a su ficha. Si la consulta falla, el mensaje
+   * sale igual con los nombres sin enlazar: avisar la venta importa más que
+   * el link.
+   */
+  const idsProductos = [...new Set((orden.items ?? []).map((i: any) => i.id).filter(Boolean))]
+  const slugPorId = new Map<string, string>()
+  if (idsProductos.length > 0) {
+    const { data: prods } = await supabaseAdmin
+      .from('productos')
+      .select('id, slug')
+      .in('id', idsProductos)
+    for (const p of prods ?? []) if (p.slug) slugPorId.set(p.id, p.slug)
+  }
+
   const msg = formatVentaMsg({
     ordenId,
     total: orden.total ?? 0,
     comprador: { nombre: comprador.nombre, email: comprador.email, telefono: comprador.telefono },
-    items: orden.items.map((i: any) => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio })),
+    items: (orden.items ?? []).map((i: any) => ({
+      nombre: i.nombre,
+      cantidad: i.cantidad,
+      precio: i.precio,
+      slug: slugPorId.get(i.id) ?? null,
+      variante_id: i.variante_id ?? null,
+    })),
     envio: { nombre: comprador.envio_nombre ?? null, costo: comprador.envio_costo ?? 0 },
+    destino: {
+      direccion: comprador.direccion ?? null,
+      piso: comprador.piso ?? null,
+      departamento: comprador.departamento ?? null,
+      ciudad: comprador.ciudad ?? null,
+      provincia: comprador.provincia ?? null,
+      codigo_postal: comprador.codigo_postal ?? null,
+    },
+    descuento: {
+      monto: orden.descuento_monto ?? 0,
+      // `__PRIMER_COMPRA__` es una marca interna: en el mensaje se lee feo.
+      codigo:
+        orden.codigo_descuento === '__PRIMER_COMPRA__'
+          ? 'primera compra'
+          : orden.codigo_descuento ?? null,
+    },
   })
   await sendTelegram(msg).catch((e: any) =>
     console.error('[telegram] Error enviando notificación:', e.message))
