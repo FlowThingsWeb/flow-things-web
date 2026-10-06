@@ -1,0 +1,15 @@
+import { createClient } from "@supabase/supabase-js";
+import { readFileSync } from "node:fs";
+const cargar = (r: string) => { const e: Record<string,string> = {}; for (const l of readFileSync(r,"utf8").split("\n")) { const m = l.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/); if (m) e[m[1]] = m[2].replace(/^["']|["']$/g,"").trim(); } return e; };
+const web = cargar(".env.local"), crm = cargar("/Users/lucasbarman/Desktop/Multiscope SA/Coding_Multiscope/CRM_FlowThings/.env.local");
+const dbW = createClient(web.NEXT_PUBLIC_SUPABASE_URL, web.SUPABASE_SERVICE_ROLE_KEY);
+const dbC = createClient(crm.NEXT_PUBLIC_SUPABASE_URL, crm.SUPABASE_SERVICE_ROLE_KEY);
+const { data: p } = await dbW.from("productos").select("id, sku, nombre, stock, variantes(id, sku, atributos, stock, activo)").eq("sku","LGZV121").single();
+console.log("WEB:", p!.sku, (p as any).nombre.slice(0,40), "stock base:", (p as any).stock);
+for (const v of ((p as any).variantes ?? [])) console.log(`   ${v.sku} ${JSON.stringify(v.atributos)} stock=${v.stock} activo=${v.activo}`);
+const { data: pc } = await dbC.from("productos").select("id, sku, nombre, stock").eq("sku","LGZV121").single();
+console.log("CRM:", pc!.sku, "stock base:", (pc as any).stock, "id:", pc!.id);
+const { data: ic } = await dbC.from("items_compra").select("cantidad, variante_id, compras(fecha)").eq("producto_id", pc!.id);
+console.log("CRM compras del producto:", (ic ?? []).map((x:any)=>`${x.cantidad}u ${String(x.compras?.fecha).slice(0,10)} variante=${x.variante_id ?? "null"}`).join(" | "));
+const { data: iv } = await dbC.from("items_venta").select("cantidad, variante_id").eq("producto_id", pc!.id);
+console.log("CRM ventas del producto:", (iv ?? []).length, "items");

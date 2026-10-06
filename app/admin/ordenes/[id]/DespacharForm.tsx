@@ -2,14 +2,23 @@
 
 import { useState } from 'react'
 
+/**
+ * `url` es el prefijo del link de seguimiento y `concatena` dice si el código
+ * va pegado al final. Con los que concatenan, el link se arma solo mientras se
+ * tipea el código: antes había que acordarse de pegarlo a mano y el mail salía
+ * con el link a la home del correo, donde el comprador no encuentra nada.
+ *
+ * Andreani cambió el formato: el viejo `/#!/informacion/rastreo/` ya no abre el
+ * envío. Ahora es `https://www.andreani.com/envio/<código>`.
+ */
 const COURIERS = [
-  { value: 'OCA', label: 'OCA', url: 'https://www.oca.com.ar/tracking?tipo=I&nropieza=' },
-  { value: 'Andreani', label: 'Andreani', url: 'https://www.andreani.com/#!/informacion/rastreo/' },
-  { value: 'Correo Argentino', label: 'Correo Argentino', url: 'https://www.correoargentino.com.ar/formularios/ondp?id=' },
-  { value: 'Cabify Logistics', label: 'Cabify Logistics', url: 'https://cabifylogistics.com/ar/seguimiento-de-envios' },
-  { value: 'Cabify (app)', label: 'Cabify (app viaje)', url: '' },
-  { value: 'Retiro en local', label: 'Retiro en local', url: '' },
-  { value: 'Otro', label: 'Otro', url: '' },
+  { value: 'OCA', label: 'OCA', url: 'https://www.oca.com.ar/tracking?tipo=I&nropieza=', concatena: true },
+  { value: 'Andreani', label: 'Andreani', url: 'https://www.andreani.com/envio/', concatena: true },
+  { value: 'Correo Argentino', label: 'Correo Argentino', url: 'https://www.correoargentino.com.ar/formularios/ondp?id=', concatena: true },
+  { value: 'Cabify Logistics', label: 'Cabify Logistics', url: 'https://cabifylogistics.com/ar/seguimiento-de-envios', concatena: false },
+  { value: 'Cabify (app)', label: 'Cabify (app viaje)', url: '', concatena: false },
+  { value: 'Retiro en local', label: 'Retiro en local', url: '', concatena: false },
+  { value: 'Otro', label: 'Otro', url: '', concatena: false },
 ]
 
 export default function DespacharForm({
@@ -24,20 +33,30 @@ export default function DespacharForm({
   const [courier, setCourier]         = useState('')
   const [trackingNum, setTrackingNum] = useState('')
   const [trackingUrl, setTrackingUrl] = useState('')
+  /** Si el link se tocó a mano, el armado automático deja de pisarlo. */
+  const [urlEditada, setUrlEditada]   = useState(false)
   const [sending, setSending]         = useState(false)
   const [msg, setMsg]                 = useState('')
 
   const selectedCourier = COURIERS.find(c => c.value === courier)
 
+  /** Link completo para un courier y un código, si el courier concatena. */
+  const armarUrl = (val: string, codigo: string) => {
+    const c = COURIERS.find(c => c.value === val)
+    if (!c?.url) return ''
+    return c.concatena ? c.url + codigo.trim() : c.url
+  }
+
   const handleCourierChange = (val: string) => {
     setCourier(val)
-    const c = COURIERS.find(c => c.value === val)
-    // Pre-fill tracking URL with courier base URL
-    if (c?.url) {
-      setTrackingUrl(c.url)
-    } else {
-      setTrackingUrl('')
-    }
+    setUrlEditada(false)
+    setTrackingUrl(armarUrl(val, trackingNum))
+  }
+
+  const handleTrackingNumChange = (val: string) => {
+    setTrackingNum(val)
+    // El link sigue al código salvo que se lo haya escrito a mano.
+    if (!urlEditada) setTrackingUrl(armarUrl(courier, val))
   }
 
   const handleSubmit = async () => {
@@ -115,7 +134,7 @@ export default function DespacharForm({
           </label>
           <input
             value={trackingNum}
-            onChange={e => setTrackingNum(e.target.value)}
+            onChange={e => handleTrackingNumChange(e.target.value)}
             placeholder={
               courier === 'Cabify (app viaje)'
                 ? 'Ej: Tu pedido llega hoy entre las 15 y 18hs'
@@ -135,13 +154,18 @@ export default function DespacharForm({
           </label>
           <input
             value={trackingUrl}
-            onChange={e => setTrackingUrl(e.target.value)}
+            onChange={e => { setUrlEditada(true); setTrackingUrl(e.target.value) }}
             placeholder="https://..."
             className="w-full bg-brand-bg border border-brand-border rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-brand-purple placeholder:text-brand-text-muted font-mono"
           />
-          {selectedCourier?.url && courier !== 'Cabify (app viaje)' && (
+          {selectedCourier?.concatena && (
             <p className="text-brand-text-muted text-xs mt-1">
-              💡 Agregá el número al final de la URL para que el cliente pueda rastrear directamente.
+              💡 El link se arma solo con el código que pongas arriba. Editalo si hace falta.
+            </p>
+          )}
+          {selectedCourier?.url && !selectedCourier.concatena && (
+            <p className="text-brand-text-muted text-xs mt-1">
+              💡 Este correo no rastrea por código en la URL: el link va a su página de seguimiento.
             </p>
           )}
         </div>
