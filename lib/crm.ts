@@ -70,6 +70,21 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
     total: Number(orden.total ?? 0) || 0,
     envio,
     descuento,
+    /**
+     * A dónde va el paquete. El CRM no ve esta base, así que si no se lo
+     * mandamos no tiene con qué armar el remito ni la pantalla de envíos: las
+     * ventas de canal tienda le quedaban sin dirección ni teléfono.
+     */
+    comprador: {
+      nombre: dc.nombre ?? null,
+      telefono: dc.telefono ?? null,
+      domicilio: [dc.direccion, dc.piso, dc.departamento].filter(Boolean).join(' ') || null,
+      localidad: dc.ciudad ?? null,
+      provincia: dc.provincia ?? null,
+      cp: dc.codigo_postal ?? null,
+      doc_nro: dc.dni ?? null,
+    },
+    envio_metodo: dc.envio_nombre ?? dc.envio_tipo ?? null,
     items: items.map((i) => ({
       sku: i.sku,
       variante: i.variante_nombre ?? null,
