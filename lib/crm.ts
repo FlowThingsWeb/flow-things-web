@@ -78,6 +78,7 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
     comprador: {
       nombre: dc.nombre ?? null,
       telefono: dc.telefono ?? null,
+      email: dc.email ?? null,
       domicilio: [dc.direccion, dc.piso, dc.departamento].filter(Boolean).join(' ') || null,
       localidad: dc.ciudad ?? null,
       provincia: dc.provincia ?? null,
