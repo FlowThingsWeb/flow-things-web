@@ -20,7 +20,6 @@ import Analytics from '@/components/Analytics'
 import BotonVolver from '@/components/BotonVolver'
 import CarritoHidratador from '@/components/CarritoHidratador'
 import { EnvioGratisProvider } from '@/components/EnvioGratisProvider'
-import { ContactoProvider } from '@/components/ContactoProvider'
 import { umbralEnvioGratis } from '@/lib/envio-gratis'
 import type { ConfigMap } from '@/lib/config'
 import type { Categoria, MarcaCatalogo, Subcategoria } from '@/lib/catalogo'
@@ -56,9 +55,7 @@ export default function UserShell({ cfg, categorias, subcategorias, marcas, chil
       <BotonVolver />
       {/* El umbral de envío gratis, para las tarjetas de producto de adentro. */}
       <EnvioGratisProvider umbral={umbralEnvioGratis(cfg)}>
-        <ContactoProvider telefono={cfg.footer_telefono}>
-          <main className="min-h-screen">{children}</main>
-        </ContactoProvider>
+        <main className="min-h-screen">{children}</main>
       </EnvioGratisProvider>
       <CartDrawer
         gratisCaba={Number(cfg.envio_gratis_caba_desde) || 40000}

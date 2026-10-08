@@ -32,8 +32,11 @@ export async function POST(request: NextRequest) {
       primer_compra?: boolean
       envio_tipo?: string | null
       envio_nombre?: string | null
-      /** Franjas en las que el comprador puede recibir (sólo envío por cercanía). */
-      franjas_entrega?: string[] | null
+      /**
+       * Franjas en las que el comprador puede recibir, con la restricción que
+       * haya escrito para ese día (sólo envío por cercanía).
+       */
+      franjas_entrega?: { etiqueta?: string; restriccion?: string | null }[] | null
       // Nota: envio_costo ya no se acepta del frontend — se recalcula en el servidor
     } = await request.json()
 
@@ -228,9 +231,18 @@ export async function POST(request: NextRequest) {
     const franjasGuardadas =
       envioTipoFinal === 'cercania' && Array.isArray(franjas_entrega)
         ? franjas_entrega
-            .filter((f) => typeof f === 'string')
-            .map((f) => f.trim())
-            .filter((f) => etiquetasValidas().has(f))
+            .map((f) => ({
+              etiqueta: String(f?.etiqueta ?? '').trim(),
+              // La restricción es texto libre del comprador: se recorta y se
+              // le sacan los saltos de línea, que después rompen el renglón
+              // en el CRM y en el mail.
+              restriccion: String(f?.restriccion ?? '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 120),
+            }))
+            .filter((f) => etiquetasValidas().has(f.etiqueta))
+            .map((f) => (f.restriccion ? `${f.etiqueta} (${f.restriccion})` : f.etiqueta))
             .slice(0, 6)
         : []
 

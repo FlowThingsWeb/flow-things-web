@@ -15,7 +15,6 @@ import CuotasMP from '@/components/CuotasMP'
 import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
 import { franjasEntrega, type FranjaEntrega } from '@/lib/franjas-entrega'
-import { useWhatsApp } from '@/components/ContactoProvider'
 import { leerDestino, guardarDestino } from '@/lib/destino-envio'
 import { getZonaEnvio, seCobraPorDistancia } from '@/lib/zonas-envio'
 
@@ -201,6 +200,12 @@ function CarritoContent() {
    */
   const [franjas, setFranjas] = useState<FranjaEntrega[]>([])
   const [franjasElegidas, setFranjasElegidas] = useState<string[]>([])
+  /**
+   * Restricción escrita a mano para una franja puntual: "portería cierra 13 a
+   * 14", "tocar timbre del 2do". Va por día porque eso es lo que cambia: el
+   * miércoles puede haber alguien toda la tarde y el jueves sólo temprano.
+   */
+  const [restricciones, setRestricciones] = useState<Record<string, string>>({})
   const esCercania = envioSeleccionado?.id === 'cercania'
   /**
    * "Mi dirección no tiene piso ni departamento".
@@ -210,7 +215,6 @@ function CarritoContent() {
    * a la puerta y vuelve. Quien vive en casa lo tilda una vez y listo.
    */
   const [sinPisoDepto, setSinPisoDepto] = useState(false)
-  const wpp = useWhatsApp()
 
   /**
    * Las franjas se calculan en el navegador al elegir el envío, con la hora
@@ -221,10 +225,12 @@ function CarritoContent() {
     if (!esCercania) {
       setFranjas([])
       setFranjasElegidas([])
+      setRestricciones({})
       return
     }
     setFranjas(franjasEntrega())
     setFranjasElegidas([])
+    setRestricciones({})
   }, [esCercania])
   const [envioCalculado, setEnvioCalculado] = useState(false)
   // Fallback: editar la dirección a mano si Google no la ubicó bien.
@@ -611,7 +617,12 @@ function CarritoContent() {
           primer_compra: primerCompraDescuento,
           envio_tipo: envioSeleccionado?.modalidad ?? null,
           envio_nombre: envioSeleccionado?.nombre ?? null,
-          franjas_entrega: esCercania ? franjasElegidas : null,
+          franjas_entrega: esCercania
+            ? franjasElegidas.map((etiqueta) => ({
+                etiqueta,
+                restriccion: (restricciones[etiqueta] ?? '').trim() || null,
+              }))
+            : null,
           // envio_costo NO se envía: el servidor lo recalcula desde la config.
         }),
       })
@@ -1084,46 +1095,58 @@ function CarritoContent() {
                     {franjas.map((f) => {
                       const elegida = franjasElegidas.includes(f.etiqueta)
                       return (
-                        <label
+                        <div
                           key={f.etiqueta}
-                          className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                          className={`rounded-xl border transition-colors ${
                             elegida
                               ? 'border-brand-purple bg-brand-purple/10'
                               : 'border-brand-border hover:border-brand-purple/50'
                           }`}
                         >
-                          <input
-                            type="checkbox"
-                            checked={elegida}
-                            onChange={() =>
-                              setFranjasElegidas((prev) =>
-                                prev.includes(f.etiqueta)
-                                  ? prev.filter((x) => x !== f.etiqueta)
-                                  : [...prev, f.etiqueta],
-                              )
-                            }
-                            className="accent-brand-purple"
-                          />
-                          <span className="text-sm text-white">{f.etiqueta}</span>
-                        </label>
+                          <label className="flex items-center gap-3 p-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={elegida}
+                              onChange={() => {
+                                setFranjasElegidas((prev) =>
+                                  prev.includes(f.etiqueta)
+                                    ? prev.filter((x) => x !== f.etiqueta)
+                                    : [...prev, f.etiqueta],
+                                )
+                                // Destildar borra la restricción: queda de una
+                                // franja que ya no se eligió.
+                                if (elegida) {
+                                  setRestricciones((prev) => {
+                                    const { [f.etiqueta]: _, ...resto } = prev
+                                    return resto
+                                  })
+                                }
+                              }}
+                              className="accent-brand-purple"
+                            />
+                            <span className="text-sm text-white">{f.etiqueta}</span>
+                          </label>
+                          {elegida && (
+                            <div className="px-3 pb-3">
+                              <input
+                                type="text"
+                                value={restricciones[f.etiqueta] ?? ''}
+                                onChange={(e) =>
+                                  setRestricciones((prev) => ({
+                                    ...prev,
+                                    [f.etiqueta]: e.target.value,
+                                  }))
+                                }
+                                maxLength={120}
+                                placeholder="¿Alguna restricción ese día? (opcional)"
+                                className="input-dark text-sm"
+                              />
+                            </div>
+                          )}
+                        </div>
                       )
                     })}
                   </div>
-                )}
-                {wpp.href && (
-                  <p className="text-xs text-brand-text-muted mt-3">
-                    ¿Tenés alguna restricción para recibir —horario de portería,
-                    un día puntual, algo que avisar?{' '}
-                    <a
-                      href={wpp.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-brand-neon underline"
-                    >
-                      Escribinos por WhatsApp
-                    </a>{' '}
-                    y lo coordinamos.
-                  </p>
                 )}
               </div>
             )}
