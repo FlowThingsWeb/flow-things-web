@@ -7,15 +7,18 @@
  *
  * Las reglas, tal como las definió el negocio:
  *
- *   · La franja es siempre de 10 a 16.
+ *   · La franja es siempre de 10 a 18.
  *   · Comprando antes de las 16, se puede entregar ese mismo día: la primera
  *     franja es lo que queda de hoy.
  *   · Comprando de 16 en adelante, la primera franja es el día hábil
  *     siguiente a partir de las 10.
  *   · La última franja es 48 horas hábiles después de la compra, con la hora
- *     de la compra como corte. Comprando el martes 15:00 el jueves se ofrece
- *     hasta las 15:00; comprando el martes 17:00, hasta las 16:00 (el corte
- *     caería 17:00 y la franja termina a las 16:00).
+ *     de la compra como corte.
+ *
+ * Las 16 y las 18 son dos cosas distintas y por eso son dos constantes: a las
+ * 16 cierra el despacho —después de esa hora la compra ya no sale hoy— y a las
+ * 18 cierra la recepción, porque un paquete que sale 16:00 puede estar
+ * llegando a las 18:00. Antes eran el mismo número y el margen no existía.
  *   · Sábados y domingos no cuentan: ni para entregar ni para contar las 48
  *     horas.
  *
@@ -40,7 +43,10 @@ export const FERIADOS: string[] = [
 const ES_FERIADO = new Set(FERIADOS);
 
 export const HORA_DESDE = 10;
-export const HORA_HASTA = 16;
+/** Hasta qué hora el comprador puede recibir. */
+export const HORA_HASTA = 18;
+/** Después de esta hora, la compra ya no sale el mismo día. */
+export const HORA_CORTE_DESPACHO = 16;
 /** Días hábiles que se pueden ofrecer hacia adelante. 48 horas hábiles = 2 días. */
 const DIAS_HABILES = 2;
 
@@ -132,7 +138,7 @@ export function franjasEntrega(ahora: Date = new Date()): FranjaEntrega[] {
   // Primer día ofrecible y desde qué hora.
   let primerDia: string;
   let primeraHora: number;
-  if (esHabil(hoy) && hora < HORA_HASTA) {
+  if (esHabil(hoy) && hora < HORA_CORTE_DESPACHO) {
     primerDia = hoy;
     // Lo que queda de hoy. Antes de las 10 la franja arranca a las 10; si ya
     // empezó, arranca en la hora en curso (los minutos se redondean hacia

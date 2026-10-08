@@ -15,6 +15,7 @@ import CuotasMP from '@/components/CuotasMP'
 import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
 import { franjasEntrega, type FranjaEntrega } from '@/lib/franjas-entrega'
+import { useWhatsApp } from '@/components/ContactoProvider'
 import { leerDestino, guardarDestino } from '@/lib/destino-envio'
 import { getZonaEnvio, seCobraPorDistancia } from '@/lib/zonas-envio'
 
@@ -201,6 +202,15 @@ function CarritoContent() {
   const [franjas, setFranjas] = useState<FranjaEntrega[]>([])
   const [franjasElegidas, setFranjasElegidas] = useState<string[]>([])
   const esCercania = envioSeleccionado?.id === 'cercania'
+  /**
+   * "Mi dirección no tiene piso ni departamento".
+   *
+   * Arranca destildada y, mientras lo esté, los dos campos son obligatorios:
+   * el piso y el depto faltantes son la causa más común de un envío que llega
+   * a la puerta y vuelve. Quien vive en casa lo tilda una vez y listo.
+   */
+  const [sinPisoDepto, setSinPisoDepto] = useState(false)
+  const wpp = useWhatsApp()
 
   /**
    * Las franjas se calculan en el navegador al elegir el envío, con la hora
@@ -418,6 +428,8 @@ function CarritoContent() {
       return 'Completá tus datos de contacto'
     if (!form.direccion.trim() || !form.ciudad.trim() || !form.provincia.trim() || !form.codigo_postal.trim())
       return 'Cargá tu dirección de envío'
+    if (!sinPisoDepto && (!form.piso?.trim() || !form.departamento?.trim()))
+      return 'Completá piso y depto, o marcá que tu dirección no tiene'
     if (calculandoEnvio) return 'Calculando el envío…'
     if (envioError) return 'Revisá tu dirección para calcular el envío'
     if (!envioSeleccionado) return 'Elegí cómo querés recibir el pedido'
@@ -538,6 +550,11 @@ function CarritoContent() {
 
     if (!form.direccion.trim() || !form.ciudad.trim() || !form.provincia.trim() || !form.codigo_postal.trim()) {
       setError('Buscá tu dirección en el mapa (o cargala a mano) para completar los datos de envío.')
+      return
+    }
+
+    if (!sinPisoDepto && (!form.piso?.trim() || !form.departamento?.trim())) {
+      setError('Completá piso y depto, o marcá la casilla si tu dirección no tiene.')
       return
     }
 
@@ -874,32 +891,53 @@ function CarritoContent() {
             )}
 
             {/* Piso + Depto — lo único que se carga a mano */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="piso" className="block text-sm font-medium text-brand-text-muted mb-1">Piso <span className="text-brand-text-light font-normal">(opcional)</span></label>
-                <input
-                  type="text"
-                  id="piso"
-                  name="piso"
-                  value={form.piso ?? ''}
-                  onChange={handleChange}
-                  className="input-dark"
-                  placeholder="3"
-                />
+            {!sinPisoDepto && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="piso" className="block text-sm font-medium text-brand-text-muted mb-1">Piso</label>
+                  <input
+                    type="text"
+                    id="piso"
+                    name="piso"
+                    value={form.piso ?? ''}
+                    onChange={handleChange}
+                    className="input-dark"
+                    placeholder="3"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="departamento" className="block text-sm font-medium text-brand-text-muted mb-1">Depto</label>
+                  <input
+                    type="text"
+                    id="departamento"
+                    name="departamento"
+                    value={form.departamento ?? ''}
+                    onChange={handleChange}
+                    className="input-dark"
+                    placeholder="B"
+                  />
+                </div>
               </div>
-              <div>
-                <label htmlFor="departamento" className="block text-sm font-medium text-brand-text-muted mb-1">Depto <span className="text-brand-text-light font-normal">(opcional)</span></label>
-                <input
-                  type="text"
-                  id="departamento"
-                  name="departamento"
-                  value={form.departamento ?? ''}
-                  onChange={handleChange}
-                  className="input-dark"
-                  placeholder="B"
-                />
-              </div>
-            </div>
+            )}
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sinPisoDepto}
+                onChange={(e) => {
+                  setSinPisoDepto(e.target.checked)
+                  // Lo que se tilda se borra: si no hay piso, no se manda uno
+                  // escrito antes de tildar.
+                  if (e.target.checked) {
+                    setForm((f) => ({ ...f, piso: '', departamento: '' }))
+                  }
+                }}
+                className="accent-brand-purple"
+              />
+              <span className="text-sm text-brand-text-muted">
+                Mi dirección no cuenta con piso o departamento
+              </span>
+            </label>
 
             {/* Aviso si el mapa no trajo algún dato clave */}
             {form.direccion && (!form.codigo_postal || !form.provincia) && (
@@ -1071,6 +1109,21 @@ function CarritoContent() {
                       )
                     })}
                   </div>
+                )}
+                {wpp.href && (
+                  <p className="text-xs text-brand-text-muted mt-3">
+                    ¿Tenés alguna restricción para recibir —horario de portería,
+                    un día puntual, algo que avisar?{' '}
+                    <a
+                      href={wpp.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-neon underline"
+                    >
+                      Escribinos por WhatsApp
+                    </a>{' '}
+                    y lo coordinamos.
+                  </p>
                 )}
               </div>
             )}
