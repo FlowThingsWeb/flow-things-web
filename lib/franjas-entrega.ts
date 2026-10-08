@@ -37,7 +37,16 @@
  * esconder dos días de entregas).
  */
 export const FERIADOS: string[] = [
-  "2026-10-12", // Día del Respeto a la Diversidad Cultural
+  // 2026 — lo que queda del año
+  "2026-10-12", // Diversidad Cultural
+  "2026-11-23", // Soberanía Nacional (trasladado del viernes 20)
+  "2026-12-07", // No laborable con fines turísticos
+  "2026-12-08", // Inmaculada Concepción
+  "2026-12-25", // Navidad
+  // 2027 — sólo el Año Nuevo, que es inamovible y no depende de ningún
+  // decreto. Va cargado porque una compra del 30 de diciembre ofrece franjas
+  // de enero, y sin esto el sistema ofrecería entregar el 1º.
+  "2027-01-01", // Año Nuevo
 ];
 
 const ES_FERIADO = new Set(FERIADOS);
