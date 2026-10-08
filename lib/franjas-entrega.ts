@@ -19,10 +19,25 @@
  *   · Sábados y domingos no cuentan: ni para entregar ni para contar las 48
  *     horas.
  *
- * No contempla feriados: no hay calendario de feriados en el sitio y meter uno
- * a mano envejece mal. Un feriado en el medio corre la entrega un día, y eso
- * se arregla hablando con el comprador.
+ * Los feriados se listan abajo, a mano: no hay forma de calcularlos —los
+ * trasladables y los puentes turísticos salen por decreto— y pedirlos a una API
+ * en el checkout sería colgar una venta de que un tercero conteste.
  */
+
+/**
+ * Feriados nacionales, en hora de Buenos Aires.
+ *
+ * Un feriado no es día hábil: no se entrega y no cuenta para las 48 horas.
+ * Hay que extenderla cada año; el 31 de diciembre del último año cargado el
+ * cálculo empieza a tratar feriados como días comunes, que es el modo de fallar
+ * menos grave (ofrece una franja que después hay que reprogramar, en vez de
+ * esconder dos días de entregas).
+ */
+export const FERIADOS: string[] = [
+  "2026-10-12", // Día del Respeto a la Diversidad Cultural
+];
+
+const ES_FERIADO = new Set(FERIADOS);
 
 export const HORA_DESDE = 10;
 export const HORA_HASTA = 16;
@@ -69,7 +84,7 @@ function diaSemana(dia: string): number {
 
 const esHabil = (dia: string) => {
   const d = diaSemana(dia);
-  return d !== 0 && d !== 6;
+  return d !== 0 && d !== 6 && !ES_FERIADO.has(dia);
 };
 
 function sumarDias(dia: string, n: number): string {
