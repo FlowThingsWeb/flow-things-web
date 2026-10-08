@@ -74,6 +74,8 @@ export interface DatosComprador {
   provincia: string
   codigo_postal: string
   dni?: string
+  /** El comprador declaró que la dirección no tiene piso ni departamento. */
+  sin_piso_depto?: boolean
   // Datos de envío (guardados dentro de datos_comprador en la DB)
   envio_tipo?: string | null
   envio_nombre?: string | null

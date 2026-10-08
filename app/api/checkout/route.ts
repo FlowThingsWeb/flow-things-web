@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
       envio_tipo,
       envio_nombre,
       franjas_entrega,
+      sin_piso_depto,
     }: {
       items: ItemOrden[]
       comprador: DatosComprador
@@ -37,6 +38,8 @@ export async function POST(request: NextRequest) {
        * haya escrito para ese día (sólo envío por cercanía).
        */
       franjas_entrega?: { etiqueta?: string; restriccion?: string | null }[] | null
+      /** El comprador declaró que su dirección no tiene piso ni departamento. */
+      sin_piso_depto?: boolean
       // Nota: envio_costo ya no se acepta del frontend — se recalcula en el servidor
     } = await request.json()
 
@@ -47,6 +50,26 @@ export async function POST(request: NextRequest) {
     // Envío obligatorio — debe venir envio_tipo para que el servidor lo valide y calcule
     if (!envio_tipo) {
       return NextResponse.json({ error: 'Debe seleccionar una opción de envío' }, { status: 400 })
+    }
+
+    /**
+     * Piso y depto son obligatorios salvo que el comprador declare que su
+     * dirección no tiene.
+     *
+     * La validación del navegador sola no alcanza: un piso que falta es la
+     * causa más común de un envío que llega a la puerta y vuelve, y acá se
+     * cobra. Con la casilla tildada se acepta sin ellos, y queda registrado
+     * que fue una decisión y no un olvido.
+     */
+    if (
+      envio_tipo !== 'retiro' &&
+      !sin_piso_depto &&
+      (!comprador?.piso?.trim() || !comprador?.departamento?.trim())
+    ) {
+      return NextResponse.json(
+        { error: 'Completá piso y depto, o marcá que tu dirección no tiene.' },
+        { status: 409 },
+      )
     }
 
     // ─── 1. Validar stock Y precios desde la DB ─────────────────────────────
@@ -262,6 +285,7 @@ export async function POST(request: NextRequest) {
             ...(franjasGuardadas.length > 0
               ? { franjas_entrega: franjasGuardadas }
               : {}),
+            ...(sin_piso_depto ? { sin_piso_depto: true } : {}),
             ...(envioTipoFinal
               ? {
                   envio_tipo: envioTipoFinal,

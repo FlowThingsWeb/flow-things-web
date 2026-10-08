@@ -617,6 +617,9 @@ function CarritoContent() {
           primer_compra: primerCompraDescuento,
           envio_tipo: envioSeleccionado?.modalidad ?? null,
           envio_nombre: envioSeleccionado?.nombre ?? null,
+          // Que la dirección no tenga piso es un dato, no un campo vacío: sin
+          // esto, en el depósito no se distingue de "se olvidó de cargarlo".
+          sin_piso_depto: sinPisoDepto,
           franjas_entrega: esCercania
             ? franjasElegidas.map((etiqueta) => ({
                 etiqueta,

@@ -84,6 +84,7 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
       provincia: dc.provincia ?? null,
       cp: dc.codigo_postal ?? null,
       doc_nro: dc.dni ?? null,
+      sin_piso: dc.sin_piso_depto === true,
     },
     envio_metodo: dc.envio_nombre ?? dc.envio_tipo ?? null,
     /**

@@ -86,6 +86,11 @@ export default async function OrdenDetailPage({ params }: { params: Promise<{ id
                 {comprador.provincia ? `, ${comprador.provincia}` : ''}
                 {comprador.codigo_postal ? ` (${comprador.codigo_postal})` : ''}
               </p>
+              {comprador.sin_piso_depto && (
+                <p className="text-xs text-yellow-300 mt-1">
+                  🏠 El comprador aclaró que la dirección no tiene piso ni departamento
+                </p>
+              )}
             </div>
           )}
         </div>
