@@ -1128,8 +1128,11 @@ function CarritoContent() {
                           </label>
                           {elegida && (
                             <div className="px-3 pb-3">
-                              <input
-                                type="text"
+                              {/* Textarea y no input: en el celular —que es
+                                  de dónde entra casi toda la gente— un input
+                                  de una línea corta el texto a la mitad y el
+                                  comprador no ve lo que escribió. */}
+                              <textarea
                                 value={restricciones[f.etiqueta] ?? ''}
                                 onChange={(e) =>
                                   setRestricciones((prev) => ({
@@ -1137,9 +1140,10 @@ function CarritoContent() {
                                     [f.etiqueta]: e.target.value,
                                   }))
                                 }
+                                rows={2}
                                 maxLength={120}
-                                placeholder="¿Alguna restricción ese día? (opcional)"
-                                className="input-dark text-sm"
+                                placeholder="¿Alguna restricción? (opcional)"
+                                className="input-dark text-sm resize-none"
                               />
                             </div>
                           )}
