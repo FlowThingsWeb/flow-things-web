@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { crearPreferencia } from '@/lib/mercadopago'
 import { calcularEnvio } from '@/lib/envio'
+import { etiquetasValidas } from '@/lib/franjas-entrega'
 import { marcarCheckoutConvertido } from '@/lib/checkout-en-progreso'
 import { ItemOrden, DatosComprador } from '@/types'
 
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
       primer_compra,
       envio_tipo,
       envio_nombre,
+      franjas_entrega,
     }: {
       items: ItemOrden[]
       comprador: DatosComprador
@@ -30,6 +32,8 @@ export async function POST(request: NextRequest) {
       primer_compra?: boolean
       envio_tipo?: string | null
       envio_nombre?: string | null
+      /** Franjas en las que el comprador puede recibir (sólo envío por cercanía). */
+      franjas_entrega?: string[] | null
       // Nota: envio_costo ya no se acepta del frontend — se recalcula en el servidor
     } = await request.json()
 
@@ -213,6 +217,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    /**
+     * Las franjas de entrega se validan con el reloj del servidor.
+     *
+     * El navegador propone lo que calculó al abrir el checkout, pero entre eso
+     * y el pago pueden pasar horas: lo que ya no es ofrecible se descarta acá.
+     * Sólo se guardan para el envío por cercanía, el único que se coordina por
+     * hora; en los del correo no significan nada.
+     */
+    const franjasGuardadas =
+      envioTipoFinal === 'cercania' && Array.isArray(franjas_entrega)
+        ? franjas_entrega
+            .filter((f) => typeof f === 'string')
+            .map((f) => f.trim())
+            .filter((f) => etiquetasValidas().has(f))
+            .slice(0, 6)
+        : []
+
     const total = subtotalConDescuento + costoEnvio
 
     // ─── 4. Crear orden ──────────────────────────────────────────────────────
@@ -226,6 +247,9 @@ export async function POST(request: NextRequest) {
           user_id: userId,
           datos_comprador: {
             ...comprador,
+            ...(franjasGuardadas.length > 0
+              ? { franjas_entrega: franjasGuardadas }
+              : {}),
             ...(envioTipoFinal
               ? {
                   envio_tipo: envioTipoFinal,

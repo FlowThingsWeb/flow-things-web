@@ -86,6 +86,12 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
       doc_nro: dc.dni ?? null,
     },
     envio_metodo: dc.envio_nombre ?? dc.envio_tipo ?? null,
+    /**
+     * Cuándo dijo el comprador que puede recibir. Va al CRM porque es dato de
+     * despacho: sin esto habría que entrar a la tienda para saber cuándo
+     * llevar el paquete.
+     */
+    franjas_entrega: Array.isArray(dc.franjas_entrega) ? dc.franjas_entrega : null,
     items: items.map((i) => ({
       sku: i.sku,
       variante: i.variante_nombre ?? null,

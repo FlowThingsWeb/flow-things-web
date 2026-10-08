@@ -14,6 +14,7 @@ import { empezarCheckout, verCarrito, itemsDeCarrito } from '@/lib/eventos-compr
 import CuotasMP from '@/components/CuotasMP'
 import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
+import { franjasEntrega, type FranjaEntrega } from '@/lib/franjas-entrega'
 import { leerDestino, guardarDestino } from '@/lib/destino-envio'
 import { getZonaEnvio, seCobraPorDistancia } from '@/lib/zonas-envio'
 
@@ -193,6 +194,28 @@ function CarritoContent() {
   const [envioSeleccionado, setEnvioSeleccionado] = useState<OpcionEnvio | null>(null)
   const [calculandoEnvio, setCalculandoEnvio] = useState(false)
   const [envioError, setEnvioError] = useState('')
+  /**
+   * Franjas en las que el comprador puede recibir. Sólo se preguntan en el
+   * envío por cercanía: es el que sale del local y se coordina por hora.
+   */
+  const [franjas, setFranjas] = useState<FranjaEntrega[]>([])
+  const [franjasElegidas, setFranjasElegidas] = useState<string[]>([])
+  const esCercania = envioSeleccionado?.id === 'cercania'
+
+  /**
+   * Las franjas se calculan en el navegador al elegir el envío, con la hora
+   * del momento. El servidor las vuelve a calcular con su propio reloj al
+   * cobrar: acá se muestran, allá se validan.
+   */
+  useEffect(() => {
+    if (!esCercania) {
+      setFranjas([])
+      setFranjasElegidas([])
+      return
+    }
+    setFranjas(franjasEntrega())
+    setFranjasElegidas([])
+  }, [esCercania])
   const [envioCalculado, setEnvioCalculado] = useState(false)
   // Fallback: editar la dirección a mano si Google no la ubicó bien.
   const [editarManual, setEditarManual] = useState(false)
@@ -398,6 +421,10 @@ function CarritoContent() {
     if (calculandoEnvio) return 'Calculando el envío…'
     if (envioError) return 'Revisá tu dirección para calcular el envío'
     if (!envioSeleccionado) return 'Elegí cómo querés recibir el pedido'
+    // En el envío por cercanía la franja es parte del pedido: sin ella no se
+    // puede coordinar la entrega.
+    if (esCercania && franjas.length > 0 && franjasElegidas.length === 0)
+      return 'Marcá cuándo podés recibirlo'
     return null
   })()
 
@@ -519,6 +546,11 @@ function CarritoContent() {
       return
     }
 
+    if (esCercania && franjas.length > 0 && franjasElegidas.length === 0) {
+      setError('Marcá al menos una franja en la que puedas recibir el pedido.')
+      return
+    }
+
     setLoading(true)
 
     // Arrancó el checkout: a Meta y a GA4.
@@ -562,6 +594,7 @@ function CarritoContent() {
           primer_compra: primerCompraDescuento,
           envio_tipo: envioSeleccionado?.modalidad ?? null,
           envio_nombre: envioSeleccionado?.nombre ?? null,
+          franjas_entrega: esCercania ? franjasElegidas : null,
           // envio_costo NO se envía: el servidor lo recalcula desde la config.
         }),
       })
@@ -992,6 +1025,53 @@ function CarritoContent() {
                     </span>
                   </label>
                 ))}
+              </div>
+            )}
+
+            {esCercania && (
+              <div className="mt-4 border-t border-brand-border pt-4">
+                <p className="text-sm font-medium text-white">
+                  ¿Cuándo podés recibirlo?
+                </p>
+                <p className="text-xs text-brand-text-muted mt-0.5">
+                  Marcá todas las franjas que te sirvan: con más de una es más
+                  fácil que llegue antes.
+                </p>
+                {franjas.length === 0 ? (
+                  <p className="text-xs text-brand-text-muted mt-2">
+                    Te escribimos para coordinar el día y la hora.
+                  </p>
+                ) : (
+                  <div className="space-y-2 mt-3">
+                    {franjas.map((f) => {
+                      const elegida = franjasElegidas.includes(f.etiqueta)
+                      return (
+                        <label
+                          key={f.etiqueta}
+                          className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                            elegida
+                              ? 'border-brand-purple bg-brand-purple/10'
+                              : 'border-brand-border hover:border-brand-purple/50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={elegida}
+                            onChange={() =>
+                              setFranjasElegidas((prev) =>
+                                prev.includes(f.etiqueta)
+                                  ? prev.filter((x) => x !== f.etiqueta)
+                                  : [...prev, f.etiqueta],
+                              )
+                            }
+                            className="accent-brand-purple"
+                          />
+                          <span className="text-sm text-white">{f.etiqueta}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
