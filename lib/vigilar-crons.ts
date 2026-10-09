@@ -32,19 +32,35 @@ export type CronVigilado = {
 }
 
 export const CRONS_DE_PRECIOS: CronVigilado[] = [
-  // Gracia de 8 y no 6: sobre 27 corridas programadas la demora mediana es de
-  // 3,9 h y el p90 de 5,8, así que 6 corta justo arriba de lo habitual. El
-  // 28/9/2026 GitHub lo largó 7h25 tarde, el aviso salió a las 17:09 y la
-  // corrida llegó a las 18:34 — hizo su trabajo entero y bien. Con 8 ninguna de
-  // las 27 se habría perdido de vista y no hay falsas alarmas.
-  { clave: 'ciclo-promociones', nombre: 'Ciclo de promociones ML (CRM)', hora: 11, minuto: 9, gracia: 8 },
-  { clave: 'avisar-ml', nombre: 'Avisar cambios de precios de ML', hora: 12, minuto: 13, gracia: 6 },
-  { clave: 'precios-sugeridos', nombre: 'Precios sugeridos ML', hora: 12, minuto: 37, gracia: 6 },
-  { clave: 'promociones-por-vencer', nombre: 'Promociones por vencer ML', hora: 12, minuto: 49, gracia: 6 },
-  { clave: 'promociones-disponibles', nombre: 'Promociones disponibles ML', hora: 13, minuto: 11, gracia: 6 },
+  /**
+   * Gracia de 9 para todos los de precios, medida y no estimada.
+   *
+   * Sobre las últimas 12 corridas programadas de cada uno (28/9 al 9/10/2026)
+   * la demora de GitHub fue:
+   *
+   *     cron                      mediana   máxima
+   *     ciclo-promociones           6,2 h    8,4 h
+   *     avisar-ml                   6,1 h    8,3 h
+   *     precios-sugeridos           5,9 h    8,1 h
+   *     promociones-por-vencer      5,8 h    8,0 h
+   *     promociones-disponibles     5,5 h    7,9 h
+   *     ajustar-precios             5,5 h    7,8 h
+   *
+   * Con 6 el aviso salía antes que la corrida en la mayoría de los días: el
+   * 9/10 avisó a las 18:13 y avisar-ml llegó a las 18:18, cinco minutos
+   * después. Un aviso que casi siempre es falsa alarma se deja de leer, que es
+   * exactamente como se pierde el día que sí importa.
+   *
+   * 9 deja ~40 minutos de aire sobre la peor demora vista. Si GitHub empeora,
+   * se vuelve a medir: el número sale de los datos, no de la intuición.
+   */
+  { clave: 'ciclo-promociones', nombre: 'Ciclo de promociones ML (CRM)', hora: 11, minuto: 9, gracia: 9 },
+  { clave: 'avisar-ml', nombre: 'Avisar cambios de precios de ML', hora: 12, minuto: 13, gracia: 9 },
+  { clave: 'precios-sugeridos', nombre: 'Precios sugeridos ML', hora: 12, minuto: 37, gracia: 9 },
+  { clave: 'promociones-por-vencer', nombre: 'Promociones por vencer ML', hora: 12, minuto: 49, gracia: 9 },
+  { clave: 'promociones-disponibles', nombre: 'Promociones disponibles ML', hora: 13, minuto: 11, gracia: 9 },
   // Corre último, después de que el ciclo del CRM actualizó los precios de ML.
-  // Gracia de 8 y no 6: históricamente es el que más tarde llegó (hasta 6h50).
-  { clave: 'ajustar-precios', nombre: 'Ajustar precios de la tienda', hora: 13, minuto: 23, gracia: 8 },
+  { clave: 'ajustar-precios', nombre: 'Ajustar precios de la tienda', hora: 13, minuto: 23, gracia: 9 },
 ]
 
 /**
