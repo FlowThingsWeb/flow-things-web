@@ -12,6 +12,7 @@ import { sendWhatsApp, DEFAULT_WPP_MENSAJE } from './whatsapp'
 import { formatMonto } from './format'
 import { enqueueJob } from './jobs'
 import { crmHabilitado } from './crm'
+import { firmaCarrito, firmaOrden } from './compra-identica'
 import { revalidateTag } from 'next/cache'
 
 const paymentClient = new Payment(new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! }))
@@ -129,6 +130,33 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
       await supabaseAdmin
         .from('descuentos_usos_usuario')
         .upsert({ codigo_id: codigoRow.id, user_id: orden.user_id }, { onConflict: 'codigo_id,user_id' })
+    }
+  }
+
+  // ─── Vaciar el carrito guardado si quedó con lo que se acaba de comprar ─────
+  //
+  // `clearCart()` vive en /exito y corre sólo si el comprador vuelve desde
+  // Mercado Pago y se queda hasta que el poll confirma la orden. El que paga
+  // en el celular y cierra la pestaña nunca pasa por ahí, y el carrito queda
+  // con lo que ya está pago. Acá no depende del navegador.
+  //
+  // Se borra sólo si coincide EXACTO con lo comprado: si mientras tanto agregó
+  // otra cosa, eso es un carrito nuevo y no se toca.
+  if (orden.user_id) {
+    try {
+      const { data: carrito } = await supabaseAdmin
+        .from('carritos_guardados')
+        .select('items')
+        .eq('user_id', orden.user_id)
+        .maybeSingle()
+      if (carrito && firmaCarrito(carrito.items) === firmaOrden(orden.items)) {
+        await supabaseAdmin
+          .from('carritos_guardados')
+          .delete()
+          .eq('user_id', orden.user_id)
+      }
+    } catch (e: any) {
+      console.error('[procesar-pago] Error vaciando el carrito guardado:', e.message)
     }
   }
 

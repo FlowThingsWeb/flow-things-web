@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { firmaCarrito, firmaOrden } from '@/lib/firma-carrito'
 
 /**
  * Un carrito que es exactamente lo que la persona ya compró no está abandonado.
@@ -21,38 +22,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
  * persona, no se le escribe y no aparece en el panel.
  */
 
-/** Clave de una línea: producto, variante y cantidad. */
-function linea(productoId: unknown, varianteId: unknown, cantidad: unknown): string {
-  const p = String(productoId ?? '')
-  const v = varianteId == null || varianteId === '' ? '' : String(varianteId)
-  const c = Number(cantidad) || 1
-  return `${p}::${v}::${c}`
-}
-
-/**
- * Firma de un carrito guardado o de un checkout en progreso.
- *
- * Se ordena para que el orden en que se agregaron las cosas no cambie la
- * firma: el mismo carrito armado al revés tiene que dar lo mismo.
- */
-export function firmaCarrito(items: unknown): string {
-  if (!Array.isArray(items) || items.length === 0) return ''
-  return items
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((i: any) => linea(i?.producto?.id ?? i?.id, i?.varianteId ?? i?.variante_id, i?.cantidad))
-    .sort()
-    .join('|')
-}
-
-/** Firma de los ítems de una orden. Misma forma canónica que `firmaCarrito`. */
-export function firmaOrden(items: unknown): string {
-  if (!Array.isArray(items) || items.length === 0) return ''
-  return items
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((i: any) => linea(i?.id, i?.variante_id, i?.cantidad))
-    .sort()
-    .join('|')
-}
+export { firmaCarrito, firmaOrden } from '@/lib/firma-carrito'
 
 export type FirmasCompradas = {
   /** Firmas de lo que compró cada usuario logueado. */
