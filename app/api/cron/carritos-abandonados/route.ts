@@ -6,6 +6,7 @@ import { armarMailCarrito } from '@/lib/carrito-abandonado'
 import { formatMonto } from '@/lib/format'
 import { enviarRecordatorioCheckout } from '@/lib/checkout-abandonado'
 import { enviarRecordatorioCheckoutEnProgreso } from '@/lib/checkout-en-progreso'
+import { cargarFirmasCompradas, esCompraYaHecha } from '@/lib/compra-identica'
 
 export const maxDuration = 60
 
@@ -68,7 +69,18 @@ export async function GET(request: NextRequest) {
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
   let enviados = 0
   let yaCompraron = 0
+  let yaCompradoIdentico = 0
   const porEtapa: Record<string, number> = {}
+
+  /**
+   * Firmas de lo que cada persona ya compró, para el chequeo por contenido.
+   *
+   * Es lo que agarra el caso que la comparación de fechas no ve: el carrito
+   * que se vuelve a guardar DESPUÉS de pagar queda con `updated_at` posterior
+   * a la compra y además con las etapas reseteadas, así que por fecha parece
+   * un carrito nuevo cuando es el resto de una compra hecha.
+   */
+  const firmas = await cargarFirmasCompradas()
 
   /**
    * Quién ya compró, y cuándo.
@@ -117,6 +129,18 @@ export async function GET(request: NextRequest) {
       continue
     }
 
+    /**
+     * El carrito es exactamente una compra que ya hizo.
+     *
+     * No se marca ninguna etapa: no se mandó nada, y escribir una fecha ahí
+     * ensuciaría la lectura de cuál etapa convierte. La fila se vuelve a
+     * evaluar en cada corrida hasta que sale sola de la ventana de 21 días.
+     */
+    if (esCompraYaHecha(firmas, items, { userId: c.user_id })) {
+      yaCompradoIdentico++
+      continue
+    }
+
     // Email del usuario
     const { data: userRes } = await supabaseAdmin.auth.admin.getUserById(c.user_id)
     const email = userRes?.user?.email
@@ -126,6 +150,12 @@ export async function GET(request: NextRequest) {
     const compraDelEmail = compraPorEmail.get(email.toLowerCase())
     if (compraDelEmail && compraDelEmail > c.updated_at) {
       yaCompraron++
+      continue
+    }
+
+    // Misma idea que arriba, para la compra hecha sin la sesión iniciada.
+    if (esCompraYaHecha(firmas, items, { email })) {
+      yaCompradoIdentico++
       continue
     }
 
@@ -254,6 +284,21 @@ export async function GET(request: NextRequest) {
       continue
     }
 
+    /**
+     * Lo mismo por contenido: el checkout quedó con exactamente lo que ya
+     * compró. Acá sí se marca `convertido_at`, porque es lo que esa columna
+     * significa —este checkout terminó en compra— y así la fila deja de
+     * mirarse en cada corrida.
+     */
+    if (esCompraYaHecha(firmas, items, { email: String(c.email) })) {
+      await supabaseAdmin
+        .from('checkouts_en_progreso')
+        .update({ convertido_at: new Date().toISOString() })
+        .eq('id', c.id)
+      yaCompradoIdentico++
+      continue
+    }
+
     const res = await enviarRecordatorioCheckoutEnProgreso(c.id, etapa.clave)
     if (!res.ok) {
       console.error('[checkout-en-progreso] no se pudo enviar a', c.email, res.error)
@@ -275,6 +320,8 @@ export async function GET(request: NextRequest) {
     por_etapa: porEtapa,
     // Los que estaban en ventana pero ya habían comprado.
     salteados_por_compra: yaCompraron,
+    // Los que quedaron con exactamente lo que ya está pago.
+    salteados_por_compra_identica: yaCompradoIdentico,
     checkouts_candidatos: pendientes?.length ?? 0,
     checkouts_enviados: enviadosCk,
     en_progreso_candidatos: enProgreso?.length ?? 0,

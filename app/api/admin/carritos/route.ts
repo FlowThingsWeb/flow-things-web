@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { verifyAdminToken } from '@/lib/admin-auth'
+import { cargarFirmasCompradas, esCompraYaHecha } from '@/lib/compra-identica'
 
 // GET — carritos guardados con ítems (usuarios logueados que no finalizaron).
 export async function GET(req: NextRequest) {
@@ -12,8 +13,20 @@ export async function GET(req: NextRequest) {
     .select('user_id, items, updated_at, recordatorio_enviado')
     .order('updated_at', { ascending: false })
 
+  /**
+   * Fuera los que son exactamente una compra ya hecha.
+   *
+   * El carrito guardado no se vacía al pagar si el comprador no vuelve a
+   * /exito, así que el resto de una compra quedaba listado como colgado. No
+   * es un carrito abandonado: no hay nada que recuperar ahí.
+   */
+  const firmas = await cargarFirmasCompradas()
+
   const conItems = (carritos || []).filter(
-    (c) => Array.isArray(c.items) && c.items.length > 0,
+    (c) =>
+      Array.isArray(c.items) &&
+      c.items.length > 0 &&
+      !esCompraYaHecha(firmas, c.items, { userId: c.user_id }),
   )
   if (conItems.length === 0) return NextResponse.json({ data: [] })
 

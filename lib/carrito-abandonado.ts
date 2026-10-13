@@ -4,6 +4,7 @@ import {
   BLOQUE_CUPON_CARRITO, CARRITO_ETAPAS, DEFAULT_CARRITO_CUERPO, type EtapaCarrito,
 } from '@/lib/email-constants'
 import { formatMonto } from '@/lib/format'
+import { cargarFirmasCompradas, esCompraYaHecha } from '@/lib/compra-identica'
 
 /**
  * Asunto y cuerpo del recordatorio de carrito para una etapa.
@@ -55,6 +56,15 @@ export async function enviarRecordatorioCarrito(
   const { data: userRes } = await supabaseAdmin.auth.admin.getUserById(userId)
   const email = userRes?.user?.email
   if (!email) return { ok: false, error: 'El usuario no tiene email.' }
+
+  /**
+   * También acá, no sólo en el cron: el envío manual del admin es el que más
+   * fácil se dispara por error, porque el carrito se ve lleno en la pantalla.
+   */
+  const firmas = await cargarFirmasCompradas()
+  if (esCompraYaHecha(firmas, items, { userId, email })) {
+    return { ok: false, error: 'Ese carrito es exactamente una compra que ya hizo.' }
+  }
 
   const { data: perfil } = await supabaseAdmin
     .from('perfiles').select('nombre').eq('user_id', userId).single()
