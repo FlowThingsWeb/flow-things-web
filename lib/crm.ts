@@ -88,6 +88,16 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
     },
     envio_metodo: dc.envio_nombre ?? dc.envio_tipo ?? null,
     /**
+     * El identificador del método, además del nombre.
+     *
+     * `envio_metodo` es lo que ve el comprador y sale de una variable de
+     * configuración de la tienda: si se renombra, el CRM deja de reconocer
+     * los envíos por km y los manda al circuito equivocado sin que nada
+     * falle a la vista. `envio_tipo` ('cercania', 'amba', 'bsas',
+     * 'interior', 'retiro') lo pone el cotizador y no cambia.
+     */
+    envio_tipo: dc.envio_tipo ?? null,
+    /**
      * Cuándo dijo el comprador que puede recibir. Va al CRM porque es dato de
      * despacho: sin esto habría que entrar a la tienda para saber cuándo
      * llevar el paquete.
