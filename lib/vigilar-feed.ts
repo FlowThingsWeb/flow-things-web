@@ -80,24 +80,59 @@ export async function revisarFeed(base?: string): Promise<ProblemaFeed[]> {
    * recién generado. La caché de una hora se queda como está, que es la que
    * aguanta las ráfagas de rastreo.
    */
-  const urlFresca = `${url}?v=${Date.now()}`
 
-  let xml: string
-  try {
-    const r = await fetch(urlFresca, { signal: AbortSignal.timeout(30_000), cache: 'no-store' })
-    if (!r.ok) {
-      return [{
-        clave: 'feed-caido',
-        titulo: 'El feed de Google no responde',
-        detalle: `${url} contestó ${r.status}. Google no puede leer el catálogo; los productos se van a ir venciendo.`,
-      }]
+  /**
+   * Se pide dos veces antes de dar el feed por caído.
+   *
+   * El 19/10/2026 a las 11:02 el aviso salió con "The operation was aborted due
+   * to timeout" y para cuando se miró el feed contestaba en medio segundo, con
+   * los 161 items enteros. No hubo deploy ese día: fue un tropezón de una sola
+   * pasada —arranque en frío, o la base lenta un momento—. Un aviso que grita
+   * por eso enseña a ignorarlo, que es peor que no tenerlo.
+   *
+   * El primer intento, además de medir, deja la función caliente: si lo que
+   * falló fue el arranque, el segundo pasa. Que fallen los dos ya no es ruido.
+   *
+   * El presupuesto total no sube: 2 × 15s + 3s de espera son los mismos ~33s
+   * que costaba el intento único de 30s. Importa porque esto cuelga del cron
+   * que procesa la cola de jobs, que tiene 60s para todo y manda los mails de
+   * los pedidos —si se queda sin tiempo, se pierde algo que importa más que
+   * este chequeo—.
+   */
+  const INTENTOS = 2
+  const ESPERA_MS = 3_000
+  const TIMEOUT_MS = 15_000
+
+  let xml: string | null = null
+  let ultimoFallo = ''
+
+  for (let intento = 1; intento <= INTENTOS; intento++) {
+    if (intento > 1) await new Promise(r => setTimeout(r, ESPERA_MS))
+    try {
+      // Clave de caché nueva en cada intento: dos pasadas al mismo `?v=` las
+      // serviría el borde, y el reintento no probaría nada.
+      const r = await fetch(`${url}?v=${Date.now()}`, {
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        cache: 'no-store',
+      })
+      if (!r.ok) {
+        ultimoFallo = `contestó ${r.status}`
+        continue
+      }
+      xml = await r.text()
+      break
+    } catch (e: any) {
+      ultimoFallo = String(e?.message ?? e)
     }
-    xml = await r.text()
-  } catch (e: any) {
+  }
+
+  if (xml === null) {
     return [{
       clave: 'feed-caido',
       titulo: 'El feed de Google no responde',
-      detalle: `No se pudo pedir ${url}: ${e?.message ?? e}`,
+      detalle:
+        `${url} falló ${INTENTOS} veces seguidas; la última, ${ultimoFallo}. ` +
+        'Mientras no conteste, Google no puede leer el catálogo y los productos se van venciendo.',
     }]
   }
 
@@ -182,12 +217,26 @@ export function htmlDeProblemasFeed(problemas: ProblemaFeed[], base?: string): s
     </li>`)
     .join('')
 
+  /**
+   * Que el feed no nos haya contestado NO quiere decir que Google se lo haya
+   * perdido: Google lo lee una vez por día, así que un rato sin responder puede
+   * no cruzarse con su rastreo. El resto de los problemas —un atributo
+   * prohibido, un & suelto— sí los ve seguro, porque están en el archivo.
+   *
+   * Decir lo mismo en los dos casos hace que el aviso fuerte se lea como el
+   * flojo. Van separados a propósito.
+   */
+  const soloCaido = problemas.every(p => p.clave === 'feed-caido')
+  const entrada = soloCaido
+    ? `Al pedir <a href="${url}" style="color:#7C3AED">${url}</a> no contestó.
+       Google lo lee una vez por día, así que puede no habérselo cruzado; si
+       cuando abrís el link responde bien, ya está. Si vuelve a avisar, no.`
+    : `Google lee <a href="${url}" style="color:#7C3AED">${url}</a> una vez por día. Mientras esto siga así, los
+       productos afectados no se muestran ni en anuncios de Shopping ni en fichas gratuitas.`
+
   return `<div style="font-family:Helvetica,Arial,sans-serif;max-width:640px">
   <h2 style="font-size:18px;color:#b91c1c;margin:0 0 6px">El feed de Google tiene problemas</h2>
-  <p style="font-size:14px;color:#444;line-height:1.6;margin:0 0 16px">
-    Google lee <a href="${url}" style="color:#7C3AED">${url}</a> una vez por día. Mientras esto siga así, los
-    productos afectados no se muestran ni en anuncios de Shopping ni en fichas gratuitas.
-  </p>
+  <p style="font-size:14px;color:#444;line-height:1.6;margin:0 0 16px">${entrada}</p>
   <ul style="font-size:14px;line-height:1.6;margin:0 0 16px;padding-left:20px">${items}</ul>
   <p style="font-size:13px;color:#666;line-height:1.6;margin:0">
     En septiembre de 2026 un problema de este tipo tuvo el catálogo entero sin aprobar durante ocho días
