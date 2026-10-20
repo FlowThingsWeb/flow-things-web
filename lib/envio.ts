@@ -184,8 +184,34 @@ export async function calcularEnvio(
     if (km != null) {
       const radioMax = num(cfg.envio_km_radio_max, 0)
       if (radioMax <= 0 || km <= radioMax) {
-        const base = num(cfg.envio_km_base, 0)
-        const porKm = num(cfg.envio_km_por_km, 0)
+        /**
+         * Dos tramos, porque el costo real no es una recta sola.
+         *
+         * Cabify cobra alrededor de $1.090 por km; la tarifa de cerca cobra
+         * $600. Mientras la base alcanza para tapar la diferencia el negocio
+         * cierra, y deja de cerrar enseguida: medido sobre los 15 repartos
+         * reales de septiembre y octubre, hasta ~6 km la base cubre y de ahí
+         * en adelante se pierde cada vez más —$1.099 a 8 km, $3.057 a 12,
+         * $4.525 a 15—.
+         *
+         * Subir una sola base no lo arregla: la que tapa los 15 km ($8.025)
+         * le cobra al de 6 km un 58% arriba de lo que cuesta llevarlo. Por eso
+         * el tramo lejano tiene su propio par base + $/km, elegido para pasar
+         * por el costo en los dos extremos: a 6 km cobra lo mismo que venía
+         * cobrando el tramo corto, así que no hay escalón en el corte, y a 15
+         * km llega a cubrir.
+         *
+         * Con `envio_km_corte` en 0 —el default— rige una sola tarifa y esto
+         * no existe, que es como funcionó hasta el 20/10/2026.
+         */
+        const corte = num(cfg.envio_km_corte, 0)
+        const lejos = corte > 0 && km > corte
+        const base = lejos
+          ? num(cfg.envio_km_base_lejos, num(cfg.envio_km_base, 0))
+          : num(cfg.envio_km_base, 0)
+        const porKm = lejos
+          ? num(cfg.envio_km_por_km_lejos, num(cfg.envio_km_por_km, 0))
+          : num(cfg.envio_km_por_km, 0)
         const gratisDesde = num(cfg.envio_km_gratis_desde, 0)
         const esGratis = subtotal > 0 && gratisDesde > 0 && subtotal >= gratisDesde
         // Redondeo a $100 para precios prolijos.

@@ -57,6 +57,9 @@ export interface ConfigMap {
   envio_km_origen: string        // dirección del local (origen)
   envio_km_base: string          // costo base $
   envio_km_por_km: string        // $ por km
+  envio_km_corte: string         // km a partir de los cuales rige el tramo lejano
+  envio_km_base_lejos: string    // costo base $ del tramo lejano
+  envio_km_por_km_lejos: string  // $ por km del tramo lejano
   envio_km_gratis_desde: string  // subtotal para envío gratis
   envio_km_radio_max: string     // km máximo; fuera de radio → cae a zona plana
   envio_km_nombre: string        // etiqueta mostrada
@@ -128,6 +131,11 @@ const DEFAULTS: ConfigMap = {
   envio_km_origen: '',
   envio_km_base: '2000',
   envio_km_por_km: '300',
+  // Tramo lejano apagado por defecto: con corte en 0 rige una sola tarifa, que
+  // es como funcionó hasta ahora.
+  envio_km_corte: '0',
+  envio_km_base_lejos: '',
+  envio_km_por_km_lejos: '',
   envio_km_gratis_desde: '40000',
   envio_km_radio_max: '20',
   envio_km_nombre: 'Envío a domicilio',
