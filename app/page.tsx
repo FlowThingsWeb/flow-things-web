@@ -10,12 +10,10 @@ import { Producto } from '@/types'
 import { getConfig } from '@/lib/config'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import { blurDe, getMapaBlur, imagenDeProducto } from '@/lib/blur'
-import HomeCarousel from '@/components/HomeCarousel'
 import BannerLineas from '@/components/BannerLineas'
 import LineasDestacadas from '@/components/LineasDestacadas'
 import { getPiezasBanner } from '@/lib/bannerLineas'
 import TrustBar from '@/components/TrustBar'
-import { armarCarrusel } from '@/lib/carruselHome'
 import FaqCategoria, { faqDeTienda } from '@/components/FaqCategoria'
 
 /** Primera foto usable de un producto (la propia o la de alguna variante). */
@@ -98,17 +96,7 @@ export default async function HomePage({
       getPiezasBanner(),
     ])
 
-  const slidesCarrusel = armarCarrusel(publicables)
   const faqHome = faqDeTienda(cfg)
-
-  // Blur sólo de lo que la home muestra: el mapa completo son 205 KB que se
-  // quedan en el server.
-  const blursCarrusel = Object.fromEntries(
-    slidesCarrusel.flatMap((s) => {
-      const blur = blurDe(mapaBlur, imagenDeProducto(s.producto))
-      return blur ? [[s.producto.id, blur]] : []
-    }),
-  )
 
   // Cada categoría se muestra con una foto real de su mercadería y cuántos
   // productos tiene disponibles. Una grilla de emojis no da ganas de entrar.
@@ -175,15 +163,11 @@ export default async function HomePage({
       {/* Pegado al banner, sin aire: son su continuación, no otra sección. */}
       <LineasDestacadas />
 
-      {/* Carrusel de productos — después del banner: primero qué vendemos,
-          después qué comprar hoy. */}
-      <HomeCarousel slides={slidesCarrusel} blurs={blursCarrusel} />
-
       {/* Garantías: contesta envío, cuotas, seguridad y devoluciones antes de
           que el cliente tenga que ir a buscarlo. */}
       <TrustBar envioGratisDesde={envioGratisDesde} />
 
-      {/* Hero — debajo del carrusel y compacto: sigue estando el mensaje de
+      {/* Hero — debajo del banner y compacto: sigue estando el mensaje de
           marca, pero ya no se come la pantalla de entrada. */}
       <section
         className="relative overflow-hidden bg-gradient-brand"

@@ -166,8 +166,20 @@ function Pieza({
       className={`${visible ? 'relative opacity-100' : 'pointer-events-none absolute inset-0 opacity-0'} transition-opacity duration-500`}
       style={{ background: pieza.fondo }}
     >
-      {/* Proporción del arte: 1500×700 en escritorio, más alto en el teléfono. */}
-      <div className="relative aspect-[390/620] w-full sm:aspect-[1500/700]">
+      {/*
+        Proporción del arte: 1500×700 en escritorio, más alto en el teléfono.
+
+        El tope de ancho es lo que decide el alto, porque la proporción es
+        fija: sin él, en un monitor de 1920 el banner mide 1850 de ancho y 863
+        de alto, y no entra en la pantalla. Con 1180 queda en 550, que entra
+        en un portátil con lugar para que se asome lo de abajo — y que se
+        asome es lo que hace que alguien siga bajando.
+
+        A los costados queda el color plano del fondo, que sigue a sangre. Es
+        lo mismo que hace Multiscope: su arte es de 1500 de ancho y en una
+        pantalla de 1920 lo muestra a 1009.
+      */}
+      <div className="relative mx-auto aspect-[390/620] w-full sm:aspect-[1500/700] sm:max-w-[1180px]">
         {/* Los dos arcos del isotipo, agrandados y cortados por el marco. */}
         {pieza.arco && (
           <>
