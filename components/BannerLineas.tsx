@@ -38,9 +38,9 @@ const HUECOS = [
 
 /** En vertical entran tres: el texto necesita su mitad entera. */
 const HUECOS_MOVIL = [
-  { burbuja: 'left-[4.6%] top-[5.8%] w-[52.8%] aspect-square', foto: 'left-[9%] top-[8.5%] w-[44%]', forma: '44% 56% 53% 47% / 55% 44% 56% 45%', giro: '6deg' },
-  { burbuja: 'right-[4.1%] top-[1.3%] w-[36.4%] aspect-square', foto: 'right-[7.2%] top-[3.2%] w-[30.3%]', forma: '57% 43% 48% 52% / 46% 52% 48% 54%', giro: '-8deg' },
-  { burbuja: 'right-[7.7%] top-[27.4%] w-[32.8%] aspect-square', foto: 'right-[10.5%] top-[29.2%] w-[27.2%]', forma: '52% 48% 41% 59% / 50% 56% 44% 50%', giro: '11deg' },
+  { burbuja: 'left-[4.6%] top-[5.8%] w-[52.8%] aspect-square', foto: 'left-[7%] top-[7.3%] w-[48%]', forma: '44% 56% 53% 47% / 55% 44% 56% 45%', giro: '6deg' },
+  { burbuja: 'right-[4.1%] top-[1.3%] w-[36.4%] aspect-square', foto: 'right-[5.8%] top-[2.4%] w-[33%]', forma: '57% 43% 48% 52% / 46% 52% 48% 54%', giro: '-8deg' },
+  { burbuja: 'right-[7.7%] top-[27.4%] w-[32.8%] aspect-square', foto: 'right-[9.1%] top-[28.3%] w-[30%]', forma: '52% 48% 41% 59% / 50% 56% 44% 50%', giro: '11deg' },
 ]
 
 const FAMILIAS: Record<string, string> = {
@@ -145,8 +145,18 @@ export default function BannerLineas({ piezas }: { piezas: PiezaResuelta[] }) {
         ))}
       </div>
 
+      {/*
+        Los puntos se tiñen según la pieza que esté arriba, no con un color
+        fijo. Eran `bg-white/45`, que sobre el crema de El Principito o el lila
+        de Jujutsu no se ve: el visitante no tenía manera de saber que había
+        cuatro líneas y no una.
+
+        El botón mide 6px de alto pero se toca en 32: el área clickeable es el
+        padding, no el punto. Un punto de 6px es imposible de acertar con el
+        dedo, y el 82% del tráfico entra por teléfono.
+      */}
       {total > 1 && (
-        <div className="absolute inset-x-0 bottom-3 flex justify-center gap-2 sm:bottom-4">
+        <div className="absolute inset-x-0 bottom-0 flex justify-center sm:bottom-1">
           {piezas.map((p, i) => (
             <button
               key={p.id}
@@ -157,10 +167,18 @@ export default function BannerLineas({ piezas }: { piezas: PiezaResuelta[] }) {
               }}
               aria-label={`Ver ${p.titulo}`}
               aria-current={i === activa}
-              className={`h-1.5 rounded-full transition-all ${
-                i === activa ? 'w-6 bg-brand-neon' : 'w-1.5 bg-white/45 hover:bg-white/70'
-              }`}
-            />
+              className="group px-1.5 py-3.5"
+            >
+              <span
+                className={`block h-1.5 rounded-full transition-all ${
+                  i === activa
+                    ? 'w-6 bg-brand-purple'
+                    : piezas[activa]?.claro
+                      ? 'w-1.5 bg-black/25 group-hover:bg-black/45'
+                      : 'w-1.5 bg-white/45 group-hover:bg-white/70'
+                }`}
+              />
+            </button>
           ))}
         </div>
       )}

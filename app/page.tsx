@@ -13,8 +13,23 @@ import { blurDe, getMapaBlur, imagenDeProducto } from '@/lib/blur'
 import BannerLineas from '@/components/BannerLineas'
 import LineasDestacadas from '@/components/LineasDestacadas'
 import { getPiezasBanner } from '@/lib/bannerLineas'
+import { ShoppingBag } from '@phosphor-icons/react/dist/ssr'
 import TrustBar from '@/components/TrustBar'
 import FaqCategoria, { faqDeTienda } from '@/components/FaqCategoria'
+
+/**
+ * Medios de pago que se muestran al pie de la home.
+ *
+ * Los SVG son de Simple Icons (CC0) y viven en /public/pagos: los tres vienen
+ * en un lienzo cuadrado de 24x24, por eso van todos al mismo tamaño. El
+ * width/height está escrito para que el navegador reserve el lugar y la fila
+ * no salte cuando cargan.
+ */
+const MEDIOS_DE_PAGO = [
+  { nombre: 'Mercado Pago', logo: '/pagos/mercadopago.svg' },
+  { nombre: 'Visa', logo: '/pagos/visa.svg' },
+  { nombre: 'Mastercard', logo: '/pagos/mastercard.svg' },
+]
 
 /** Primera foto usable de un producto (la propia o la de alguna variante). */
 function fotoDe(p: Producto): string | null {
@@ -106,18 +121,13 @@ export default async function HomePage({
       return {
         ...cat,
         cantidad: suyos.length,
-        foto: suyos.map(fotoDe).find(Boolean) ?? null,
+        // Tres fotos, no una: la ficha muestra un trío de productos reales.
+        fotos: suyos.map(fotoDe).filter((f): f is string => !!f).slice(0, 3),
       }
     })
-    .filter((cat) => cat.cantidad > 0)
+    .filter((cat) => cat.cantidad > 0 && cat.fotos.length > 0)
 
   const totalCatalogo = publicables.length
-
-  const categoriasIconos: Record<string, string> = {
-    libreria: '📚',
-    jugueteria: '🧸',
-    'juegos-de-mesa': '🎲',
-  }
 
   // Novedades: lo último que entró, sin repetir los destacados que ya se
   // muestran más arriba. Sale de `publicables`, así que no cuesta otra query.
@@ -167,87 +177,70 @@ export default async function HomePage({
           que el cliente tenga que ir a buscarlo. */}
       <TrustBar envioGratisDesde={envioGratisDesde} />
 
-      {/* Hero — debajo del banner y compacto: sigue estando el mensaje de
-          marca, pero ya no se come la pantalla de entrada. */}
+      {/* Banda de marca, no un segundo hero.
+          
+          Acá había un hero entero: insignia, dos titulares, bajada y dos
+          botones, debajo de un banner que ya había hecho ese trabajo. El
+          visitante llegaba a esta altura y le volvían a ofrecer "ver todos los
+          productos", algo que la grilla de categorías le ofrece diez
+          centímetros más abajo y el cierre de la página una tercera vez.
+
+          Queda la banda: el h1 —que es lo que lee Google y lo único que no
+          estaba en ningún otro lado— la bajada y la marca. Sin botones
+          repetidos y con la mitad de alto. */}
       <section
         className="relative overflow-hidden bg-gradient-brand"
         style={editMode ? { paddingTop: '40px' } : undefined}
       >
-        <div className="absolute top-20 right-20 w-96 h-96 bg-brand-purple/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 left-10 w-64 h-64 bg-brand-neon/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-10 right-10 h-72 w-72 rounded-full bg-brand-purple/20 blur-3xl pointer-events-none" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            {/* Texto */}
-            <div>
-              <div className="inline-flex items-center gap-2 bg-brand-bg-soft border border-brand-border px-4 py-2 rounded-full mb-5 animate-fade-up">
-                <span className="w-2 h-2 rounded-full bg-brand-neon animate-pulse" />
-                <span className="text-brand-text-muted text-sm font-medium">
-                  <T k="hero_badge" />
+        <div className="relative mx-auto flex w-full max-w-7xl flex-col items-start gap-8 px-4 py-10 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-12">
+          <div className="min-w-0">
+            {/* El h1 abre con lo que se busca en Google —"juguetería",
+                "librería", "online"—, que el título y la descripción ya decían
+                y él no. La frase de marca no se fue: quedó dentro del mismo
+                h1, un escalón más abajo.
+
+                Un solo degradado por titular: tenía dos palabras en degradado
+                en el mismo h1, y dos acentos compitiendo no acentúan nada. */}
+            <h1>
+              <span className="block text-2xl font-bold leading-tight text-white sm:text-3xl lg:text-4xl">
+                <T k="hero_h1_1" />{' '}
+                <span className="text-gradient-purple">
+                  <T k="hero_h1_2" />
                 </span>
-              </div>
+              </span>
+              <span className="mt-2 block text-base font-semibold leading-snug text-brand-text-muted sm:text-lg">
+                <T k="hero_titulo_1" /> <T k="hero_titulo_2" />{' '}
+                <T k="hero_titulo_3" />
+              </span>
+            </h1>
 
-              {/* El h1 abre con lo que se busca en Google —"juguetería",
-                  "librería", "online"—, que el título y la descripción ya decían
-                  y él no. La frase de marca no se fue: quedó dentro del mismo
-                  h1, un escalón más abajo. */}
-              <h1 className="mb-4 animate-fade-up">
-                <span className="block text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight">
-                  <T k="hero_h1_1" />{' '}
-                  <span className="text-gradient-purple">
-                    <T k="hero_h1_2" />
-                  </span>
-                </span>
-                <span className="block mt-3 text-lg sm:text-xl lg:text-2xl font-semibold text-brand-text-muted leading-snug">
-                  <T k="hero_titulo_1" />{' '}
-                  <span className="text-gradient-purple">
-                    <T k="hero_titulo_2" />
-                  </span>{' '}
-                  <T k="hero_titulo_3" />
-                </span>
-              </h1>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-brand-text-muted">
+              <T k="hero_subtitulo" multiline />
+            </p>
+          </div>
 
-              <p className="text-brand-text-muted text-base max-w-xl mb-7 animate-fade-up leading-relaxed">
-                <T k="hero_subtitulo" multiline />
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 animate-fade-up">
-                <Link
-                  href="/productos"
-                  className="bg-brand-purple hover:bg-brand-purple-light text-white font-semibold px-7 py-3.5 rounded-2xl transition-all hover:shadow-purple text-base text-center"
-                >
-                  <T k="hero_cta_primario" />
-                </Link>
-                <Link
-                  href="/categoria/jugueteria"
-                  className="border border-brand-neon text-brand-neon hover:bg-brand-neon hover:text-black font-semibold px-7 py-3.5 rounded-2xl transition-all text-base text-center"
-                >
-                  <T k="hero_cta_secundario" />
-                </Link>
-              </div>
-            </div>
-
-            {/* Banner hero */}
-            <div className="hidden lg:block">
-              <div className="relative rounded-3xl overflow-hidden border border-brand-border shadow-purple">
-                {editMode ? (
-                  <EditableImage
-                    configKey="hero_banner_url"
-                    src={cfg.hero_banner_url || '/banner.png'}
-                    alt="Flow Things banner"
-                    width={800}
-                    height={600}
-                    className="w-full h-auto"
-                  />
-                ) : (
-                  <img
-                    src={cfg.hero_banner_url || '/banner.png'}
-                    alt="Flow Things"
-                    className="w-full h-auto"
-                  />
-                )}
-              </div>
-            </div>
+          {/* La marca, del tamaño de una marca y no de una portada. */}
+          <div className="hidden shrink-0 lg:block">
+            {editMode ? (
+              <EditableImage
+                configKey="hero_banner_url"
+                src={cfg.hero_banner_url || '/banner.png'}
+                alt="Flow Things banner"
+                width={800}
+                height={600}
+                className="h-auto w-[300px] rounded-2xl"
+              />
+            ) : (
+              <img
+                src={cfg.hero_banner_url || '/banner.png'}
+                alt="Flow Things"
+                width={300}
+                height={225}
+                className="h-auto w-[300px] rounded-2xl"
+              />
+            )}
           </div>
         </div>
       </section>
@@ -262,54 +255,73 @@ export default async function HomePage({
             <Link
               key={cat.id}
               href={`/categoria/${cat.slug}`}
-              className="group relative overflow-hidden rounded-2xl border border-brand-border bg-brand-bg-card hover:border-brand-purple hover:shadow-card-hover transition-all hover:-translate-y-1 animate-fade-up opacity-0"
+              className="group overflow-hidden rounded-2xl border border-brand-border bg-brand-bg-card transition-all hover:-translate-y-1 hover:border-brand-purple hover:shadow-card-hover animate-fade-up opacity-0"
             >
-              <div className="relative aspect-[16/10] bg-brand-bg-soft">
-                {cat.foto ? (
-                  <Image
-                    src={cat.foto}
-                    alt={cat.nombre}
-                    fill
-                    className="object-cover opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
-                    sizes="(max-width: 1024px) 50vw, 33vw"
-                    placeholder={blurDe(mapaBlur, cat.foto) ? 'blur' : 'empty'}
-                    blurDataURL={blurDe(mapaBlur, cat.foto)}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-5xl">
-                      {categoriasIconos[cat.slug] || '📦'}
-                    </span>
+              {/*
+                Antes acá iba UNA foto de producto a `object-cover`, recortada
+                a 16:10 y tapada por un degradado negro al 85% para que se
+                leyera el texto encima. Resultado: un peluche cortado al medio
+                y casi a oscuras representando "Juguetería".
+
+                Ahora van tres productos de la categoría enteros, sin recortar,
+                sobre el fondo suave de la marca, y el texto abajo. Se ve qué
+                hay adentro y no hace falta oscurecer nada.
+              */}
+              <div className="grid grid-cols-2 gap-1 bg-brand-bg-soft p-2 sm:grid-cols-3">
+                {cat.fotos.map((foto: string, i: number) => (
+                  <div
+                    key={foto}
+                    /* En el teléfono la ficha mide 165px: tres columnas
+                       dejaban cuadrados de 50px, demasiado chicos para ver
+                       qué es cada cosa. Van dos, y la tercera aparece recién
+                       cuando hay ancho. */
+                    className={`relative aspect-square overflow-hidden rounded-lg bg-white/5 ${
+                      i === 2 ? 'hidden sm:block' : ''
+                    }`}
+                  >
+                    <Image
+                      src={foto}
+                      alt=""
+                      fill
+                      className="object-contain p-1.5 transition-transform duration-500 group-hover:scale-105"
+                      sizes="(max-width: 1024px) 25vw, 120px"
+                      placeholder={blurDe(mapaBlur, foto) ? 'blur' : 'empty'}
+                      blurDataURL={blurDe(mapaBlur, foto)}
+                    />
                   </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-4">
-                  <span className="block font-bold text-white text-lg leading-tight">
-                    {cat.nombre}
-                  </span>
-                  <span className="block text-brand-neon text-xs font-semibold mt-0.5">
-                    {cat.cantidad}{' '}
-                    {cat.cantidad === 1 ? 'producto' : 'productos'} · Ver todos →
-                  </span>
-                </div>
+                ))}
+              </div>
+              <div className="px-4 py-3">
+                <span className="block text-lg font-bold leading-tight text-white">
+                  {cat.nombre}
+                </span>
+                <span className="mt-0.5 block text-xs font-semibold text-brand-neon">
+                  {cat.cantidad}{' '}
+                  {cat.cantidad === 1 ? 'producto' : 'productos'} →
+                </span>
               </div>
             </Link>
           ))}
 
-          {/* Atajo a todo el catálogo, con la misma forma que las categorías */}
+          {/* Atajo a todo el catálogo. Ocupa el ancho entero en el teléfono:
+              con dos categorías y dos columnas, si no, quedaba una media ficha
+              huérfana al final de la fila. */}
           <Link
             href="/productos"
-            className="group relative overflow-hidden rounded-2xl border border-brand-purple/50 bg-gradient-card hover:border-brand-purple hover:shadow-card-hover transition-all hover:-translate-y-1 animate-fade-up opacity-0"
+            className="group col-span-2 flex flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border border-brand-purple/50 bg-gradient-card p-6 text-center transition-all hover:-translate-y-1 hover:border-brand-purple hover:shadow-card-hover animate-fade-up opacity-0 lg:col-span-1"
           >
-            <div className="relative aspect-[16/10] flex flex-col items-center justify-center text-center p-4">
-              <span className="text-3xl mb-2" aria-hidden="true">🛍️</span>
-              <span className="font-bold text-white text-lg leading-tight">
-                Ver todos los productos
-              </span>
-              <span className="text-brand-neon text-xs font-semibold mt-1">
-                {totalCatalogo} productos disponibles →
-              </span>
-            </div>
+            <ShoppingBag
+              size={30}
+              weight="regular"
+              className="text-brand-neon"
+              aria-hidden="true"
+            />
+            <span className="mt-1 text-lg font-bold leading-tight text-white">
+              Ver todos los productos
+            </span>
+            <span className="text-xs font-semibold text-brand-neon">
+              {totalCatalogo} productos disponibles →
+            </span>
           </Link>
         </div>
       </section>
@@ -418,14 +430,25 @@ export default async function HomePage({
               <T k="mp_texto" multiline />
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="bg-brand-purple/20 border border-brand-purple rounded-xl px-4 py-2 text-sm font-semibold text-white">
-              Mercado Pago
-            </div>
-            <div className="bg-brand-bg-soft border border-brand-border rounded-xl px-4 py-2 text-sm text-brand-text-muted">
-              Visa / Mastercard
-            </div>
-          </div>
+          {/* Logos de verdad, no cajitas con el nombre escrito. Un wordmark
+              tipeado a mano dice "no conseguí el logo"; el logo dice que el
+              medio de pago existe. Están servidos desde /public y no desde un
+              CDN ajeno: es la sección que habla de seguridad del pago, no es
+              lugar para pedirle un archivo a un tercero. */}
+          <ul className="flex shrink-0 items-center gap-5">
+            {MEDIOS_DE_PAGO.map((medio) => (
+              <li key={medio.nombre}>
+                <img
+                  src={medio.logo}
+                  alt={medio.nombre}
+                  width={34}
+                  height={34}
+                  loading="lazy"
+                  className="h-[34px] w-[34px] opacity-80"
+                />
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
