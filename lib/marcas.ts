@@ -624,9 +624,9 @@ export function marcaDe(sku: string | null | undefined): string {
  * Unicorn Dreams. Se copia el archivo por cada una en vez de resolver la madre
  * en código: son 40 KB y evita una tabla de equivalencias que hay que mantener.
  *
- * Los seis que entraron el 21/10/2026 —Astroboy, Capy Vibes, Craze, El
- * Principito, Garfield y Jujutsu Kaisen— vienen de los .ai originales,
- * rasterizados a
+ * Los nueve que entraron el 21/10/2026 —Astroboy, Capy Vibes, Craze, El
+ * Principito, Garfield, Jujutsu Kaisen, Mafalda, Mazinger Z y Peanuts—
+ * vienen de los .ai originales, rasterizados a
  * 300 px de alto en vez de los 100 de los viejos. El triple porque el banner
  * de la home muestra el logo a 300 px de ancho, y a 100 de alto se veía
  * mordido. Los que ya estaban quedan como están: a la altura que se usan hoy
@@ -637,12 +637,14 @@ export function marcaDe(sku: string | null | undefined): string {
  * sello redondo con el carpincho, que es la marca que se reconoce, y no el
  * texto suelto de las otras páginas.
  *
- * Ojo con el fondo. Astroboy, El Principito, Garfield y Jujutsu Kaisen son de
- * tinta oscura —luz media 38, 57, 56 y 98 sobre 255— y las páginas de marcas
- * los muestran sobre plato blanco, que es donde funcionan. Craze y Capy Vibes
- * son claros y sirven sobre cualquier color. Por eso el banner de la home
- * sigue escribiendo el título de El Principito y Jujutsu Kaisen en vez de
- * usar su logo: el fondo de esas dos piezas es oscuro y el logo se perdería.
+ * Ojo con el fondo. Casi todos son de tinta oscura —Astroboy, El Principito,
+ * Garfield, Jujutsu Kaisen, Mafalda y Peanuts— y las páginas de marcas los
+ * muestran sobre plato blanco, que es donde funcionan. Sólo Craze, Capy
+ * Vibes y Mazinger Z aguantan un fondo de color.
+ *
+ * Por eso el banner de la home sigue escribiendo el título de El Principito,
+ * Mafalda y Jujutsu Kaisen en vez de usar su logo: el fondo de esas piezas es
+ * oscuro y el logo se perdería.
  */
 export const LOGO_POR_MARCA: Record<string, string> = {
   "Astroboy": "/marcas/astroboy.png",
@@ -660,7 +662,10 @@ export const LOGO_POR_MARCA: Record<string, string> = {
   "Influencer Stylist": "/marcas/influencer-stylist.png",
   "Jujutsu Kaisen": "/marcas/jujutsu-kaisen.png",
   "La Granja de Zenón": "/marcas/la-granja-de-zenon.png",
+  "Mafalda": "/marcas/mafalda.png",
   "Magical World": "/marcas/magical-world.png",
+  "Mazinger Z": "/marcas/mazinger-z.png",
+  "Peanuts": "/marcas/peanuts.png",
   "Style 4 Ever": "/marcas/style-4-ever.png",
   "Sweet Friends": "/marcas/sweet-friends.png",
   "Toy Story 5": "/marcas/toy-story-5.png",
