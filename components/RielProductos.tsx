@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import CintaProductos from '@/components/CintaProductos'
 import ProductCard from '@/components/ProductCard'
 import { Producto } from '@/types'
 import { blurDe, imagenDeProducto } from '@/lib/blur'
@@ -56,31 +57,53 @@ export default function RielProductos({
       </div>
 
       {/*
-        El riel sangra hasta el borde de la pantalla a propósito: dentro del
-        contenedor centrado, la ficha cortada quedaba detrás del margen y
-        parecía un error de maquetado en vez de una invitación a deslizar.
-        El padding de los costados lo pone el propio riel, para que la primera
-        ficha arranque alineada con el título.
+        La cinta va de borde a borde, sin padding a los costados. Cuando el
+        riel estaba quieto, el padding servía para alinear la primera ficha
+        con el título; en una cinta que anda no hay primera ficha, y el
+        padding sólo rompía la cuenta de la vuelta.
+
+        La lista va TRIPLICADA y la cinta arranca en la copia del medio. Es lo
+        que hace que el bucle no se vea: al llegar al principio de la tercera
+        copia, CintaProductos vuelve al principio de la segunda, y como a los
+        dos lados hay exactamente el mismo contenido, no hay nada que saltar.
+        Las copias 2 y 3 van con aria-hidden, y CintaProductos les agrega
+        `inert` al montar, así quien usa lector de pantalla o teclado recorre
+        doce productos y no treinta y seis. El `inert` no va acá como prop
+        porque React 18 no lo soporta: lo recibe como string vacío, lo trata
+        como false y no lo aplica —en silencio—.
+
+        El espacio entre fichas va como `mr-4` y no como `gap-4`: gap no pone
+        margen después de la última, así que cada copia medía un espacio menos
+        que la anterior y la vuelta caía corrida. Con margen propio, cada
+        ficha mide siempre lo mismo.
+
+        Sin `snap`: frenar en seco en cada ficha mientras la cinta anda se
+        siente un tirón. El deslizamiento a mano queda libre, que es como se
+        mira un estante.
       */}
-      <div className="scrollbar-hide snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
-        <ul className="mx-auto flex w-max max-w-7xl gap-4 px-4 sm:px-6 lg:px-8">
-          {productos.map((producto) => (
-            /* `flex` para que la ficha estire hasta el alto de la fila. En
-               una grilla eso pasa solo; acá, sin esto, la ficha que no tiene
-               el renglón de "envío gratis" queda más corta y los botones de
-               "+ Agregar" terminan cada uno a su altura. */
-            <li
-              key={producto.id}
-              className="flex w-[190px] shrink-0 snap-start sm:w-[220px]"
-            >
-              <ProductCard
-                producto={producto}
-                blurDataURL={blurDe(mapaBlur, imagenDeProducto(producto))}
-              />
-            </li>
-          ))}
+      <CintaProductos>
+        <ul className="flex w-max">
+          {[0, 1, 2].map((copia) =>
+            productos.map((producto) => (
+              /* `flex` para que la ficha estire hasta el alto de la fila. En
+                 una grilla eso pasa solo; acá, sin esto, la ficha que no
+                 tiene el renglón de "envío gratis" queda más corta y los
+                 botones de "+ Agregar" terminan cada uno a su altura. */
+              <li
+                key={`${copia}-${producto.id}`}
+                className="mr-4 flex w-[190px] shrink-0 sm:w-[220px]"
+                aria-hidden={copia > 0 || undefined}
+              >
+                <ProductCard
+                  producto={producto}
+                  blurDataURL={blurDe(mapaBlur, imagenDeProducto(producto))}
+                />
+              </li>
+            )),
+          )}
         </ul>
-      </div>
+      </CintaProductos>
+
     </section>
   )
 }
