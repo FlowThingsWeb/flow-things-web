@@ -49,38 +49,51 @@ const FAMILIAS: Record<string, string> = {
   negra: 'font-black uppercase tracking-tighter',
 }
 
-/** Cada cuánto pasa sola. Siete segundos: alcanza para leer tres renglones. */
-const MS_POR_PIEZA = 7000
+/**
+ * Cada cuánto pasa sola, según dónde esté el puntero.
+ *
+ * Afuera son 6 segundos: alcanza para leer tres renglones de reojo y hace
+ * que alguien que mira la home dos segundos igual vea más de una línea.
+ *
+ * Encima son 10, porque el mouse ahí significa que están leyendo esa pieza.
+ * No se frena del todo a propósito: el puntero pasa por encima del banner
+ * solo, de camino a lo que está más abajo, y una pausa por un roce dejaba a
+ * ese visitante sin ver nunca las otras tres.
+ */
+const MS_AFUERA = 6000
+const MS_ENCIMA = 10000
 
 export default function BannerLineas({ piezas }: { piezas: PiezaResuelta[] }) {
   const [activa, setActiva] = useState(0)
   /**
-   * Dos pausas distintas, porque no son lo mismo.
+   * `encima` sólo cambia el ritmo; `elegido` lo corta.
    *
-   * `encima` es pasar el mouse por arriba: en escritorio eso pasa solo, de
-   * camino a cualquier cosa que esté más abajo. Frena mientras el puntero
-   * está, y sigue cuando se va — si un roce al pasar dejara el banner quieto
-   * para siempre, ese visitante no vería nunca las otras piezas.
-   *
-   * `elegido` es haber tocado un punto o deslizado: ahí la persona dijo cuál
-   * quiere mirar y el carrusel no se la saca más de encima. Eso no vuelve.
+   * No son lo mismo. El mouse arriba del banner pasa solo, de camino a lo que
+   * está más abajo: eso pide ir más despacio, no parar. Tocar un punto o
+   * deslizar con el dedo sí es elegir, y ahí el carrusel no se la saca más de
+   * encima a la persona. Eso no vuelve.
    */
   const [encima, setEncima] = useState(false)
   const [elegido, setElegido] = useState(false)
   const toqueX = useRef<number | null>(null)
   const total = piezas.length
-  const pausado = encima || elegido
+  const intervalo = encima ? MS_ENCIMA : MS_AFUERA
 
   const ir = useCallback(
     (i: number) => setActiva(((i % total) + total) % total),
     [total],
   )
 
+  /**
+   * Entrar o salir con el mouse reinicia la cuenta con el ritmo nuevo. Es a
+   * propósito: así al apoyar el puntero quedan los 10 segundos enteros para
+   * leer, en vez de lo que sobraba de los 6.
+   */
   useEffect(() => {
-    if (pausado || total < 2) return
-    const t = setTimeout(() => setActiva((i) => (i + 1) % total), MS_POR_PIEZA)
+    if (elegido || total < 2) return
+    const t = setTimeout(() => setActiva((i) => (i + 1) % total), intervalo)
     return () => clearTimeout(t)
-  }, [activa, pausado, total])
+  }, [activa, elegido, intervalo, total])
 
   // Respeta a quien pidió menos movimiento en el sistema operativo.
   useEffect(() => {
