@@ -28,7 +28,14 @@ export default async function LineasDestacadas() {
     .map((p) => {
       const m = porSlug.get(p.id)
       if (!m || m.cantidad === 0) return null
-      return { slug: p.id, nombre: m.nombre, fondo: p.fondo, cantidad: m.cantidad }
+      /*
+        `mosaico`, no `fondo`. Tres de las cuatro piezas del banner tienen
+        fondo claro para que se lea su logo, que es de tinta oscura; acá el
+        texto es blanco, así que va el color profundo de la línea. Y de paso
+        la fila de mosaicos conserva el peso: cuatro bloques pálidos no
+        cortan nada debajo de un banner también pálido.
+      */
+      return { slug: p.id, nombre: m.nombre, fondo: p.mosaico, cantidad: m.cantidad }
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
 
