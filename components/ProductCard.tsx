@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Producto, Variante } from '@/types'
 import { useCartStore } from '@/lib/store'
+import { Package, Truck } from '@phosphor-icons/react/dist/ssr'
 import FavoritoButton from '@/components/FavoritoButton'
 import Stars from '@/components/Stars'
 import { formatPrecio } from '@/lib/format'
@@ -91,7 +92,7 @@ export default function ProductCard({ producto, variante, rating, prioridad, blu
   }
 
   return (
-    <div className="group relative bg-brand-bg-card border border-brand-border rounded-2xl overflow-hidden hover:border-brand-purple hover:shadow-card-hover transition-all duration-300 flex flex-col">
+    <div className="group relative flex w-full flex-col overflow-hidden rounded-2xl border border-brand-border bg-brand-bg-card transition-all duration-300 hover:border-brand-purple hover:shadow-card-hover">
       {/* Imagen */}
       <Link href={href} className="block relative overflow-hidden aspect-square bg-brand-bg-soft">
         {imagenUrl ? (
@@ -107,7 +108,7 @@ export default function ProductCard({ producto, variante, rating, prioridad, blu
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-4xl">📦</span>
+            <Package size={36} weight="regular" className="text-brand-text-muted" aria-hidden="true" />
           </div>
         )}
 
@@ -116,19 +117,24 @@ export default function ProductCard({ producto, variante, rating, prioridad, blu
           <FavoritoButton productoId={producto.id} />
         </div>
 
-        {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1">
-          {producto.destacado && (
-            <span className="bg-brand-neon text-black text-xs font-black px-2 py-1 rounded-full">
-              ★ DESTACADO
-            </span>
-          )}
-          {descuento && (
-            <span className="bg-brand-purple text-white text-xs font-semibold px-2 py-1 rounded-full">
-              -{descuento}%
-            </span>
-          )}
-        </div>
+        {/*
+          Un solo cartel arriba a la izquierda, y sólo si dice algo.
+
+          Acá se apilaban dos: "★ DESTACADO" y el descuento, más el corazón
+          enfrente, tres cosas encima de una foto de 160px. Y "destacado" no
+          le dice nada a quien compra: es una marca nuestra para decidir qué
+          mostrar, no una razón para hacer click. En la home, además, la
+          sección ya se llama "Productos destacados" y el cartel estaba en las
+          ocho fichas.
+
+          El descuento sí es información: es un número que cambia la decisión.
+          Ése queda.
+        */}
+        {descuento && (
+          <span className="absolute top-3 left-3 rounded-full bg-brand-purple px-2 py-1 text-xs font-semibold text-white">
+            -{descuento}%
+          </span>
+        )}
 
         {ultimaUnidad && (
           <span className="absolute bottom-2 left-2 bg-black/75 backdrop-blur text-brand-neon text-[11px] font-bold px-2 py-1 rounded-full border border-brand-neon/40">
@@ -180,8 +186,9 @@ export default function ProductCard({ producto, variante, rating, prioridad, blu
               3 cuotas sin interés
             </p>
             {conEnvioGratis && (
-              <p className="text-green-400 text-[11px] font-semibold">
-                🚚 Envío gratis
+              <p className="flex items-center gap-1 text-[11px] font-semibold text-green-400">
+                <Truck size={13} weight="regular" aria-hidden="true" />
+                Envío gratis
               </p>
             )}
           </div>

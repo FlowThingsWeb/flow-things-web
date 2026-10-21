@@ -15,6 +15,7 @@ import LineasDestacadas from '@/components/LineasDestacadas'
 import { getPiezasBanner } from '@/lib/bannerLineas'
 import { ShoppingBag } from '@phosphor-icons/react/dist/ssr'
 import TrustBar from '@/components/TrustBar'
+import RielProductos from '@/components/RielProductos'
 import FaqCategoria, { faqDeTienda } from '@/components/FaqCategoria'
 
 /**
@@ -132,9 +133,11 @@ export default async function HomePage({
   // Novedades: lo último que entró, sin repetir los destacados que ya se
   // muestran más arriba. Sale de `publicables`, así que no cuesta otra query.
   const idsDestacados = new Set(destacados.map((p) => p.id))
+  // Doce y no ocho: en un riel las fichas de más no alargan la página, sólo
+  // le dan de qué seguir tirando a quien está paseando.
   const novedades = publicables
     .filter((p) => !idsDestacados.has(p.id))
-    .slice(0, 8)
+    .slice(0, 12)
 
   const envioGratisDesde = Number(
     cfg.envio_km_activo === '1'
@@ -353,37 +356,15 @@ export default async function HomePage({
         </section>
       )}
 
-      {/* Novedades — más mercadería a la vista sin obligar a ir al catálogo */}
-      {novedades.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-          <div className="flex items-center justify-between gap-4 mb-8">
-            <div>
-              <h2 className="text-2xl font-bold text-brand-text">
-                Recién llegados
-              </h2>
-              <p className="text-brand-text-muted text-sm mt-1">
-                Lo último que sumamos al catálogo
-              </p>
-            </div>
-            <Link
-              href="/productos"
-              className="shrink-0 border border-brand-border hover:border-brand-neon text-white hover:text-brand-neon text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-            >
-              Ver más
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 stagger-children">
-            {novedades.map((producto) => (
-              <div key={producto.id} className="animate-fade-up opacity-0">
-                <ProductCard
-                  producto={producto}
-                  blurDataURL={blurDe(mapaBlur, imagenDeProducto(producto))}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Novedades — más mercadería a la vista sin obligar a ir al catálogo.
+          Va como riel y no como grilla: ver RielProductos. */}
+      <RielProductos
+        titulo="Recién llegados"
+        bajada="Lo último que sumamos al catálogo"
+        productos={novedades}
+        verMasHref="/productos"
+        mapaBlur={mapaBlur}
+      />
 
       {/* Cierre: el que llegó hasta acá vio poco catálogo. Se lo ofrecemos
           entero, con el número real de productos y atajos por categoría. */}
