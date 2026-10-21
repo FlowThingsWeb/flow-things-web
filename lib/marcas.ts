@@ -624,20 +624,41 @@ export function marcaDe(sku: string | null | undefined): string {
  * Unicorn Dreams. Se copia el archivo por cada una en vez de resolver la madre
  * en código: son 40 KB y evita una tabla de equivalencias que hay que mantener.
  *
- * Craze todavía no tiene logo propio en la carpeta —sólo están los de sus
- * líneas: Magic Sand, Magic Dough, Compound Mix—, así que se muestra con una
- * foto de su mercadería y el nombre debajo. No es un error a esconder: es lo
- * que hay hasta que aparezca el archivo.
+ * Los seis que entraron el 21/10/2026 —Astroboy, Capy Vibes, Craze, El
+ * Principito, Garfield y Jujutsu Kaisen— vienen de los .ai originales,
+ * rasterizados a
+ * 300 px de alto en vez de los 100 de los viejos. El triple porque el banner
+ * de la home muestra el logo a 300 px de ancho, y a 100 de alto se veía
+ * mordido. Los que ya estaban quedan como están: a la altura que se usan hoy
+ * no se nota, y rehacerlos sin el .ori original sería agrandar un PNG chico.
+ *
+ * De El Principito se tomó la tercera página del archivo, que es el lockup
+ * completo con "Le Petit Prince" debajo. De Capy Vibes, la primera: el
+ * sello redondo con el carpincho, que es la marca que se reconoce, y no el
+ * texto suelto de las otras páginas.
+ *
+ * Ojo con el fondo. Astroboy, El Principito, Garfield y Jujutsu Kaisen son de
+ * tinta oscura —luz media 38, 57, 56 y 98 sobre 255— y las páginas de marcas
+ * los muestran sobre plato blanco, que es donde funcionan. Craze y Capy Vibes
+ * son claros y sirven sobre cualquier color. Por eso el banner de la home
+ * sigue escribiendo el título de El Principito y Jujutsu Kaisen en vez de
+ * usar su logo: el fondo de esas dos piezas es oscuro y el logo se perdería.
  */
 export const LOGO_POR_MARCA: Record<string, string> = {
+  "Astroboy": "/marcas/astroboy.png",
+  "Capy Vibes": "/marcas/capy-vibes.png",
+  "Craze": "/marcas/craze.png",
   "Dr. Steve Hunters": "/marcas/dr-steve-hunters.png",
   "Dreams": "/marcas/dreams.png",
+  "El Principito": "/marcas/el-principito.png",
   "Football is Life": "/marcas/football-is-life.png",
+  "Garfield": "/marcas/garfield.png",
   "Girl Boss": "/marcas/girl-boss.png",
   "Hey! Beauty": "/marcas/hey-beauty.png",
   "Influencer": "/marcas/influencer.png",
   "Influencer Life Style": "/marcas/influencer-life-style.png",
   "Influencer Stylist": "/marcas/influencer-stylist.png",
+  "Jujutsu Kaisen": "/marcas/jujutsu-kaisen.png",
   "La Granja de Zenón": "/marcas/la-granja-de-zenon.png",
   "Magical World": "/marcas/magical-world.png",
   "Style 4 Ever": "/marcas/style-4-ever.png",
