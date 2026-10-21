@@ -11,6 +11,9 @@ import { getConfig } from '@/lib/config'
 import { CATEGORIAS_PAUSADAS } from '@/lib/categoriasPausadas'
 import { blurDe, getMapaBlur, imagenDeProducto } from '@/lib/blur'
 import HomeCarousel from '@/components/HomeCarousel'
+import BannerLineas from '@/components/BannerLineas'
+import LineasDestacadas from '@/components/LineasDestacadas'
+import { getPiezasBanner } from '@/lib/bannerLineas'
 import TrustBar from '@/components/TrustBar'
 import { armarCarrusel } from '@/lib/carruselHome'
 import FaqCategoria, { faqDeTienda } from '@/components/FaqCategoria'
@@ -85,13 +88,15 @@ export default async function HomePage({
   const params = await searchParams
   const editMode = params.editMode === '1'
 
-  const [destacados, categorias, cfg, publicables, mapaBlur] = await Promise.all([
-    getDestacados(),
-    getCategorias(),
-    getConfig(),
-    getProductosPublicables(),
-    getMapaBlur(),
-  ])
+  const [destacados, categorias, cfg, publicables, mapaBlur, piezasBanner] =
+    await Promise.all([
+      getDestacados(),
+      getCategorias(),
+      getConfig(),
+      getProductosPublicables(),
+      getMapaBlur(),
+      getPiezasBanner(),
+    ])
 
   const slidesCarrusel = armarCarrusel(publicables)
   const faqHome = faqDeTienda(cfg)
@@ -162,8 +167,16 @@ export default async function HomePage({
       {/* Barra de edición — solo en modo editor */}
       {editMode && <EditBar />}
 
-      {/* Carrusel de productos — primero para que se vea mercadería y un
-          botón de comprar sin tener que scrollear. */}
+      {/* El banner de líneas abre la home: dice qué vendemos antes que cuánto
+          sale. El 58% del tráfico entra desde Instagram y no sabe qué hay
+          acá adentro; una ficha de producto con precio no se lo explica. */}
+      <BannerLineas piezas={piezasBanner} />
+
+      {/* Pegado al banner, sin aire: son su continuación, no otra sección. */}
+      <LineasDestacadas />
+
+      {/* Carrusel de productos — después del banner: primero qué vendemos,
+          después qué comprar hoy. */}
       <HomeCarousel slides={slidesCarrusel} blurs={blursCarrusel} />
 
       {/* Garantías: contesta envío, cuotas, seguridad y devoluciones antes de

@@ -31,7 +31,20 @@
 
 html, body {
   max-width: 100vw;
-  overflow-x: hidden;
+  /*
+    `clip` y no `hidden`.
+
+    Los dos cortan lo que se desborda a los costados, que es para lo que está.
+    La diferencia es que `hidden` convierte al elemento en un contenedor de
+    scroll, y eso rompe `position: sticky` en todo lo que tenga adentro: el
+    header decía `sticky top-0` desde siempre y no se pegaba nunca, porque su
+    contenedor de scroll pasaba a ser el body en vez de la ventana.
+
+    `clip` recorta igual sin crear el contenedor, así que el header queda
+    pegado como siempre quiso, y con él la barra de beneficios que aparece
+    cuando el banner sale de la pantalla.
+  */
+  overflow-x: clip;
   background-color: var(--color-bg);
   color: var(--color-text);
 }

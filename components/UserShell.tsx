@@ -49,8 +49,17 @@ export default function UserShell({ cfg, categorias, subcategorias, marcas, chil
       <ProfileGuard />
       <RegistrationPopup />
       <CartSync />
-      <AnnouncementBar gratisDesde={Number(cfg.envio_gratis_interior_desde) || 61000} />
-      <Header cfg={cfg} categorias={categorias} subcategorias={subcategorias} marcas={marcas} />
+      {/*
+        La barra y el header van pegados arriba como un solo bloque. Antes
+        cada uno tenía su `sticky top-0` y se superponían en cuanto la barra
+        aparecía; ahora el que se pega es el contenedor y el header, adentro,
+        no tiene a dónde moverse. Que estén juntos además hace que la barra
+        entre empujando al header en vez de taparlo.
+      */}
+      <div className="sticky top-0 z-40">
+        <AnnouncementBar gratisDesde={Number(cfg.envio_gratis_interior_desde) || 61000} />
+        <Header cfg={cfg} categorias={categorias} subcategorias={subcategorias} marcas={marcas} />
+      </div>
       {/* En el webview de Instagram no hay flecha de atrás del navegador. */}
       <BotonVolver />
       {/* El umbral de envío gratis, para las tarjetas de producto de adentro. */}
