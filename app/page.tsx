@@ -253,7 +253,15 @@ export default async function HomePage({
         <h2 className="text-2xl font-bold text-white mb-8">
           <T k="seccion_categorias_titulo" />
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
+        {/* Tantas columnas como categorías, hasta tres. Con el atajo a
+            "todos los productos" adentro eran siempre tres fichas y la grilla
+            cerraba sola; ahora son las categorías reales, y pedir tres
+            columnas con dos categorías deja un hueco al final de la fila. */}
+        <div
+          className={`grid gap-4 stagger-children ${
+            categoriasConFoto.length === 2 ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-3'
+          }`}
+        >
           {categoriasConFoto.map((cat) => (
             <Link
               key={cat.id}
@@ -306,26 +314,6 @@ export default async function HomePage({
             </Link>
           ))}
 
-          {/* Atajo a todo el catálogo. Ocupa el ancho entero en el teléfono:
-              con dos categorías y dos columnas, si no, quedaba una media ficha
-              huérfana al final de la fila. */}
-          <Link
-            href="/productos"
-            className="group col-span-2 flex flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border border-brand-purple/50 bg-gradient-card p-6 text-center transition-all hover:-translate-y-1 hover:border-brand-purple hover:shadow-card-hover animate-fade-up opacity-0 lg:col-span-1"
-          >
-            <ShoppingBag
-              size={30}
-              weight="regular"
-              className="text-brand-neon"
-              aria-hidden="true"
-            />
-            <span className="mt-1 text-lg font-bold leading-tight text-white">
-              Ver todos los productos
-            </span>
-            <span className="text-xs font-semibold text-brand-neon">
-              {totalCatalogo} productos disponibles →
-            </span>
-          </Link>
         </div>
       </section>
 
@@ -366,36 +354,35 @@ export default async function HomePage({
         mapaBlur={mapaBlur}
       />
 
-      {/* Cierre: el que llegó hasta acá vio poco catálogo. Se lo ofrecemos
-          entero, con el número real de productos y atajos por categoría. */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="relative overflow-hidden rounded-3xl border border-brand-purple/40 bg-gradient-card p-8 sm:p-12 text-center">
-          <div className="absolute -top-16 -right-10 w-64 h-64 bg-brand-purple/20 rounded-full blur-3xl pointer-events-none" />
+      {/* Cierre: el único lugar de la home donde se ofrece el catálogo entero.
+
+          Antes esta sección repetía la grilla de categorías palabra por
+          palabra: el mismo "Ver todos los productos", las mismas dos
+          categorías, los mismos contadores, a dos pantallas de distancia. La
+          home ofrecía tres veces lo mismo y ninguna de las tres se leía como
+          la importante.
+
+          Ahora cada destino aparece una sola vez. Las categorías están
+          arriba, con foto y cantidad. Acá queda el catálogo completo, que es
+          lo que no estaba en ningún otro lado, con un botón solo. */}
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-3xl border border-brand-purple/40 bg-gradient-card p-8 text-center sm:p-12">
+          <div className="pointer-events-none absolute -right-10 -top-16 h-64 w-64 rounded-full bg-brand-purple/20 blur-3xl" />
           <div className="relative">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white">
+            <h2 className="text-2xl font-bold text-white sm:text-3xl">
               Todavía hay {totalCatalogo} productos para ver
             </h2>
-            <p className="text-brand-text-muted mt-3 max-w-xl mx-auto">
+            <p className="mx-auto mt-3 max-w-xl text-brand-text-muted">
               Librería y juguetería con envío a todo el país
               {envioGratisDesde > 0 ? ', y gratis en CABA por compras grandes' : ''}.
             </p>
-            <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
-              <Link
-                href="/productos"
-                className="bg-brand-purple hover:bg-brand-purple-light text-white font-bold px-8 py-4 rounded-2xl transition-all hover:shadow-purple"
-              >
-                Ver todos los productos
-              </Link>
-              {categoriasConFoto.map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={`/categoria/${cat.slug}`}
-                  className="border border-brand-border hover:border-brand-neon text-white hover:text-brand-neon font-semibold px-8 py-4 rounded-2xl transition-colors"
-                >
-                  {cat.nombre}
-                </Link>
-              ))}
-            </div>
+            <Link
+              href="/productos"
+              className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-brand-purple px-8 py-4 font-bold text-white transition-all hover:bg-brand-purple-light hover:shadow-purple"
+            >
+              <ShoppingBag size={20} weight="regular" aria-hidden="true" />
+              Ver todos los productos
+            </Link>
           </div>
         </div>
       </section>
