@@ -54,20 +54,28 @@ const MS_POR_PIEZA = 7000
 
 export default function BannerLineas({ piezas }: { piezas: PiezaResuelta[] }) {
   const [activa, setActiva] = useState(0)
-  const [pausado, setPausado] = useState(false)
+  /**
+   * Dos pausas distintas, porque no son lo mismo.
+   *
+   * `encima` es pasar el mouse por arriba: en escritorio eso pasa solo, de
+   * camino a cualquier cosa que esté más abajo. Frena mientras el puntero
+   * está, y sigue cuando se va — si un roce al pasar dejara el banner quieto
+   * para siempre, ese visitante no vería nunca las otras piezas.
+   *
+   * `elegido` es haber tocado un punto o deslizado: ahí la persona dijo cuál
+   * quiere mirar y el carrusel no se la saca más de encima. Eso no vuelve.
+   */
+  const [encima, setEncima] = useState(false)
+  const [elegido, setElegido] = useState(false)
   const toqueX = useRef<number | null>(null)
   const total = piezas.length
+  const pausado = encima || elegido
 
   const ir = useCallback(
     (i: number) => setActiva(((i % total) + total) % total),
     [total],
   )
 
-  /**
-   * El avance automático se corta cuando el visitante toca algo y no vuelve.
-   * Un carrusel que sigue moviéndose después de que elegiste mirar una pieza
-   * te saca de encima lo que estabas leyendo.
-   */
   useEffect(() => {
     if (pausado || total < 2) return
     const t = setTimeout(() => setActiva((i) => (i + 1) % total), MS_POR_PIEZA)
@@ -77,7 +85,7 @@ export default function BannerLineas({ piezas }: { piezas: PiezaResuelta[] }) {
   // Respeta a quien pidió menos movimiento en el sistema operativo.
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    if (mq.matches) setPausado(true)
+    if (mq.matches) setElegido(true)
   }, [])
 
   if (total === 0) return null
@@ -88,8 +96,15 @@ export default function BannerLineas({ piezas }: { piezas: PiezaResuelta[] }) {
       aria-label="Líneas destacadas"
       aria-roledescription="carrusel"
       className="relative overflow-hidden bg-brand-bg"
-      onMouseEnter={() => setPausado(true)}
-      onFocus={() => setPausado(true)}
+      onMouseEnter={() => setEncima(true)}
+      onMouseLeave={() => setEncima(false)}
+      /* Llegar con el teclado también frena, y seguir de largo lo suelta. */
+      onFocus={() => setEncima(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setEncima(false)
+        }
+      }}
       onTouchStart={(e) => {
         toqueX.current = e.touches[0].clientX
       }}
@@ -98,7 +113,7 @@ export default function BannerLineas({ piezas }: { piezas: PiezaResuelta[] }) {
         if (x0 == null) return
         const dx = e.changedTouches[0].clientX - x0
         if (Math.abs(dx) > 45) {
-          setPausado(true)
+          setElegido(true)
           ir(activa + (dx < 0 ? 1 : -1))
         }
         toqueX.current = null
@@ -124,7 +139,7 @@ export default function BannerLineas({ piezas }: { piezas: PiezaResuelta[] }) {
               key={p.id}
               type="button"
               onClick={() => {
-                setPausado(true)
+                setElegido(true)
                 ir(i)
               }}
               aria-label={`Ver ${p.titulo}`}
