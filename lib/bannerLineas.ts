@@ -168,17 +168,17 @@ function enFecha(p: PiezaBanner, hoy: string): boolean {
 }
 
 /**
- * Resuelve las piezas contra el catálogo.
+ * Los productos del banner que todavía tienen stock, por SKU.
  *
- * Una pieza que se quedó con menos de dos productos con stock NO se muestra.
- * Un banner de una línea agotada manda al visitante a una página vacía, que es
- * peor que no ofrecerla: el click se gasta igual y la decepción queda.
- *
- * Las fotos salen de la misma consulta, así que si cambiás la imagen de un
- * producto en el admin, el banner la toma sola en la próxima revalidación.
+ * Lo ÚNICO que se cachea es esto: lo que sale de la base. Los colores, los
+ * textos y las fechas viven en `PIEZAS`, que es código, y si se cachearan
+ * junto con los productos un deploy no cambiaría nada —la caché de datos de
+ * Vercel sobrevive a los deploys, así que el banner seguiría pintado con los
+ * colores viejos hasta que algo invalide el tag—. Pasó: los fondos claros
+ * tardaron un deploy en aparecer porque la entrada vieja los traía adentro.
  */
-export const getPiezasBanner = unstable_cache(
-  async (): Promise<PiezaResuelta[]> => {
+const getProductosBanner = unstable_cache(
+  async (): Promise<Record<string, ProductoBanner>> => {
     const skus = Array.from(new Set(PIEZAS.flatMap((p) => p.skus)))
 
     const { data, error } = await supabaseAdmin
@@ -190,33 +190,47 @@ export const getPiezasBanner = unstable_cache(
 
     if (error) {
       console.error('[bannerLineas] no se pudo leer el catálogo:', error.message)
-      return []
+      return {}
     }
 
-    const porSku = new Map<string, ProductoBanner>()
+    const porSku: Record<string, ProductoBanner> = {}
     for (const p of data || []) {
       const imagen =
         (p as { imagen_url?: string | null }).imagen_url ||
         ((p as { imagenes?: string[] | null }).imagenes || [])[0]
       if (!imagen) continue
-      porSku.set(String(p.sku), {
+      porSku[String(p.sku)] = {
         sku: String(p.sku),
         nombre: String(p.nombre ?? ''),
         imagen,
-      })
+      }
     }
-
-    const hoy = hoyAR()
-
-    return PIEZAS.filter((p) => enFecha(p, hoy))
-      .map(({ skus: lista, ...resto }) => ({
-        ...resto,
-        productos: lista
-          .map((s) => porSku.get(s))
-          .filter((x): x is ProductoBanner => !!x),
-      }))
-      .filter((p) => p.productos.length >= 2)
+    return porSku
   },
-  ['banner-lineas'],
+  ['banner-lineas-productos'],
   { revalidate: 300, tags: ['catalogo'] },
 )
+
+/**
+ * Resuelve las piezas contra el catálogo.
+ *
+ * Una pieza que se quedó con menos de dos productos con stock NO se muestra.
+ * Un banner de una línea agotada manda al visitante a una página vacía, que es
+ * peor que no ofrecerla: el click se gasta igual y la decepción queda.
+ *
+ * Las fotos salen de la misma consulta, así que si cambiás la imagen de un
+ * producto en el admin, el banner la toma sola en la próxima revalidación.
+ */
+export async function getPiezasBanner(): Promise<PiezaResuelta[]> {
+  const porSku = await getProductosBanner()
+  const hoy = hoyAR()
+
+  return PIEZAS.filter((p) => enFecha(p, hoy))
+    .map(({ skus: lista, ...resto }) => ({
+      ...resto,
+      productos: lista
+        .map((s) => porSku[s])
+        .filter((x): x is ProductoBanner => !!x),
+    }))
+    .filter((p) => p.productos.length >= 2)
+}
