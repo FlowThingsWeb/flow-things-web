@@ -128,6 +128,15 @@ export interface OpcionEnvio {
    */
   km: number | null
   tiempo_estimado: string
+  /**
+   * Llega hoy.
+   *
+   * Viaja como booleano y no se adivina mirando si `tiempo_estimado` dice
+   * "hoy": el texto es para leer y cambia con el idioma, la hora y el feriado,
+   * y una pantalla que decida un color buscando una palabra adentro de una
+   * frase se rompe el día que la frase cambie.
+   */
+  entrega_hoy: boolean
   descripcion: string | null
   /**
    * Por qué no se cotizó por cercanía y se cayó a tarifa plana. Sirve para
@@ -203,6 +212,7 @@ export async function calcularEnvio(
        * Buenos Aires: "Llega hoy" sólo cuando llega hoy de verdad.
        */
       tiempo_estimado: entrega.etiqueta,
+      entrega_hoy: entrega.hoy,
       descripcion: esGratis
         ? '¡Envío gratis por superar el mínimo!'
         : `${NOMBRE_ZONA_CADETERIA[zonaCadete]} · lo llevamos nosotros`,
@@ -288,6 +298,8 @@ export async function calcularEnvio(
           costo_tienda: costoTienda,
           km,
           tiempo_estimado: cfg.envio_km_tiempo || '',
+          // El de km no promete el día: lo coordina una persona después.
+          entrega_hoy: false,
           descripcion: esGratis
             ? '¡Envío gratis por superar el mínimo!'
             : `A ${km.toFixed(1)} km de nuestro local`,
@@ -340,6 +352,7 @@ export async function calcularEnvio(
     costo_tienda:    opcion.precio,
     km:              null,
     tiempo_estimado: opcion.tiempo,
+    entrega_hoy: false,
     descripcion:     esGratis ? '¡Envío gratis por superar el mínimo!' : null,
     ...(motivoFallback ? { motivo_fallback: motivoFallback } : {}),
   }

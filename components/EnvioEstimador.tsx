@@ -7,9 +7,13 @@ import { leerDestino, guardarDestino } from '@/lib/destino-envio'
 import { getZonaEnvio, seCobraPorDistancia } from '@/lib/zonas-envio'
 
 interface Resultado {
+  /** Qué tarifa se aplicó: 'cadeteria', 'cercania', 'caba', 'interior'… */
+  id: string
   nombre: string
   precio: number
   tiempo_estimado: string
+  /** Llega hoy: lo manda el servidor, no se deduce leyendo el texto. */
+  entrega_hoy: boolean
   descripcion?: string
 }
 
@@ -181,9 +185,11 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
       const op = d.opciones?.[0]
       if (!op) { ultimo.current = ''; setError('No hay envío disponible para esa zona.'); return }
       setResultado({
+        id: String(op.id ?? ''),
         nombre: op.nombre,
         precio: op.precio,
         tiempo_estimado: op.tiempo_estimado,
+        entrega_hoy: !!op.entrega_hoy,
         descripcion: op.descripcion,
       })
       // Lo más preciso que haya: calle si la dieron, si no el CP, si no la
@@ -230,7 +236,23 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
   }, [provincia, cp, calle, localidad, editando, cotizar])
 
   const gratis = resultado?.precio === 0
-  const { faltan, porDistancia, localidadExigida } = camposQueFaltan(provincia, cp, calle, localidad)
+  /**
+   * Con el envío en el día no falta nada más.
+   *
+   * `camposQueFaltan` pide la calle en CABA y el AMBA porque ahí el envío se
+   * cotizaba por kilómetros y la dirección bajaba el precio. Con el cadete la
+   * tarifa es plana por zona: la calle no cambia un peso, así que pedirla es
+   * un campo a cambio de nada —y el texto que lo acompañaba, "te damos el
+   * precio exacto, que suele ser más barato", directamente dejó de ser
+   * cierto—.
+   *
+   * Se decide con la cotización que volvió y no adivinando por el código
+   * postal: es la única fuente que sabe si el servicio está prendido.
+   */
+  const esEnElDia = resultado?.id === 'cadeteria'
+  const { faltan, porDistancia, localidadExigida } = esEnElDia
+    ? { faltan: [] as CampoFaltante[], porDistancia: false, localidadExigida: false }
+    : camposQueFaltan(provincia, cp, calle, localidad)
   /** La dirección que se mostró en el resultado, cuando la hubo. */
   const dirCompleta = porDistancia && faltan.length === 0
 
@@ -257,10 +279,26 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
                 {gratis ? '¡Gratis!' : formatPrecio(resultado.precio)}
               </span>
             </p>
-            <p className="text-xs text-brand-text-muted truncate">
-              {resultado.tiempo_estimado}
-              {resultado.descripcion && ` · ${resultado.descripcion}`}
-            </p>
+            {/*
+              Cuándo llega, en su propio renglón y sin truncar.
+
+              Iba pegado a la descripción dentro de una sola línea con
+              `truncate`, así que "Llega hoy" se cortaba justo cuando el
+              destino tenía nombre largo. Es el dato que decide la compra: va
+              primero, entero, y en lima cuando llega hoy.
+            */}
+            {resultado.tiempo_estimado && (
+              <p
+                className={`text-xs font-semibold ${
+                  resultado.entrega_hoy ? 'text-brand-neon' : 'text-brand-text'
+                }`}
+              >
+                {resultado.tiempo_estimado}
+              </p>
+            )}
+            {resultado.descripcion && (
+              <p className="text-xs text-brand-text-muted truncate">{resultado.descripcion}</p>
+            )}
           </div>
           <button
             type="button"
@@ -346,6 +384,8 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
                 } y te damos el precio exacto, que suele ser más barato.`
               : porDistancia
               ? 'Listo: éste es el costo hasta tu puerta.'
+              : esEnElDia
+              ? 'Tarifa fija para tu zona: la dirección exacta no cambia el precio.'
               : !cp.trim()
               ? 'Agregá tu código postal para un cálculo más preciso.'
               : !cpValido(cp)
@@ -361,7 +401,13 @@ export default function EnvioEstimador({ precio }: { precio: number }) {
         <div className="mt-3 flex items-center justify-between bg-brand-bg-card border border-brand-border rounded-xl px-3 py-2.5">
           <div>
             <p className="text-sm text-brand-text">{resultado.nombre}</p>
-            <p className="text-xs text-brand-text-muted">{resultado.tiempo_estimado}</p>
+            <p
+              className={`text-xs font-semibold ${
+                resultado.entrega_hoy ? 'text-brand-neon' : 'text-brand-text-muted'
+              }`}
+            >
+              {resultado.tiempo_estimado}
+            </p>
           </div>
           <span className={`text-sm font-bold ${gratis ? 'text-green-400' : 'text-brand-neon'}`}>
             {gratis ? '¡Gratis!' : formatPrecio(resultado.precio)}

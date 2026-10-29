@@ -52,6 +52,8 @@ interface OpcionEnvio {
   moneda: string
   descripcion: string | null
   tiempo_estimado: string | null
+  /** Llega hoy: lo manda el servidor, no se deduce leyendo el texto. */
+  entrega_hoy?: boolean
 }
 
 function CarritoContent() {
@@ -1066,9 +1068,28 @@ function CarritoContent() {
                       className="accent-brand-purple"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white capitalize">{op.nombre}</p>
+                      {/*
+                        Sin `capitalize`: el nombre ya viene escrito bien desde
+                        el servidor, y la clase le ponía mayúscula a cada
+                        palabra. "Envío en el día" salía "Envío En El Día" y
+                        "Envío a CABA" salía "Envío A CABA".
+                      */}
+                      <p className="text-sm font-medium text-white">{op.nombre}</p>
+                      {/*
+                        Cuándo llega, con peso propio.
+
+                        Iba en el mismo gris que la descripción, así que la
+                        única diferencia visible entre dos opciones era el
+                        precio. Cuándo llega es la otra mitad de la decisión.
+                      */}
                       {op.tiempo_estimado && (
-                        <p className="text-xs text-brand-text-muted">{op.tiempo_estimado}</p>
+                        <p
+                          className={`text-xs font-semibold ${
+                            op.entrega_hoy ? 'text-brand-neon' : 'text-brand-text'
+                          }`}
+                        >
+                          {op.tiempo_estimado}
+                        </p>
                       )}
                       {op.descripcion && (
                         <p className="text-xs text-brand-text-muted">{op.descripcion}</p>
