@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getConfig } from '@/lib/config'
 import { entregaCadeteria, parsearFeriados } from '@/lib/zonas-cadeteria'
+import { FERIADOS } from '@/lib/franjas-entrega'
 
 /**
  * GET /api/envio/entrega
@@ -29,8 +30,11 @@ export async function GET() {
     return NextResponse.json({ activo: false }, { headers: { 'Cache-Control': 'no-store' } })
   }
 
+  // Los feriados de la casa más los cargados a mano: la misma lista que usan
+  // las franjas de entrega, para que las dos pantallas no digan cosas
+  // distintas el mismo día.
   const entrega = entregaCadeteria({
-    feriados: parsearFeriados(cfg.envio_cadeteria_feriados),
+    feriados: [...FERIADOS, ...parsearFeriados(cfg.envio_cadeteria_feriados)],
   })
 
   return NextResponse.json(

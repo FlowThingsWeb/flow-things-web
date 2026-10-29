@@ -17,6 +17,7 @@ import { formatPrecio } from '@/lib/format'
 import { franjasEntrega, type FranjaEntrega } from '@/lib/franjas-entrega'
 import { leerDestino, guardarDestino } from '@/lib/destino-envio'
 import { getZonaEnvio, seCobraPorDistancia, seCoordinaPorHora } from '@/lib/zonas-envio'
+import { HORA_CORTE as HORA_CORTE_CADETERIA } from '@/lib/zonas-cadeteria'
 
 function validarDNI(dni: string): boolean {
   const limpio = (dni || '').replace(/\./g, '').trim()
@@ -232,10 +233,22 @@ function CarritoContent() {
       setRestricciones({})
       return
     }
-    setFranjas(franjasEntrega())
+    /*
+      Con el envío en el día, las franjas cortan a las 13 y no a las 16: es la
+      hora del cadete. Sin esto, entre las 13 y las 16 el carrito ofrecía una
+      franja de hoy justo al lado de un "Llega mañana".
+    */
+    setFranjas(
+      franjasEntrega(
+        new Date(),
+        envioSeleccionado?.id === 'cadeteria' ? { horaCorte: HORA_CORTE_CADETERIA } : undefined,
+      ),
+    )
     setFranjasElegidas([])
     setRestricciones({})
-  }, [esCercania])
+    // Depende también del envío elegido: cambiar de cadete a correo cambia la
+    // hora de corte, y con ella qué franjas se pueden ofrecer.
+  }, [esCercania, envioSeleccionado?.id])
   const [envioCalculado, setEnvioCalculado] = useState(false)
   // Fallback: editar la dirección a mano si Google no la ubicó bien.
   const [editarManual, setEditarManual] = useState(false)

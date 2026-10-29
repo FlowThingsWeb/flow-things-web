@@ -157,6 +157,44 @@ es('feriados vacío', parsearFeriados(''), [])
 es('feriados null', parsearFeriados(null), [])
 es('fecha mal escrita se ignora', parsearFeriados('8/12/2026, 2026-12-25'), ['2026-12-25'])
 
+/* ───────── Que el envío y las franjas no se contradigan ───────── */
+import { franjasEntrega, FERIADOS } from './lib/franjas-entrega'
+
+/**
+ * Las dos mitades del carrito tienen que decir el mismo día.
+ *
+ * "Cuándo llega" sale del corte del cadete (13) y "cuándo podés recibirlo" del
+ * de despacho propio (16). Entre esas tres horas el carrito ofrecía una franja
+ * de HOY justo al lado de un "Llega mañana": dos promesas distintas en la
+ * misma pantalla, y la que el comprador elige es la que no se puede cumplir.
+ *
+ * Y los feriados tienen que salir de la misma lista. Cuando eran dos, el 23 de
+ * noviembre —el 20, trasladado al lunes— quedaba sin franjas y con "Llega
+ * hoy".
+ */
+const mismoDia = (iso: string) => {
+  const ahora = new Date(iso)
+  const e = entregaCadeteria({ ahora, feriados: FERIADOS })
+  const primera = franjasEntrega(ahora, { horaCorte: 13 })[0]?.etiqueta ?? ''
+  return { envioHoy: e.hoy, franjaHoy: /^Hoy/.test(primera), etiqueta: e.etiqueta, primera }
+}
+for (const [nombre, iso] of [
+  ['jueves 11:00', '2026-10-29T14:00:00Z'],
+  ['jueves 14:30, entre los dos cortes', '2026-10-29T17:30:00Z'],
+  ['jueves 17:00', '2026-10-29T20:00:00Z'],
+  ['lunes 23/11, feriado trasladado del 20', '2026-11-23T14:00:00Z'],
+  ['domingo 6/12, con el 7 y el 8 feriados', '2026-12-06T14:00:00Z'],
+] as const) {
+  const r = mismoDia(iso)
+  es(`${nombre}: el envío y la franja dicen lo mismo`, r.envioHoy, r.franjaHoy)
+}
+// El 23/11 no es "hoy" aunque sea lunes a la mañana: es feriado.
+es(
+  'el 23/11 no promete entrega',
+  entregaCadeteria({ ahora: new Date('2026-11-23T14:00:00Z'), feriados: FERIADOS }).hoy,
+  false,
+)
+
 console.log(`\n${ok} bien, ${fallos.length} mal`)
 for (const f of fallos) console.log(`  ✗ ${f}`)
 process.exit(fallos.length === 0 ? 0 : 1)

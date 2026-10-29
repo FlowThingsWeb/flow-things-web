@@ -141,13 +141,27 @@ function etiquetaDe(dia: string, desde: number, hasta: number, hoy: string): str
  * calcule lo mismo que el navegador: el cliente propone y el servidor valida
  * con su propio reloj.
  */
-export function franjasEntrega(ahora: Date = new Date()): FranjaEntrega[] {
+export function franjasEntrega(
+  ahora: Date = new Date(),
+  opts?: {
+    /**
+     * Hora después de la cual la compra ya no sale hoy.
+     *
+     * Por defecto son las 16, que es cuando cierra el despacho propio. El
+     * envío en el día del cadete corta a las 13: sin poder pasarle su hora,
+     * entre las 13 y las 16 el carrito ofrecía una franja de hoy al lado de un
+     * "Llega mañana", o sea dos promesas distintas en la misma pantalla.
+     */
+    horaCorte?: number;
+  },
+): FranjaEntrega[] {
+  const HORA_CORTE = opts?.horaCorte ?? HORA_CORTE_DESPACHO;
   const { dia: hoy, hora, minuto } = enBA(ahora);
 
   // Primer día ofrecible y desde qué hora.
   let primerDia: string;
   let primeraHora: number;
-  if (esHabil(hoy) && hora < HORA_CORTE_DESPACHO) {
+  if (esHabil(hoy) && hora < HORA_CORTE) {
     primerDia = hoy;
     // Lo que queda de hoy. Antes de las 10 la franja arranca a las 10; si ya
     // empezó, arranca en la hora en curso (los minutos se redondean hacia

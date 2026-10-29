@@ -11,6 +11,7 @@ import {
   parsearFeriados,
 } from '@/lib/zonas-cadeteria'
 import { distanciaManejoKm, geocodificar, type UbicacionGeo } from '@/lib/google-maps'
+import { FERIADOS } from '@/lib/franjas-entrega'
 
 /**
  * Zonas y códigos postales viven en `lib/zonas-envio`, sin dependencias, para
@@ -188,8 +189,22 @@ export async function calcularEnvio(
     )
     const gratisDesde = num(cfg.envio_cadeteria_gratis_desde, 0)
     const esGratis = subtotal > 0 && gratisDesde > 0 && subtotal >= gratisDesde
+    /**
+     * Los feriados de la casa, más los que se carguen a mano.
+     *
+     * `FERIADOS` ya existía para las franjas de entrega y está mantenida con
+     * los trasladables resueltos —el 20 de noviembre de 2026 cae viernes y se
+     * corre al lunes 23, el 7 de diciembre es puente turístico—. Dos listas de
+     * feriados en el mismo repo se separan sin que nadie se entere, y la forma
+     * en que se separan es la peor: el carrito no ofrece franjas ese día y el
+     * envío igual promete "Llega hoy".
+     *
+     * El campo de configuración suma, no reemplaza: sirve para el feriado
+     * provincial o el día que el cadete avisa que no sale, sin esperar a un
+     * deploy.
+     */
     const entrega = entregaCadeteria({
-      feriados: parsearFeriados(cfg.envio_cadeteria_feriados),
+      feriados: [...FERIADOS, ...parsearFeriados(cfg.envio_cadeteria_feriados)],
     })
     return {
       id: 'cadeteria',
