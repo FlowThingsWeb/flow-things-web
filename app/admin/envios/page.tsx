@@ -52,7 +52,7 @@ export default function EnviosAdminPage() {
     precio_zona3: '8500',
     gratis_desde: '61000',
     nombre: 'Envío en el día',
-    tiempo: 'Hoy si comprás antes de las 13 hs',
+    feriados: '2026-12-08,2026-12-25,2027-01-01',
   })
   // Envío por cercanía (km) — reemplaza CABA/AMBA cuando está activo.
   const [km, setKm] = useState({
@@ -119,7 +119,7 @@ export default function EnviosAdminPage() {
           precio_zona3: cfg.envio_cadeteria_precio_zona3 || '8500',
           gratis_desde: cfg.envio_cadeteria_gratis_desde || '61000',
           nombre: cfg.envio_cadeteria_nombre || 'Envío en el día',
-          tiempo: cfg.envio_cadeteria_tiempo || 'Hoy si comprás antes de las 13 hs',
+          feriados: cfg.envio_cadeteria_feriados ?? '',
         })
         setKm({
           activo: cfg.envio_km_activo === '1',
@@ -170,7 +170,7 @@ export default function EnviosAdminPage() {
         envio_cadeteria_precio_zona3: cadete.precio_zona3,
         envio_cadeteria_gratis_desde: cadete.gratis_desde,
         envio_cadeteria_nombre: cadete.nombre,
-        envio_cadeteria_tiempo: cadete.tiempo,
+        envio_cadeteria_feriados: cadete.feriados,
         envio_km_activo: km.activo ? '1' : '0',
         envio_km_origen: km.origen,
         envio_km_base: km.base,
@@ -285,19 +285,33 @@ export default function EnviosAdminPage() {
           </div>
           <div className="sm:col-span-2">
             <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
-              Tiempo estimado
+              Días que no reparte (además de sábados y domingos)
             </label>
             <input
-              type="text" value={cadete.tiempo}
-              onChange={e => setCadete({ ...cadete, tiempo: e.target.value })}
-              className="input-dark w-full" placeholder="Hoy si comprás antes de las 13 hs"
+              type="text" value={cadete.feriados}
+              onChange={e => setCadete({ ...cadete, feriados: e.target.value })}
+              className="input-dark w-full font-mono text-sm"
+              placeholder="2026-12-08, 2026-12-25"
             />
+            <p className="text-xs text-brand-text-light mt-1">
+              Fechas <strong className="text-brand-text">AAAA-MM-DD</strong> separadas por coma.
+              Vienen cargados los feriados de fecha fija; los que se trasladan —20 de noviembre,
+              Carnaval, Viernes Santo, los puentes— agregalos acá. Un día que esté en la lista
+              nunca dice &quot;Llega hoy&quot;.
+            </p>
           </div>
         </div>
         <p className="text-xs text-brand-text-muted mt-4">
           Estos son los precios <strong className="text-brand-text">al comprador</strong>. Lo
           que le pagás al cadete se carga solo en el CRM, en Envíos, con el precio que tenga
           cada zona ahí.
+        </p>
+        <p className="text-xs text-brand-text-muted mt-2">
+          El día de entrega no se escribe: sale del reloj de Buenos Aires. Hasta las 13 de un
+          día que reparte dice <strong className="text-brand-text">&quot;Llega hoy&quot;</strong>;
+          en la última hora antes del corte,{' '}
+          <strong className="text-brand-text">&quot;Llega hoy si comprás antes de las 13&quot;</strong>;
+          después, &quot;Llega mañana&quot; o el día que toque.
         </p>
       </div>
 

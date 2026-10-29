@@ -73,7 +73,7 @@ export interface ConfigMap {
   envio_cadeteria_precio_zona3: string
   envio_cadeteria_gratis_desde: string  // subtotal para envío gratis
   envio_cadeteria_nombre: string        // etiqueta mostrada
-  envio_cadeteria_tiempo: string        // tiempo estimado
+  envio_cadeteria_feriados: string      // AAAA-MM-DD separadas por coma: días que no reparte
   // Design
   design_overrides: string
   design_font_family: string
@@ -168,7 +168,16 @@ const DEFAULTS: ConfigMap = {
   envio_cadeteria_precio_zona3: '8500',
   envio_cadeteria_gratis_desde: '61000',
   envio_cadeteria_nombre: 'Envío en el día',
-  envio_cadeteria_tiempo: 'Hoy si comprás antes de las 13 hs',
+  /**
+   * Días que el cadete no reparte, además de sábados y domingos.
+   *
+   * Está en la configuración y no en el código porque los feriados movibles
+   * cambian de fecha todos los años: una lista escrita en un deploy envejece
+   * sola y empieza a prometer "Llega hoy" los días que no sale nadie. Vienen
+   * cargados sólo los de fecha fija; los trasladables —20 de noviembre,
+   * Carnaval, Viernes Santo, los puentes— hay que agregarlos a mano.
+   */
+  envio_cadeteria_feriados: '2026-12-08,2026-12-25,2027-01-01',
   // Design
   design_overrides: '',
   design_font_family: 'inherit',

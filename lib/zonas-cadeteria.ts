@@ -78,3 +78,111 @@ export function getZonaCadeteria(codigoPostal?: string | null): ZonaCadeteria | 
   }
   return null
 }
+
+/* ───────────────────────── Cuándo llega ───────────────────────── */
+
+/** Después de esta hora de Buenos Aires, el paquete sale al día siguiente. */
+export const HORA_CORTE = 13
+
+/**
+ * Cuando falta menos que esto para el corte, la promesa se condiciona.
+ *
+ * "Llega hoy" a las 12:58 es una promesa que el comprador no llega a cumplir:
+ * entre que lee, carga la tarjeta y paga, pasaron las 13. Decirle la condición
+ * en vez del resultado es lo único honesto, y además apura, que es lo que
+ * quiere el que está por comprar.
+ */
+const MINUTOS_DE_AVISO = 60
+
+const ZONA_AR = 'America/Argentina/Buenos_Aires'
+const UN_DIA = 86_400_000
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+
+function enBuenosAires(d: Date) {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ZONA_AR,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d)
+  const g = (t: Intl.DateTimeFormatPartTypes) => Number(p.find((x) => x.type === t)?.value ?? 0)
+  return { y: g('year'), m: g('month'), d: g('day'), h: g('hour'), min: g('minute') }
+}
+
+const aISO = (t: number) => new Date(t).toISOString().slice(0, 10)
+
+export interface EntregaCadeteria {
+  /** Llega hoy. */
+  hoy: boolean
+  /** Lo que ve el comprador: "Llega hoy", "Llega mañana", "Llega el lunes". */
+  etiqueta: string
+  /** Día de entrega, `YYYY-MM-DD` en hora de Buenos Aires. */
+  fecha: string
+}
+
+/**
+ * Cuándo le llega al comprador si compra ahora.
+ *
+ * La regla del cadete: antes de las 13 de Buenos Aires sale —y llega— el mismo
+ * día; después, al siguiente día que reparte. No reparte sábados, domingos ni
+ * los feriados que estén cargados.
+ *
+ * La hora es SIEMPRE la de Buenos Aires y no la del visitante. Un comprador en
+ * España abriendo la tienda a las 18 de allá son las 14 de acá: si la cuenta
+ * saliera de su reloj, le prometeríamos una entrega que ya no entra.
+ *
+ * Los feriados vienen de afuera, no de una lista acá adentro: los movibles
+ * cambian de fecha todos los años y una lista vieja en el código promete
+ * entregas los días que nadie reparte. Se cargan en /admin/envios.
+ *
+ * El CRM tiene la misma regla en `despachoPrevisto` —dice "sale hoy", porque
+ * del otro lado del mostrador lo que importa es cuándo se despacha—. Son dos
+ * repos distintos; si la hora de corte cambia, hay que tocar las dos.
+ */
+export function entregaCadeteria(opts?: {
+  feriados?: Iterable<string>
+  ahora?: Date
+}): EntregaCadeteria {
+  const feriados = new Set(opts?.feriados ?? [])
+  const ahora = enBuenosAires(opts?.ahora ?? new Date())
+  const hoyCivil = Date.UTC(ahora.y, ahora.m - 1, ahora.d)
+
+  let entrega = hoyCivil + (ahora.h >= HORA_CORTE ? UN_DIA : 0)
+  // Fin de semana y feriado se saltan igual. El `while` avanza de a un día y
+  // no de a uno solo: dos feriados pegados a un domingo son tres saltos.
+  while (
+    new Date(entrega).getUTCDay() === 0 ||
+    new Date(entrega).getUTCDay() === 6 ||
+    feriados.has(aISO(entrega))
+  ) {
+    entrega += UN_DIA
+  }
+
+  const dias = Math.round((entrega - hoyCivil) / UN_DIA)
+  const minutosAlCorte = (HORA_CORTE - ahora.h) * 60 - ahora.min
+
+  let etiqueta: string
+  if (dias === 0) {
+    etiqueta =
+      minutosAlCorte <= MINUTOS_DE_AVISO
+        ? `Llega hoy si comprás antes de las ${HORA_CORTE}`
+        : 'Llega hoy'
+  } else if (dias === 1) {
+    etiqueta = 'Llega mañana'
+  } else {
+    etiqueta = `Llega el ${DIAS[new Date(entrega).getUTCDay()]}`
+  }
+
+  return { hoy: dias === 0, etiqueta, fecha: aISO(entrega) }
+}
+
+/** Los feriados tal como se guardan: fechas sueltas separadas por coma. */
+export function parsearFeriados(texto?: string | null): string[] {
+  return String(texto ?? '')
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s))
+}

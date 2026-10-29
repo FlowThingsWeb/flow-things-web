@@ -96,6 +96,67 @@ es('1787 vuelve a Marcos Paz', getZonaCadeteria('1787'), 'zona3')
 es('7221 es Gobernador Udaondo, Zona 3', getZonaCadeteria('7221'), 'zona3')
 es('7222 está afuera', getZonaCadeteria('7222'), null)
 
+
+/* ────────────────────────── Cuándo llega ────────────────────────── */
+import { entregaCadeteria, parsearFeriados } from './lib/zonas-cadeteria'
+
+// Buenos Aires es UTC−3: 14:00Z son las 11 de la mañana de acá.
+const ar = (iso: string) => new Date(iso)
+const et = (iso: string, feriados: string[] = []) =>
+  entregaCadeteria({ ahora: ar(iso), feriados }).etiqueta
+
+// Jueves 29/10/2026.
+es('11:00, antes del corte', et('2026-10-29T14:00:00Z'), 'Llega hoy')
+es('09:00, antes del corte', et('2026-10-29T12:00:00Z'), 'Llega hoy')
+// En la última hora la promesa se condiciona: el que lee 12:58 no llega a pagar.
+es('12:01, última hora', et('2026-10-29T15:01:00Z'), 'Llega hoy si comprás antes de las 13')
+es('12:59, última hora', et('2026-10-29T15:59:00Z'), 'Llega hoy si comprás antes de las 13')
+// A las 13 en punto ya es tarde: el corte es "antes de las 13".
+es('13:00 en punto', et('2026-10-29T16:00:00Z'), 'Llega mañana')
+es('18:10, como entró la #261', et('2026-10-29T21:10:00Z'), 'Llega mañana')
+
+// Viernes 30: después del corte cae sábado, y el sábado no reparte.
+es('viernes 15:00 → lunes', et('2026-10-30T18:00:00Z'), 'Llega el lunes')
+es('viernes 11:00 → hoy', et('2026-10-30T14:00:00Z'), 'Llega hoy')
+// El sábado no reparte ni siquiera temprano.
+es('sábado 10:00 → lunes', et('2026-10-31T13:00:00Z'), 'Llega el lunes')
+es('domingo 10:00 → mañana', et('2026-11-01T13:00:00Z'), 'Llega mañana')
+
+// Feriados: el martes 8/12/2026 no reparte.
+es('lunes 7/12 tarde → el 9, miércoles', et('2026-12-07T18:00:00Z', ['2026-12-08']), 'Llega el miércoles')
+es('el 8/12 a la mañana tampoco llega hoy', et('2026-12-08T13:00:00Z', ['2026-12-08']), 'Llega mañana')
+// Dos feriados pegados a un fin de semana: el salto es de varios días.
+es(
+  'jueves 24/12 tarde con 25 y 28 feriados',
+  et('2026-12-24T18:00:00Z', ['2026-12-25', '2026-12-28']),
+  'Llega el martes',
+)
+
+/**
+ * El huso es SIEMPRE el de Buenos Aires.
+ *
+ * 2026-10-29T16:30:00Z son las 13:30 de acá —ya pasó el corte— y las 18:30 en
+ * Madrid. Si la cuenta saliera del reloj del visitante, a un comprador en
+ * España se le prometería una entrega que ya no entra.
+ */
+es('13:30 de acá es tarde, mire quien mire', et('2026-10-29T16:30:00Z'), 'Llega mañana')
+// Y 01:30Z del 30 son las 22:30 del 29 acá: sigue siendo jueves, y el jueves
+// ya pasó su corte.
+es('22:30 del jueves', et('2026-10-30T01:30:00Z'), 'Llega mañana')
+// 03:30Z del 30 son las 00:30 del 30 acá: ya es viernes y todavía no son las 13.
+es('00:30 del viernes', et('2026-10-30T03:30:00Z'), 'Llega hoy')
+
+es('la fecha que devuelve', entregaCadeteria({ ahora: ar('2026-10-30T18:00:00Z') }).fecha, '2026-11-02')
+es('hoy es hoy', entregaCadeteria({ ahora: ar('2026-10-29T14:00:00Z') }).hoy, true)
+es('mañana no es hoy', entregaCadeteria({ ahora: ar('2026-10-29T18:00:00Z') }).hoy, false)
+
+// Los feriados se escriben a mano, así que la lectura tiene que aguantar
+// cualquier cosa sin tirar la cotización abajo.
+es('feriados con espacios', parsearFeriados(' 2026-12-08 , 2026-12-25 '), ['2026-12-08', '2026-12-25'])
+es('feriados vacío', parsearFeriados(''), [])
+es('feriados null', parsearFeriados(null), [])
+es('fecha mal escrita se ignora', parsearFeriados('8/12/2026, 2026-12-25'), ['2026-12-25'])
+
 console.log(`\n${ok} bien, ${fallos.length} mal`)
 for (const f of fallos) console.log(`  ✗ ${f}`)
 process.exit(fallos.length === 0 ? 0 : 1)

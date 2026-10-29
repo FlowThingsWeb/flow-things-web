@@ -4,7 +4,12 @@
  */
 import { getConfig } from '@/lib/config'
 import { getZonaEnvio, type ZonaEnvio } from '@/lib/zonas-envio'
-import { getZonaCadeteria, NOMBRE_ZONA_CADETERIA } from '@/lib/zonas-cadeteria'
+import {
+  entregaCadeteria,
+  getZonaCadeteria,
+  NOMBRE_ZONA_CADETERIA,
+  parsearFeriados,
+} from '@/lib/zonas-cadeteria'
 import { distanciaManejoKm, geocodificar, type UbicacionGeo } from '@/lib/google-maps'
 
 /**
@@ -14,8 +19,12 @@ import { distanciaManejoKm, geocodificar, type UbicacionGeo } from '@/lib/google
  */
 export { esAMBA, getZonaEnvio, seCobraPorDistancia } from '@/lib/zonas-envio'
 export type { ZonaEnvio } from '@/lib/zonas-envio'
-export { getZonaCadeteria, NOMBRE_ZONA_CADETERIA } from '@/lib/zonas-cadeteria'
-export type { ZonaCadeteria } from '@/lib/zonas-cadeteria'
+export {
+  entregaCadeteria,
+  getZonaCadeteria,
+  NOMBRE_ZONA_CADETERIA,
+} from '@/lib/zonas-cadeteria'
+export type { EntregaCadeteria, ZonaCadeteria } from '@/lib/zonas-cadeteria'
 
 /** Sin acentos, minúsculas, sin ruido: para comparar nombres de lugares. */
 function normalizar(s: string | null | undefined): string {
@@ -170,6 +179,9 @@ export async function calcularEnvio(
     )
     const gratisDesde = num(cfg.envio_cadeteria_gratis_desde, 0)
     const esGratis = subtotal > 0 && gratisDesde > 0 && subtotal >= gratisDesde
+    const entrega = entregaCadeteria({
+      feriados: parsearFeriados(cfg.envio_cadeteria_feriados),
+    })
     return {
       id: 'cadeteria',
       nombre: cfg.envio_cadeteria_nombre || 'Envío en el día',
@@ -182,10 +194,18 @@ export async function calcularEnvio(
        */
       costo_tienda: precioLista,
       km: null,
-      tiempo_estimado: cfg.envio_cadeteria_tiempo || '',
+      /**
+       * El día se calcula, no se escribe.
+       *
+       * Era un texto fijo —"Hoy si comprás antes de las 13 hs"— y eso es
+       * verdad hasta las 13 y mentira el resto del día, el fin de semana
+       * entero y los feriados. Lo que ve el comprador ahora sale del reloj de
+       * Buenos Aires: "Llega hoy" sólo cuando llega hoy de verdad.
+       */
+      tiempo_estimado: entrega.etiqueta,
       descripcion: esGratis
         ? '¡Envío gratis por superar el mínimo!'
-        : `${NOMBRE_ZONA_CADETERIA[zonaCadete]} · entrega en el día`,
+        : `${NOMBRE_ZONA_CADETERIA[zonaCadete]} · lo llevamos nosotros`,
     }
   }
 
