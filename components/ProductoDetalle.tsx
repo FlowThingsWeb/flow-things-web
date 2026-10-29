@@ -10,6 +10,7 @@ import CuotasMP from '@/components/CuotasMP'
 import ProductReviews from '@/components/ProductReviews'
 import RelatedProducts from '@/components/RelatedProducts'
 import EnvioEstimador from '@/components/EnvioEstimador'
+import EntregaEnElDia, { useEntregaEnElDia } from '@/components/EntregaEnElDia'
 import ShareButton from '@/components/ShareButton'
 import { formatPrecio } from '@/lib/format'
 import { estadoEnvioGratis, umbralEnvioGratis } from '@/lib/envio-gratis'
@@ -56,6 +57,11 @@ export default function ProductoDetalle({
   const [cantidad, setCantidad] = useState(1)
   const [agregado, setAgregado] = useState(false)
   const [sinStockMsg, setSinStockMsg] = useState(false)
+  /**
+   * Cuándo llega, pedido una sola vez para toda la ficha: lo usan la tira de
+   * arriba del botón y el renglón de la barra fija de abajo.
+   */
+  const entrega = useEntregaEnElDia()
   const touchStartX = useRef(0)
   /**
    * El botón de comprar arranca a 1.326px del tope: 1,63 pantallas de teléfono.
@@ -597,7 +603,17 @@ export default function ProductoDetalle({
             comprador—, así que se contesta antes. Con el destino recordado
             ocupa una sola línea y no empuja el botón.
           */}
-          <EnvioEstimador precio={producto.precio} />
+          {/*
+            Y arriba del estimador, cuándo llega.
+
+            El estimador contesta "cuánto sale" y pide el código postal para
+            hacerlo. Esto contesta "cuándo llega" sin pedir nada, que es la
+            otra mitad de la misma duda y la que se puede contestar primero.
+          */}
+          <div className="space-y-2">
+            <EntregaEnElDia entrega={entrega} />
+            <EnvioEstimador precio={producto.precio} />
+          </div>
 
           {/* ── Cantidad + Agregar ── (stock > 0 y selección completa) */}
           {stockEfectivo > 0 && seleccionCompleta && (
