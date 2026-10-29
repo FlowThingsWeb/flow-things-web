@@ -4,6 +4,7 @@
  */
 import { getConfig } from '@/lib/config'
 import { getZonaEnvio, type ZonaEnvio } from '@/lib/zonas-envio'
+import { getZonaCadeteria, NOMBRE_ZONA_CADETERIA } from '@/lib/zonas-cadeteria'
 import { distanciaManejoKm, geocodificar, type UbicacionGeo } from '@/lib/google-maps'
 
 /**
@@ -13,6 +14,8 @@ import { distanciaManejoKm, geocodificar, type UbicacionGeo } from '@/lib/google
  */
 export { esAMBA, getZonaEnvio, seCobraPorDistancia } from '@/lib/zonas-envio'
 export type { ZonaEnvio } from '@/lib/zonas-envio'
+export { getZonaCadeteria, NOMBRE_ZONA_CADETERIA } from '@/lib/zonas-cadeteria'
+export type { ZonaCadeteria } from '@/lib/zonas-cadeteria'
 
 /** Sin acentos, minúsculas, sin ruido: para comparar nombres de lugares. */
 function normalizar(s: string | null | undefined): string {
@@ -145,6 +148,46 @@ export async function calcularEnvio(
   // Compat: el valor viejo 'gba' (cuando toda la provincia era una sola zona)
   // se usa como fallback para AMBA y Resto BA hasta que se configuren aparte.
   const num = (v: string | undefined, def: number) => Number(v) || def
+
+  /**
+   * ── Envío en el día: reemplaza al de km (y a la tarifa plana) por CP ──
+   *
+   * Va primero porque es el que manda donde llega. Lo decide el código postal
+   * y no la zona vieja, y eso es lo que lo hace más amplio que el de km en los
+   * dos sentidos: cubre La Plata, Luján, Campana y Zárate —que para
+   * `getZonaEnvio` son "resto de Buenos Aires" y pagaban la plana más cara— y
+   * no cubre media provincia que sí entraba en 'amba' por rango de CP.
+   *
+   * No hay fallback que calcular: la tarifa es del CP, así que no depende de
+   * Google, ni de que la dirección se pueda ubicar, ni de un radio. Si el CP
+   * no está en la tabla, esto no corre y sigue todo como antes.
+   */
+  const zonaCadete = cfg.envio_cadeteria_activo === '1' ? getZonaCadeteria(codigoPostal) : null
+  if (zonaCadete) {
+    const precioLista = num(
+      cfg[`envio_cadeteria_precio_${zonaCadete}` as keyof typeof cfg] as string | undefined,
+      0,
+    )
+    const gratisDesde = num(cfg.envio_cadeteria_gratis_desde, 0)
+    const esGratis = subtotal > 0 && gratisDesde > 0 && subtotal >= gratisDesde
+    return {
+      id: 'cadeteria',
+      nombre: cfg.envio_cadeteria_nombre || 'Envío en el día',
+      precio: esGratis ? 0 : precioLista,
+      /**
+       * Lo que le cuesta a la tienda es lo mismo que cobra: la tarifa del
+       * cadete es la que está configurada. Si algún día se cobra con recargo,
+       * acá hay que separar los dos números —el costo real lo tiene el CRM en
+       * `envio_zonas.precio`, que es de donde sale el gasto—.
+       */
+      costo_tienda: precioLista,
+      km: null,
+      tiempo_estimado: cfg.envio_cadeteria_tiempo || '',
+      descripcion: esGratis
+        ? '¡Envío gratis por superar el mínimo!'
+        : `${NOMBRE_ZONA_CADETERIA[zonaCadete]} · entrega en el día`,
+    }
+  }
 
   // ── Envío por cercanía (km): reemplaza CABA/AMBA cuando está activo ──
   // Si falla (sin key, dirección no ubicable, resuelta en otra jurisdicción, o

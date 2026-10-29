@@ -37,6 +37,23 @@ export default function EnviosAdminPage() {
    * prometiendo "6 cuotas sin interés de $83.617" que Mercado Pago no da.
    */
   const [cuotas, setCuotas] = useState({ c2: '', c3: '', c6: '' })
+  /**
+   * Envío en el día (cadetería propia).
+   *
+   * Manda sobre el de km y sobre la tarifa plana, pero sólo en los 781 CP que
+   * cubre el cadete. Prenderlo cambia el precio de esos 781 de una vez, así
+   * que arranca apagado y lo prende una persona.
+   */
+  const [cadete, setCadete] = useState({
+    activo: false,
+    precio_caba: '4000',
+    precio_zona1: '7000',
+    precio_zona2: '7500',
+    precio_zona3: '8500',
+    gratis_desde: '61000',
+    nombre: 'Envío en el día',
+    tiempo: 'Hoy si comprás antes de las 13 hs',
+  })
   // Envío por cercanía (km) — reemplaza CABA/AMBA cuando está activo.
   const [km, setKm] = useState({
     activo: false,
@@ -94,6 +111,16 @@ export default function EnviosAdminPage() {
           }
           setCuotas({ c2: get(2), c3: get(3), c6: get(6) })
         } catch { /* deja los defaults */ }
+        setCadete({
+          activo: cfg.envio_cadeteria_activo === '1',
+          precio_caba: cfg.envio_cadeteria_precio_caba || '4000',
+          precio_zona1: cfg.envio_cadeteria_precio_zona1 || '7000',
+          precio_zona2: cfg.envio_cadeteria_precio_zona2 || '7500',
+          precio_zona3: cfg.envio_cadeteria_precio_zona3 || '8500',
+          gratis_desde: cfg.envio_cadeteria_gratis_desde || '61000',
+          nombre: cfg.envio_cadeteria_nombre || 'Envío en el día',
+          tiempo: cfg.envio_cadeteria_tiempo || 'Hoy si comprás antes de las 13 hs',
+        })
         setKm({
           activo: cfg.envio_km_activo === '1',
           origen: cfg.envio_km_origen ?? '',
@@ -136,6 +163,14 @@ export default function EnviosAdminPage() {
             .filter(([, min]) => String(min).trim() !== '' && Number.isFinite(Number(min)))
             .map(([n, min]) => ({ cuotas: n, min: Number(min) })),
         ),
+        envio_cadeteria_activo: cadete.activo ? '1' : '0',
+        envio_cadeteria_precio_caba: cadete.precio_caba,
+        envio_cadeteria_precio_zona1: cadete.precio_zona1,
+        envio_cadeteria_precio_zona2: cadete.precio_zona2,
+        envio_cadeteria_precio_zona3: cadete.precio_zona3,
+        envio_cadeteria_gratis_desde: cadete.gratis_desde,
+        envio_cadeteria_nombre: cadete.nombre,
+        envio_cadeteria_tiempo: cadete.tiempo,
         envio_km_activo: km.activo ? '1' : '0',
         envio_km_origen: km.origen,
         envio_km_base: km.base,
@@ -177,6 +212,92 @@ export default function EnviosAdminPage() {
         <h1 className="text-2xl font-bold text-white">Configuración de envíos</h1>
         <p className="text-brand-text-muted mt-1 text-sm">
           Definí el costo de envío y el mínimo para envío gratis por zona.
+        </p>
+      </div>
+
+      {/* Envío en el día — manda sobre km y sobre la tarifa plana, por CP */}
+      <div className="mb-6 bg-brand-bg-card border border-brand-border rounded-2xl p-6">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🛵</span>
+            <div>
+              <h2 className="font-semibold text-white">Envío en el día (cadetería)</h2>
+              <p className="text-xs text-brand-text-muted">
+                Cuando está activo manda sobre todo lo demás, pero sólo en los{' '}
+                <strong>781 códigos postales</strong> que cubre el cadete: CABA, el AMBA,
+                La Plata, Luján, Campana y Zárate. Ahí no se cotiza por km ni se usa la
+                tarifa plana. Un CP que no cubre no cambia en nada.
+              </p>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 shrink-0 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={cadete.activo}
+              onChange={e => setCadete({ ...cadete, activo: e.target.checked })}
+              className="w-4 h-4 accent-brand-purple"
+            />
+            <span className="text-sm text-brand-text">{cadete.activo ? 'Activo' : 'Inactivo'}</span>
+          </label>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4 mt-4">
+          {([
+            ['precio_caba', 'CABA', 'CP 1000 a 1499'],
+            ['precio_zona1', 'Zona 1', 'Vicente López, San Isidro, Morón, Lanús, Avellaneda…'],
+            ['precio_zona2', 'Zona 2', 'Tigre, San Miguel, Merlo, Quilmes, Berazategui…'],
+            ['precio_zona3', 'Zona 3', 'La Plata, Pilar, Escobar, Luján, Campana, Zárate…'],
+          ] as const).map(([clave, titulo, detalle]) => (
+            <div key={clave}>
+              <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+                {titulo}
+              </label>
+              <input
+                type="number" min="0" value={cadete[clave]}
+                onChange={e => setCadete({ ...cadete, [clave]: e.target.value })}
+                className="input-dark w-full"
+              />
+              <p className="text-xs text-brand-text-light mt-1">{detalle}</p>
+            </div>
+          ))}
+          <div>
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Envío gratis desde
+            </label>
+            <input
+              type="number" min="0" value={cadete.gratis_desde}
+              onChange={e => setCadete({ ...cadete, gratis_desde: e.target.value })}
+              className="input-dark w-full" placeholder="61000"
+            />
+            {Number(cadete.gratis_desde) > 0
+              ? <p className="text-xs text-green-400 mt-1">Gratis desde {formatPrecio(cadete.gratis_desde)}</p>
+              : <p className="text-xs text-brand-text-light mt-1">Sin envío gratis</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Nombre mostrado
+            </label>
+            <input
+              type="text" value={cadete.nombre}
+              onChange={e => setCadete({ ...cadete, nombre: e.target.value })}
+              className="input-dark w-full" placeholder="Envío en el día"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-brand-text-muted mb-1.5">
+              Tiempo estimado
+            </label>
+            <input
+              type="text" value={cadete.tiempo}
+              onChange={e => setCadete({ ...cadete, tiempo: e.target.value })}
+              className="input-dark w-full" placeholder="Hoy si comprás antes de las 13 hs"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-brand-text-muted mt-4">
+          Estos son los precios <strong className="text-brand-text">al comprador</strong>. Lo
+          que le pagás al cadete se carga solo en el CRM, en Envíos, con el precio que tenga
+          cada zona ahí.
         </p>
       </div>
 

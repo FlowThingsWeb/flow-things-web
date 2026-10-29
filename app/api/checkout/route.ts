@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { crearPreferencia } from '@/lib/mercadopago'
 import { calcularEnvio } from '@/lib/envio'
+import { seCoordinaPorHora } from '@/lib/zonas-envio'
 import { etiquetasValidas } from '@/lib/franjas-entrega'
 import { marcarCheckoutConvertido } from '@/lib/checkout-en-progreso'
 import { ItemOrden, DatosComprador } from '@/types'
@@ -248,11 +249,12 @@ export async function POST(request: NextRequest) {
      *
      * El navegador propone lo que calculó al abrir el checkout, pero entre eso
      * y el pago pueden pasar horas: lo que ya no es ofrecible se descarta acá.
-     * Sólo se guardan para el envío por cercanía, el único que se coordina por
-     * hora; en los del correo no significan nada.
+     * Sólo se guardan para los envíos que llevamos nosotros —el de cercanía y
+     * el envío en el día—, que son los que se coordinan por hora; en los del
+     * correo no significan nada.
      */
     const franjasGuardadas =
-      envioTipoFinal === 'cercania' && Array.isArray(franjas_entrega)
+      seCoordinaPorHora(envioTipoFinal) && Array.isArray(franjas_entrega)
         ? franjas_entrega
             .map((f) => ({
               etiqueta: String(f?.etiqueta ?? '').trim(),

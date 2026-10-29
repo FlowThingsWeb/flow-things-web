@@ -64,6 +64,16 @@ export interface ConfigMap {
   envio_km_radio_max: string     // km máximo; fuera de radio → cae a zona plana
   envio_km_nombre: string        // etiqueta mostrada
   envio_km_tiempo: string        // tiempo estimado
+  // Envío en el día (cadetería propia) — reemplaza km y tarifa plana en los
+  // 781 CP que cubre; fuera de esos CP no cambia nada
+  envio_cadeteria_activo: string        // '1' | '0'
+  envio_cadeteria_precio_caba: string   // $ al comprador
+  envio_cadeteria_precio_zona1: string
+  envio_cadeteria_precio_zona2: string
+  envio_cadeteria_precio_zona3: string
+  envio_cadeteria_gratis_desde: string  // subtotal para envío gratis
+  envio_cadeteria_nombre: string        // etiqueta mostrada
+  envio_cadeteria_tiempo: string        // tiempo estimado
   // Design
   design_overrides: string
   design_font_family: string
@@ -140,6 +150,25 @@ const DEFAULTS: ConfigMap = {
   envio_km_radio_max: '20',
   envio_km_nombre: 'Envío a domicilio',
   envio_km_tiempo: 'Coordinamos el día de entrega',
+  /**
+   * Envío en el día — apagado por defecto, y es a propósito.
+   *
+   * Prenderlo cambia el precio del envío de 781 códigos postales de una vez:
+   * CABA pasa de la tarifa por km a una plana, y La Plata, Luján, Campana y
+   * Zárate dejan de pagar la de "resto de Buenos Aires". Eso se prende cuando
+   * alguien lo decide, desde /admin/envios, y no por un deploy.
+   *
+   * Los precios arrancan en el costo del cadete: así, el día que se prenda,
+   * el peor caso es cobrar lo que sale y no regalar la diferencia.
+   */
+  envio_cadeteria_activo: '0',
+  envio_cadeteria_precio_caba: '4000',
+  envio_cadeteria_precio_zona1: '7000',
+  envio_cadeteria_precio_zona2: '7500',
+  envio_cadeteria_precio_zona3: '8500',
+  envio_cadeteria_gratis_desde: '61000',
+  envio_cadeteria_nombre: 'Envío en el día',
+  envio_cadeteria_tiempo: 'Hoy si comprás antes de las 13 hs',
   // Design
   design_overrides: '',
   design_font_family: 'inherit',

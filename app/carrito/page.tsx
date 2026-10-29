@@ -16,7 +16,7 @@ import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
 import { franjasEntrega, type FranjaEntrega } from '@/lib/franjas-entrega'
 import { leerDestino, guardarDestino } from '@/lib/destino-envio'
-import { getZonaEnvio, seCobraPorDistancia } from '@/lib/zonas-envio'
+import { getZonaEnvio, seCobraPorDistancia, seCoordinaPorHora } from '@/lib/zonas-envio'
 
 function validarDNI(dni: string): boolean {
   const limpio = (dni || '').replace(/\./g, '').trim()
@@ -206,7 +206,9 @@ function CarritoContent() {
    * miércoles puede haber alguien toda la tarde y el jueves sólo temprano.
    */
   const [restricciones, setRestricciones] = useState<Record<string, string>>({})
-  const esCercania = envioSeleccionado?.id === 'cercania'
+  // El de km y el envío en el día: los dos los llevamos nosotros y los dos se
+  // coordinan por hora.
+  const esCercania = seCoordinaPorHora(envioSeleccionado?.id)
   /**
    * "Mi dirección no tiene piso ni departamento".
    *
