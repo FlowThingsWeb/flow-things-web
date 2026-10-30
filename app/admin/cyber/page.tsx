@@ -261,6 +261,19 @@ export default function CyberAdminPage() {
         la apagues — no hay nada que prender a mano después.
       </div>
 
+      <a
+        href="/admin/cyber/precios"
+        className="mb-6 flex items-center justify-between rounded-2xl border border-brand-border bg-brand-bg-card p-4 hover:border-brand-purple"
+      >
+        <span>
+          <span className="block font-semibold text-white">Precios del Cyber →</span>
+          <span className="block text-xs text-brand-text-muted">
+            Subir el precio de lista, aplicar el descuento y volver atrás. Con el costo del
+            CRM y el margen de cada uno a la vista.
+          </span>
+        </span>
+      </a>
+
       {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
       <button
