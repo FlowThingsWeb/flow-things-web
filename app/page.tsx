@@ -17,6 +17,7 @@ import { ShoppingBag } from '@phosphor-icons/react/dist/ssr'
 import TrustBar from '@/components/TrustBar'
 import RielProductos from '@/components/RielProductos'
 import FaqCategoria, { faqDeTienda } from '@/components/FaqCategoria'
+import { cyberActivo } from '@/lib/cyber'
 
 /**
  * Medios de pago que se muestran al pie de la home.
@@ -145,6 +146,21 @@ export default async function HomePage({
       : cfg.envio_gratis_caba_desde,
   )
 
+  /**
+   * Lo rebajado, para el riel de la promo.
+   *
+   * El criterio es el mismo en toda la tienda —hay precio anterior y es más
+   * alto— así que un producto no puede aparecer en el riel del Cyber y sin
+   * tachado en la grilla. Se corta en doce: es un riel, no el catálogo; el
+   * resto está en /cyber.
+   */
+  const cyberOn = cyberActivo(cfg)
+  const ofertas = cyberOn
+    ? publicables
+        .filter((p) => p.precio_anterior != null && p.precio_anterior > p.precio)
+        .slice(0, 12)
+    : []
+
   const T = ({ k, className, as, multiline }: {
     k: string
     className?: string
@@ -175,6 +191,26 @@ export default async function HomePage({
 
       {/* Pegado al banner, sin aire: son su continuación, no otra sección. */}
       <LineasDestacadas />
+
+      {/*
+        La promo, arriba de todo lo demás y debajo del banner.
+
+        Arriba del banner no: el 58% del tráfico entra desde Instagram sin
+        saber qué se vende acá, y un cartel de descuentos antes de haber
+        mostrado un solo producto es ruido. Primero qué hay, después a cuánto.
+      */}
+      {cyberOn && ofertas.length > 0 && (
+        <RielProductos
+          titulo={cfg.cyber_titulo || 'Ofertas Cyber'}
+          bajada={
+            cfg.cyber_bajada ||
+            `${ofertas.length} productos rebajados, con envío gratis desde $${envioGratisDesde.toLocaleString('es-AR')}`
+          }
+          productos={ofertas}
+          verMasHref="/cyber"
+          mapaBlur={mapaBlur}
+        />
+      )}
 
       {/* Garantías: contesta envío, cuotas, seguridad y devoluciones antes de
           que el cliente tenga que ir a buscarlo. */}

@@ -12,6 +12,8 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import CartDrawer from '@/components/CartDrawer'
 import AnnouncementBar from '@/components/AnnouncementBar'
+import CyberBar from '@/components/CyberBar'
+import { cyberActivo } from '@/lib/cyber'
 import CartSync from '@/components/CartSync'
 import ProfileGuard from '@/components/ProfileGuard'
 import RegistrationPopup from '@/components/RegistrationPopup'
@@ -57,7 +59,19 @@ export default function UserShell({ cfg, categorias, subcategorias, marcas, chil
         entre empujando al header en vez de taparlo.
       */}
       <div className="sticky top-0 z-40">
-        <AnnouncementBar gratisDesde={Number(cfg.envio_gratis_interior_desde) || 61000} />
+        {/*
+          Una barra o la otra, nunca las dos. Son el mismo renglón de pantalla
+          y el mismo trabajo —dar la razón para quedarse—; apiladas se comen
+          media pantalla de teléfono antes de que se vea un solo producto.
+
+          Mientras dura la promo gana la promo: el envío gratis y las cuotas
+          siguen estando y se cuentan en la bajada.
+        */}
+        {cyberActivo(cfg) ? (
+          <CyberBar titulo={cfg.cyber_titulo || 'Ofertas Cyber'} bajada={cfg.cyber_bajada || ''} />
+        ) : (
+          <AnnouncementBar gratisDesde={Number(cfg.envio_gratis_interior_desde) || 61000} />
+        )}
         <Header cfg={cfg} categorias={categorias} subcategorias={subcategorias} marcas={marcas} />
       </div>
       {/* En el webview de Instagram no hay flecha de atrás del navegador. */}
