@@ -2,6 +2,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getConfig } from '@/lib/config'
 import { estadoCyber } from '@/lib/cyber'
+import { guardarBorradorCyber } from '@/lib/difusion-cyber'
 import {
   CONFIG_CYBER_DEFAULT,
   FACTORES_DEFAULT,
@@ -322,7 +323,20 @@ export async function aplicarCyberSiCorresponde(): Promise<{
   revalidateTag('site-config')
 
   const { hechos, omitidos } = await aplicarDescuento(filas, snaps, cfg)
-  if (hechos.length > 0) refrescarCatalogo()
+  if (hechos.length > 0) {
+    refrescarCatalogo()
+    /**
+     * El borrador del mail se rehace con los precios recién aplicados.
+     *
+     * Hasta este momento el borrador mostraba la proyección —los precios que
+     * iban a quedar—, que es lo que permite revisarlo con días de
+     * anticipación. Ahora hay números reales, y el mail tiene que decir lo
+     * mismo que la tienda. No se manda: sigue siendo un borrador.
+     */
+    await guardarBorradorCyber().catch((e: unknown) => {
+      console.error('[cyber] no se pudo rehacer el borrador del mail:', e)
+    })
+  }
 
   return { aplicado: true, cambiados: hechos.length, omitidos: omitidos.length }
 }

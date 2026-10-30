@@ -2,6 +2,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { escapeHtml } from '@/lib/escape-html'
 import { getConfig } from '@/lib/config'
 import { estadoCyber } from '@/lib/cyber'
+import { leerTodo } from '@/lib/cyber-aplicar'
+import { FACTORES_DEFAULT } from '@/lib/cyber-precios'
 
 /**
  * El cuerpo del mail de las Ofertas Cyber, armado con los precios de ahora.
@@ -42,6 +44,49 @@ export interface OfertaMail {
   imagen: string | null
 }
 
+/**
+ * Lo que VA a estar rebajado, cuando todavía no se aplicó el descuento.
+ *
+ * Existe para poder armar y mirar el mail antes de que la promo arranque. Los
+ * precios no son inventados: son los que va a poner el mismo código que
+ * aplica el descuento, con el piso de margen y las exclusiones ya puestas. Si
+ * algo cambia entre hoy y el lunes —un costo, un stock— el borrador se vuelve
+ * a armar solo apenas se aplica.
+ */
+async function ofertasProyectadas(limite: number): Promise<OfertaMail[]> {
+  const { filas } = await leerTodo(FACTORES_DEFAULT)
+  const candidatos = filas.filter((f) => !f.bajo_piso && !f.sin_descuento_real && f.stock > 0)
+  if (candidatos.length === 0) return []
+
+  const { data } = await supabaseAdmin
+    .from('productos')
+    .select('id, slug, imagen_url, imagenes')
+    .in(
+      'id',
+      candidatos
+        .sort((a, b) => b.descuento_real - a.descuento_real)
+        .slice(0, limite)
+        .map((f) => f.id),
+    )
+
+  const porId = new Map((data ?? []).map((p) => [String(p.id), p]))
+  return candidatos
+    .sort((a, b) => b.descuento_real - a.descuento_real)
+    .slice(0, limite)
+    .map((f) => {
+      const p = porId.get(f.id)
+      const galeria = Array.isArray(p?.imagenes) ? (p!.imagenes as string[]) : []
+      return {
+        nombre: f.nombre,
+        slug: String(p?.slug ?? ''),
+        precio: f.precio_oferta,
+        precio_anterior: f.precio_inflado,
+        imagen: p?.imagen_url ? String(p.imagen_url) : (galeria[0] ?? null),
+      }
+    })
+    .filter((p) => p.slug !== '')
+}
+
 /** Lo rebajado, de mayor descuento a menor: el mail abre con lo que más baja. */
 export async function ofertasParaElMail(limite = 8): Promise<OfertaMail[]> {
   const { data } = await supabaseAdmin
@@ -50,7 +95,7 @@ export async function ofertasParaElMail(limite = 8): Promise<OfertaMail[]> {
     .eq('activo', true)
     .not('precio_anterior', 'is', null)
 
-  return (data ?? [])
+  const reales = (data ?? [])
     .map((p) => {
       const galeria = Array.isArray(p.imagenes) ? (p.imagenes as string[]) : []
       return {
@@ -72,6 +117,16 @@ export async function ofertasParaElMail(limite = 8): Promise<OfertaMail[]> {
     )
     .slice(0, limite)
     .map(({ stock: _stock, ...resto }) => resto)
+
+  /**
+   * Sin nada rebajado todavía, se muestra lo que va a estar.
+   *
+   * Es el caso de los días previos: el precio de lista ya subió pero el
+   * descuento se aplica recién cuando arranca la promo. Sin esto, el
+   * borrador que se arma para revisarlo sale sin un solo producto, que es
+   * justo cuando uno quiere verlo.
+   */
+  return reales.length > 0 ? reales : ofertasProyectadas(limite)
 }
 
 function fichaProducto(p: OfertaMail): string {
@@ -184,4 +239,39 @@ ${
 `.trim()
 
   return { asunto, cuerpo, productos: ofertas.length, descuentoMaximo }
+}
+
+/** Título del borrador. Es uno solo: se pisa, no se acumula. */
+export const TITULO_DIFUSION = 'Ofertas Cyber'
+
+/**
+ * Guarda —o rehace— el borrador del mail. No manda nada.
+ *
+ * Lo usan el botón del panel y el aplicador automático: cuando el descuento
+ * entra solo a las 00:00, el borrador se rehace en el mismo momento con los
+ * precios ya aplicados. Así el mail no puede quedar anunciando los precios de
+ * la proyección del jueves.
+ */
+export async function guardarBorradorCyber(): Promise<DifusionCyber & { id: string }> {
+  const armado = await armarDifusionCyber()
+
+  const { data: existente } = await supabaseAdmin
+    .from('difusiones')
+    .select('id')
+    .eq('titulo', TITULO_DIFUSION)
+    .maybeSingle()
+
+  const fila = {
+    titulo: TITULO_DIFUSION,
+    asunto: armado.asunto,
+    cuerpo: armado.cuerpo,
+    updated_at: new Date().toISOString(),
+  }
+
+  const { data, error } = existente
+    ? await supabaseAdmin.from('difusiones').update(fila).eq('id', existente.id).select().single()
+    : await supabaseAdmin.from('difusiones').insert(fila).select().single()
+
+  if (error) throw new Error(error.message)
+  return { ...armado, id: String(data.id) }
 }

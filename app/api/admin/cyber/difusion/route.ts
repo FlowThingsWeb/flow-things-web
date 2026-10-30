@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminToken } from '@/lib/admin-auth'
-import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { armarDifusionCyber } from '@/lib/difusion-cyber'
+import { armarDifusionCyber, guardarBorradorCyber } from '@/lib/difusion-cyber'
 
 /**
  * Arma —o rearma— el borrador del mail de las Ofertas Cyber.
@@ -16,40 +15,25 @@ import { armarDifusionCyber } from '@/lib/difusion-cyber'
  * nadie manda el equivocado.
  */
 
-const TITULO = 'Ofertas Cyber'
-
 export async function POST(req: NextRequest) {
   const unauth = await verifyAdminToken(req)
   if (unauth) return unauth
 
-  const { asunto, cuerpo, productos, descuentoMaximo } = await armarDifusionCyber()
-
-  const { data: existente } = await supabaseAdmin
-    .from('difusiones')
-    .select('id')
-    .eq('titulo', TITULO)
-    .maybeSingle()
-
-  const fila = {
-    titulo: TITULO,
-    asunto,
-    cuerpo,
-    updated_at: new Date().toISOString(),
+  try {
+    const { id, asunto, productos, descuentoMaximo } = await guardarBorradorCyber()
+    return NextResponse.json({
+      ok: true,
+      id,
+      asunto,
+      productos,
+      descuento_maximo: descuentoMaximo,
+    })
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'No se pudo guardar el borrador' },
+      { status: 500 },
+    )
   }
-
-  const { data, error } = existente
-    ? await supabaseAdmin.from('difusiones').update(fila).eq('id', existente.id).select().single()
-    : await supabaseAdmin.from('difusiones').insert(fila).select().single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  return NextResponse.json({
-    ok: true,
-    id: data.id,
-    asunto,
-    productos,
-    descuento_maximo: descuentoMaximo,
-  })
 }
 
 /** Vista previa sin guardar nada, para mirar el HTML antes de pisar el borrador. */
