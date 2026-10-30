@@ -24,7 +24,7 @@ import {
 
 export const money = (n: number) => '$' + Math.round(n).toLocaleString('es-AR')
 
-type CostoCrm = { sku: string; costo_con_iva: number }
+type CostoCrm = { sku: string; costo_con_iva: number; unidades_vendidas?: number }
 
 /**
  * El costo de reposición de cada SKU, pedido al CRM.
@@ -35,11 +35,17 @@ type CostoCrm = { sku: string; costo_con_iva: number }
  * no se puede decir qué margen deja un descuento, así que no se aplica nada.
  * Es preferible no hacer la promo a hacerla a ciegas.
  */
-export async function traerCostos(): Promise<{ costos: Map<string, number>; error: string | null }> {
+export async function traerCostos(): Promise<{
+  costos: Map<string, number>
+  /** Unidades vendidas por SKU en la ventana que devuelve el CRM (60 días). */
+  ventas: Map<string, number>
+  error: string | null
+}> {
   const url = process.env.CRM_URL
   const secreto = process.env.CRM_SECRET
-  if (!url) return { costos: new Map(), error: 'Falta la variable CRM_URL' }
-  if (!secreto) return { costos: new Map(), error: 'Falta la variable CRM_SECRET' }
+  const vacio = { costos: new Map<string, number>(), ventas: new Map<string, number>() }
+  if (!url) return { ...vacio, error: 'Falta la variable CRM_URL' }
+  if (!secreto) return { ...vacio, error: 'Falta la variable CRM_SECRET' }
 
   try {
     const r = await fetch(`${url}/api/integraciones/costos-por-sku`, {
@@ -47,23 +53,28 @@ export async function traerCostos(): Promise<{ costos: Map<string, number>; erro
       cache: 'no-store',
     })
     if (r.status === 401) {
-      return { costos: new Map(), error: 'El CRM rechazó la credencial (CRM_SECRET)' }
+      return { ...vacio, error: 'El CRM rechazó la credencial (CRM_SECRET)' }
     }
     if (!r.ok) {
       const detalle = await r.text().catch(() => '')
-      return { costos: new Map(), error: `El CRM respondió ${r.status}: ${detalle.slice(0, 200)}` }
+      return { ...vacio, error: `El CRM respondió ${r.status}: ${detalle.slice(0, 200)}` }
     }
     const data = await r.json()
     const costos = new Map<string, number>()
+    const ventas = new Map<string, number>()
     for (const c of (data.resultados ?? []) as CostoCrm[]) {
-      if (c.sku && Number(c.costo_con_iva) > 0) costos.set(c.sku, Number(c.costo_con_iva))
+      if (!c.sku) continue
+      if (Number(c.costo_con_iva) > 0) costos.set(c.sku, Number(c.costo_con_iva))
+      // Las unidades son de TODOS los canales, no sólo de la tienda: lo que se
+      // vende en Mercado Libre también dice qué quiere la gente, y es donde
+      // está el volumen.
+      if (Number.isFinite(Number(c.unidades_vendidas))) {
+        ventas.set(c.sku, Number(c.unidades_vendidas))
+      }
     }
-    return { costos, error: null }
+    return { costos, ventas, error: null }
   } catch (e) {
-    return {
-      costos: new Map(),
-      error: e instanceof Error ? e.message : 'Error al hablar con el CRM',
-    }
+    return { ...vacio, error: e instanceof Error ? e.message : 'Error al hablar con el CRM' }
   }
 }
 
@@ -116,7 +127,7 @@ export type Snapshot = {
 
 export async function leerTodo(factores: Factores) {
   const cfg = await configCyber()
-  const [{ costos, error: errorCrm }, { data: productos }, { data: snaps }] = await Promise.all([
+  const [{ costos, ventas, error: errorCrm }, { data: productos }, { data: snaps }] = await Promise.all([
     traerCostos(),
     supabaseAdmin
       .from('productos')
@@ -158,7 +169,7 @@ export async function leerTodo(factores: Factores) {
     )
   })
 
-  return { cfg, filas, snaps: porProducto, errorCrm }
+  return { cfg, filas, snaps: porProducto, ventas, errorCrm }
 }
 
 export interface ResultadoAplicar {

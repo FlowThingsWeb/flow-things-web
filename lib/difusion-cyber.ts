@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { escapeHtml } from '@/lib/escape-html'
 import { getConfig } from '@/lib/config'
 import { estadoCyber } from '@/lib/cyber'
-import { leerTodo } from '@/lib/cyber-aplicar'
+import { leerTodo, traerCostos } from '@/lib/cyber-aplicar'
 import { FACTORES_DEFAULT } from '@/lib/cyber-precios'
 
 /**
@@ -42,6 +42,8 @@ export interface OfertaMail {
   precio: number
   precio_anterior: number
   imagen: string | null
+  /** Unidades vendidas en los últimos 60 días, de todos los canales. */
+  vendidas: number
 }
 
 /**
@@ -54,12 +56,16 @@ export interface OfertaMail {
  * a armar solo apenas se aplica.
  */
 async function ofertasProyectadas(limite: number): Promise<OfertaMail[]> {
-  const { filas } = await leerTodo(FACTORES_DEFAULT)
+  const { filas, ventas } = await leerTodo(FACTORES_DEFAULT)
+  const unidades = (sku: string | null) => (sku ? (ventas.get(sku) ?? 0) : 0)
   const candidatos = filas
     .filter((f) => !f.bajo_piso && !f.sin_descuento_real && f.stock > 0)
-    // Por pesos ahorrados, igual que los de verdad: con el descuento parejo,
-    // el porcentaje no distingue a nadie.
-    .sort((a, b) => b.precio_inflado - b.precio_oferta - (a.precio_inflado - a.precio_oferta))
+    // El mismo orden que los de verdad: lo más vendido primero.
+    .sort(
+      (a, b) =>
+        unidades(b.sku) - unidades(a.sku) ||
+        b.precio_inflado - b.precio_oferta - (a.precio_inflado - a.precio_oferta),
+    )
     .slice(0, limite)
   if (candidatos.length === 0) return []
 
@@ -79,29 +85,40 @@ async function ofertasProyectadas(limite: number): Promise<OfertaMail[]> {
         precio: f.precio_oferta,
         precio_anterior: f.precio_inflado,
         imagen: p?.imagen_url ? String(p.imagen_url) : (galeria[0] ?? null),
+        vendidas: unidades(f.sku),
       }
     })
     .filter((p) => p.slug !== '')
 }
 
 /**
- * Por cuántos pesos baja, no por qué porcentaje.
+ * Lo que más se vendió primero; a igual venta, lo que más baja en pesos.
  *
- * Con un descuento parejo en todo el catálogo el porcentaje es el mismo para
- * los 154, así que ordenar por porcentaje es ordenar al azar: el mail salía
- * con ocho productos de $13.000 porque sí. Por pesos ahorrados, arriba quedan
- * los sets grandes, que es donde el descuento se nota y donde está la plata.
+ * El orden importa más de lo que parece: en un mail se miran las dos primeras
+ * fichas y el resto se hojea. Con un descuento parejo en todo el catálogo el
+ * porcentaje es idéntico para los 154, así que ordenar por descuento es
+ * ordenar al azar — el primer borrador abrió con una pulsera para colorear de
+ * $13.000.
+ *
+ * Las unidades vendidas son de TODOS los canales y de los últimos 60 días.
+ * Mercado Libre vende mucho más que la tienda, así que es ahí donde se ve de
+ * verdad qué elige la gente; y lo que ya se vende solo es lo que mejor
+ * responde cuando además baja de precio.
  */
-const porPesosAhorrados = (a: OfertaMail, b: OfertaMail) =>
+const porVentas = (a: OfertaMail, b: OfertaMail) =>
+  b.vendidas - a.vendidas ||
   b.precio_anterior - b.precio - (a.precio_anterior - a.precio)
 
 /** Lo rebajado, de mayor ahorro a menor: el mail abre con lo que más baja. */
 export async function ofertasParaElMail(limite = 8): Promise<OfertaMail[]> {
-  const { data } = await supabaseAdmin
-    .from('productos')
-    .select('nombre, slug, precio, precio_anterior, imagen_url, imagenes, stock')
-    .eq('activo', true)
-    .not('precio_anterior', 'is', null)
+  const [{ data }, { ventas }] = await Promise.all([
+    supabaseAdmin
+      .from('productos')
+      .select('sku, nombre, slug, precio, precio_anterior, imagen_url, imagenes, stock')
+      .eq('activo', true)
+      .not('precio_anterior', 'is', null),
+    traerCostos(),
+  ])
 
   const reales = (data ?? [])
     .map((p) => {
@@ -113,12 +130,13 @@ export async function ofertasParaElMail(limite = 8): Promise<OfertaMail[]> {
         precio_anterior: Number(p.precio_anterior),
         imagen: p.imagen_url ? String(p.imagen_url) : (galeria[0] ?? null),
         stock: Number(p.stock ?? 0),
+        vendidas: p.sku ? (ventas.get(String(p.sku)) ?? 0) : 0,
       }
     })
     // Sin stock no entra: un mail que lleva a un producto agotado quema el
     // click y la confianza al mismo tiempo.
     .filter((p) => p.stock > 0 && p.precio_anterior > p.precio)
-    .sort(porPesosAhorrados)
+    .sort(porVentas)
     .slice(0, limite)
     .map(({ stock: _stock, ...resto }) => resto)
 
