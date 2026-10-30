@@ -100,7 +100,19 @@ export interface FilaCyber {
   cuanto_mas_caro: number
   /** Se le recortó el descuento para dejarlo justo en el umbral. */
   clavado_al_umbral: boolean
+  /**
+   * El precio de oferta no es más barato que el de hoy, o casi.
+   *
+   * Pasa con los que quedan clavados en el umbral estando ya ahí: el precio
+   * no se mueve pero el tachado sí aparece, y el resultado es una ficha que
+   * anuncia un descuento que el comprador no recibe. Eso es exactamente lo
+   * que no se puede publicar.
+   */
+  sin_descuento_real: boolean
 }
+
+/** Debajo de esto el "descuento" no se nota y no vale la pena anunciarlo. */
+export const DESCUENTO_MINIMO = 0.02
 
 export interface Factores {
   /** Cuánto sube el precio de lista. 1,15 = +15%. */
@@ -186,6 +198,7 @@ export function simular(
     pierde_envio_gratis: pierde,
     cuanto_mas_caro: pierde ? cfg.envio - (original - oferta) : 0,
     clavado_al_umbral: clavado,
+    sin_descuento_real: original > 0 && (original - oferta) / original < DESCUENTO_MINIMO,
   }
 }
 

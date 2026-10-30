@@ -54,7 +54,9 @@ export default function CyberPreciosPage() {
        * diferencia entre una pantalla que te ayuda y una que te hace revisar
        * 161 casillas para encontrar las cinco que importan.
        */
-      setElegidos(new Set(d.filas.filter((f) => !f.bajo_piso).map((f) => f.id)))
+      setElegidos(
+        new Set(d.filas.filter((f) => !f.bajo_piso && !f.sin_descuento_real).map((f) => f.id)),
+      )
     } catch {
       setError('No se pudo leer la lista de precios.')
     } finally {
@@ -235,6 +237,14 @@ export default function CyberPreciosPage() {
               termina pagando <strong>más</strong>. Están marcados en la tabla.
             </p>
           )}
+          {filas.filter((f) => f.sin_descuento_real).length > 0 && (
+            <p>
+              <strong>{filas.filter((f) => f.sin_descuento_real).length}</strong> ya están
+              en el umbral: el precio no bajaría pero el tachado aparecería igual. Van
+              afuera — un cartel de descuento sobre un precio que no se mueve no se
+              publica ni forzándolo.
+            </p>
+          )}
           {sinCosto > 0 && (
             <p>
               <strong>{sinCosto}</strong> no tienen costo cargado en el CRM. No se puede
@@ -358,9 +368,14 @@ export default function CyberPreciosPage() {
                       pierde envío gratis · paga {money(f.cuanto_mas_caro)} más
                     </span>
                   )}
-                  {f.clavado_al_umbral && (
+                  {f.clavado_al_umbral && !f.sin_descuento_real && (
                     <span className="text-brand-neon">
                       clavado en el umbral para no perder el envío gratis
+                    </span>
+                  )}
+                  {f.sin_descuento_real && (
+                    <span className="text-red-400">
+                      el precio no baja · sería un tachado sin descuento
                     </span>
                   )}
                   {f.costo == null && <span className="text-red-400">sin costo en el CRM</span>}

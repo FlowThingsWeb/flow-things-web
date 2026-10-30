@@ -124,4 +124,22 @@ t('sin descuento el precio de oferta es el de lista', () => {
   assert.equal(f.descuento_real, 0)
 })
 
+
+t('el que ya está en el umbral no recibe descuento y queda marcado', () => {
+  // Caso real: INH122 vale exactamente $61.000. Clavarlo en el umbral lo
+  // deja en $61.000: mismo precio, pero con tachado de $70.200 si se
+  // aplicara. Eso es un cartel falso.
+  const f = simular(prod(61_000), 29_040, FACTORES_DEFAULT, cfg)
+  assert.equal(f.precio_oferta, 61_000)
+  assert.equal(f.sin_descuento_real, true)
+})
+
+t('un descuento chico pero real no se marca', () => {
+  // $64.900 clavado en $61.000 es 6% real: se anuncia sin problema.
+  const f = simular(prod(64_900), 31_073, FACTORES_DEFAULT, cfg)
+  assert.equal(f.precio_oferta, 61_000)
+  assert.equal(f.sin_descuento_real, false)
+  assert.ok(f.descuento_real > 0.05)
+})
+
 console.log(`${ok} casos en verde`)

@@ -32,6 +32,8 @@ export const maxDuration = 60
 
 type CostoCrm = { sku: string; costo_con_iva: number }
 
+const money = (n: number) => '$' + Math.round(n).toLocaleString('es-AR')
+
 /**
  * El costo de reposición de cada SKU, pedido al CRM.
  *
@@ -249,6 +251,18 @@ export async function POST(req: NextRequest) {
             f.costo == null
               ? 'sin costo en el CRM'
               : `margen ${(f.margen_oferta! * 100).toFixed(1)}% bajo el piso de ${(cfg.piso_margen * 100).toFixed(0)}%`,
+        })
+        continue
+      }
+      /**
+       * Precio que no baja, tachado que sí aparece: una ficha anunciando un
+       * descuento que el comprador no recibe. No se publica ni forzándolo —
+       * no es una decisión comercial discutible, es un cartel falso.
+       */
+      if (f.sin_descuento_real) {
+        omitidos.push({
+          sku: f.sku,
+          motivo: `el precio no baja (${money(f.precio_original)} → ${money(f.precio_oferta)}): sería un tachado sin descuento`,
         })
         continue
       }
