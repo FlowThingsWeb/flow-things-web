@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { escapeHtml } from '@/lib/email'
+import { escapeHtml } from '@/lib/escape-html'
 import { getConfig } from '@/lib/config'
 import { estadoCyber } from '@/lib/cyber'
 

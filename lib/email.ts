@@ -7,12 +7,15 @@ const nodemailer = require('nodemailer')
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 
-/** Escapa caracteres HTML para evitar inyección al interpolar texto del usuario. */
-export function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
-  ))
-}
+/**
+ * Escapa caracteres HTML para evitar inyección al interpolar texto del usuario.
+ *
+ * Se mudó a su propio módulo para que armar el cuerpo de un mail no obligue a
+ * importar este archivo, que hace `require('nodemailer')` y sólo carga dentro
+ * de Next. Se sigue re-exportando desde acá: es donde todo el código lo busca.
+ */
+import { escapeHtml } from './escape-html'
+export { escapeHtml }
 
 // Claves cuyos valores son fragmentos HTML construidos por nosotros (no se escapan).
 // El resto se escapa por defecto, incluyendo datos del comprador (nombre, etc.).
