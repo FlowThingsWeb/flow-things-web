@@ -10,6 +10,7 @@ import {
   type ConfigPreciosWeb,
 } from '@/lib/precios-web'
 import { registrarLatido } from '@/lib/vigilar-crons'
+import { estadoCyber } from '@/lib/cyber'
 
 export const maxDuration = 60
 
@@ -163,7 +164,49 @@ export async function GET(request: NextRequest) {
     Number.isFinite(maxParam) && maxParam > 0 ? Math.floor(maxParam) : MAX_CAMBIOS
 
   try {
-    const [costos, cfgSitio] = await Promise.all([traerCostosDelCrm(), getConfig()])
+    /**
+     * Con las Ofertas Cyber prendidas, este cron no toca un solo precio.
+     *
+     * Los precios de la promo se cargan a mano y el cron los llevaría de
+     * vuelta al margen objetivo de a 25 por día, en plena oferta y con el
+     * precio tachado ya anunciado: el comprador vería un "-20%" sobre un
+     * número que dejó de ser cierto. Y el daño no se nota, porque el cron
+     * hace exactamente lo que fue escrito para hacer.
+     *
+     * Se apaga con el mismo interruptor que prende la promo, y no a mano en
+     * GitHub. Un workflow pausado a mano se queda pausado: la promo termina,
+     * los costos siguen subiendo y los precios quedan congelados contra
+     * costos viejos hasta que alguien se acuerda. Atado al interruptor, el
+     * día que se apaga la promo el cron vuelve solo.
+     *
+     * Avisa todos los días, en un renglón. Ese mail es el recordatorio de que
+     * la promo sigue prendida: es lo único que queda prendido sin fecha de
+     * fin, así que tiene que hacer ruido.
+     */
+    const cfgCyber = await getConfig()
+    const cyber = estadoCyber(cfgCyber as Record<string, string | undefined>)
+    if (cyber.activo) {
+      if (process.env.ADMIN_EMAIL) {
+        await sendEmail({
+          to: process.env.ADMIN_EMAIL,
+          asunto: 'Tienda: no toqué ningún precio (Ofertas Cyber prendidas)',
+          cuerpo: `<p>El cron de precios corrió y <b>no cambió nada</b>: las Ofertas Cyber están activas${
+            cyber.desde ? ` desde el ${cyber.desde.replace('T', ' ')}` : ''
+          }.</p>
+<p style="color:#666;font-size:14px">Vuelve a ajustar precios solo, sin que haya que tocar nada, en cuanto apagues la promo desde el panel.</p>`,
+        })
+      }
+      return NextResponse.json({
+        revisados: 0,
+        cambiados: 0,
+        saltado_por_cyber: true,
+        cyber_desde: cyber.desde,
+      })
+    }
+
+    // La configuración ya se leyó arriba para mirar el interruptor del Cyber.
+    const costos = await traerCostosDelCrm()
+    const cfgSitio = cfgCyber
 
     // El costo del envío y el umbral salen de la configuración de la tienda,
     // así cambiarlos no obliga a tocar código.

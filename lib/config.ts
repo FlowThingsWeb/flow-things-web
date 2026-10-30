@@ -74,6 +74,11 @@ export interface ConfigMap {
   envio_cadeteria_gratis_desde: string  // subtotal para envío gratis
   envio_cadeteria_nombre: string        // etiqueta mostrada
   envio_cadeteria_feriados: string      // AAAA-MM-DD separadas por coma: días que no reparte
+  // Ofertas Cyber — promo con arranque programado y final a mano
+  cyber_activo: string        // '1' | '0'
+  cyber_desde: string         // 'AAAA-MM-DD' o 'AAAA-MM-DDTHH:mm' (hora de Buenos Aires); vacío = arranca al prender
+  cyber_titulo: string
+  cyber_bajada: string
   // Design
   design_overrides: string
   design_font_family: string
@@ -178,6 +183,21 @@ const DEFAULTS: ConfigMap = {
    * Carnaval, Viernes Santo, los puentes— hay que agregarlos a mano.
    */
   envio_cadeteria_feriados: '2026-12-08,2026-12-25,2027-01-01',
+  /**
+   * Ofertas Cyber — apagado, y con la fecha ya cargada.
+   *
+   * El interruptor y la fecha son dos cosas distintas a propósito: se prende
+   * con tiempo, mirando la lista de precios una vez, y la promo sale sola el
+   * día y la hora que dice `cyber_desde`. Nadie tiene que estar despierto a
+   * las 00:00 de un lunes.
+   *
+   * No hay `cyber_hasta`. Se apaga a mano desde /admin cuando se decide, y
+   * mientras esté prendido el cron de precios no toca nada.
+   */
+  cyber_activo: '0',
+  cyber_desde: '2026-11-02',
+  cyber_titulo: 'Ofertas Cyber',
+  cyber_bajada: 'Hasta 20% en toda la tienda · Envío gratis desde $61.000',
   // Design
   design_overrides: '',
   design_font_family: 'inherit',
