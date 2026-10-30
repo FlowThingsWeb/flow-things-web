@@ -55,24 +55,21 @@ export interface OfertaMail {
  */
 async function ofertasProyectadas(limite: number): Promise<OfertaMail[]> {
   const { filas } = await leerTodo(FACTORES_DEFAULT)
-  const candidatos = filas.filter((f) => !f.bajo_piso && !f.sin_descuento_real && f.stock > 0)
+  const candidatos = filas
+    .filter((f) => !f.bajo_piso && !f.sin_descuento_real && f.stock > 0)
+    // Por pesos ahorrados, igual que los de verdad: con el descuento parejo,
+    // el porcentaje no distingue a nadie.
+    .sort((a, b) => b.precio_inflado - b.precio_oferta - (a.precio_inflado - a.precio_oferta))
+    .slice(0, limite)
   if (candidatos.length === 0) return []
 
   const { data } = await supabaseAdmin
     .from('productos')
     .select('id, slug, imagen_url, imagenes')
-    .in(
-      'id',
-      candidatos
-        .sort((a, b) => b.descuento_real - a.descuento_real)
-        .slice(0, limite)
-        .map((f) => f.id),
-    )
+    .in('id', candidatos.map((f) => f.id))
 
   const porId = new Map((data ?? []).map((p) => [String(p.id), p]))
   return candidatos
-    .sort((a, b) => b.descuento_real - a.descuento_real)
-    .slice(0, limite)
     .map((f) => {
       const p = porId.get(f.id)
       const galeria = Array.isArray(p?.imagenes) ? (p!.imagenes as string[]) : []
@@ -87,7 +84,18 @@ async function ofertasProyectadas(limite: number): Promise<OfertaMail[]> {
     .filter((p) => p.slug !== '')
 }
 
-/** Lo rebajado, de mayor descuento a menor: el mail abre con lo que más baja. */
+/**
+ * Por cuántos pesos baja, no por qué porcentaje.
+ *
+ * Con un descuento parejo en todo el catálogo el porcentaje es el mismo para
+ * los 154, así que ordenar por porcentaje es ordenar al azar: el mail salía
+ * con ocho productos de $13.000 porque sí. Por pesos ahorrados, arriba quedan
+ * los sets grandes, que es donde el descuento se nota y donde está la plata.
+ */
+const porPesosAhorrados = (a: OfertaMail, b: OfertaMail) =>
+  b.precio_anterior - b.precio - (a.precio_anterior - a.precio)
+
+/** Lo rebajado, de mayor ahorro a menor: el mail abre con lo que más baja. */
 export async function ofertasParaElMail(limite = 8): Promise<OfertaMail[]> {
   const { data } = await supabaseAdmin
     .from('productos')
@@ -110,11 +118,7 @@ export async function ofertasParaElMail(limite = 8): Promise<OfertaMail[]> {
     // Sin stock no entra: un mail que lleva a un producto agotado quema el
     // click y la confianza al mismo tiempo.
     .filter((p) => p.stock > 0 && p.precio_anterior > p.precio)
-    .sort(
-      (a, b) =>
-        (b.precio_anterior - b.precio) / b.precio_anterior -
-        (a.precio_anterior - a.precio) / a.precio_anterior,
-    )
+    .sort(porPesosAhorrados)
     .slice(0, limite)
     .map(({ stock: _stock, ...resto }) => resto)
 
