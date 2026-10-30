@@ -3,6 +3,7 @@ import { procesarJobsPendientes } from '@/lib/procesar-jobs'
 import { sendEmail } from '@/lib/email'
 import { revisarFeed, htmlDeProblemasFeed } from '@/lib/vigilar-feed'
 import { avisarCyberArrancado } from '@/lib/avisar-cyber'
+import { aplicarCyberSiCorresponde } from '@/lib/cyber-aplicar'
 import { anotarFallaML, fallaMLDesde, olvidarFallaML, sincronizarLatidoCiclo } from '@/lib/vigilar-crons'
 import {
   cronsFaltantes,
@@ -48,11 +49,22 @@ export async function GET(request: NextRequest) {
    * Y nunca rompe la cola: si Telegram falla, los mails de los pedidos
    * tienen que salir igual.
    */
+  /**
+   * El descuento se aplica solo cuando llega la fecha, y ANTES del aviso.
+   *
+   * En ese orden porque el aviso de las 12 cuenta cuántos productos quedaron
+   * rebajados: si contara antes de aplicar, el primer Cyber avisaría siempre
+   * que no hay ninguna oferta.
+   */
+  const cyberPrecios = await aplicarCyberSiCorresponde().catch((e: unknown) => ({
+    aplicado: false,
+    motivo: e instanceof Error ? e.message : 'error',
+  }))
   const cyber = await avisarCyberArrancado().catch((e: unknown) => ({
     avisado: false,
     motivo: e instanceof Error ? e.message : 'error',
   }))
-  return NextResponse.json({ ...resultado, vigilancia, ml, feed, cyber })
+  return NextResponse.json({ ...resultado, vigilancia, ml, feed, cyberPrecios, cyber })
 }
 
 /**

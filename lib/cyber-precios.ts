@@ -138,6 +138,23 @@ export const FACTORES_DEFAULT: Factores = {
 }
 
 /**
+ * Lo que ya quedó hecho de la promo para este producto, si el paso 1 corrió.
+ */
+export interface Guardado {
+  /** El precio con el que arrancó todo, antes de inflarlo. */
+  precioOriginal?: number | null
+  /**
+   * El precio de lista que de verdad se cobró, tal como quedó guardado.
+   *
+   * Manda sobre el recalculado: si entre el paso 1 y el paso 2 alguien mueve
+   * el porcentaje de inflado en la pantalla, el tachado tiene que seguir
+   * siendo el número que estuvo vigente y no el que daría la cuenta nueva.
+   * Un tachado que nunca se cobró es exactamente lo que no se puede publicar.
+   */
+  precioInflado?: number | null
+}
+
+/**
  * Simula la promo sobre un producto, sin tocar nada.
  *
  * `precioOriginal` es el precio con el que arrancó todo. Importa cuando el
@@ -151,10 +168,13 @@ export function simular(
   costo: number | null,
   factores: Factores,
   cfg: ConfigCyber,
-  precioOriginal?: number | null,
+  guardado?: Guardado | number | null,
 ): FilaCyber {
-  const original = precioOriginal ?? p.precio
-  const inflado = aCentena(original * factores.inflar)
+  // Acepta el número suelto por compatibilidad con las llamadas viejas.
+  const g: Guardado =
+    typeof guardado === 'number' ? { precioOriginal: guardado } : (guardado ?? {})
+  const original = g.precioOriginal ?? p.precio
+  const inflado = g.precioInflado ?? aCentena(original * factores.inflar)
   const sinClavar = aCentena(inflado * (1 - factores.descuento))
 
   /**

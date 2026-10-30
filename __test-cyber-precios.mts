@@ -142,4 +142,22 @@ t('un descuento chico pero real no se marca', () => {
   assert.ok(f.descuento_real > 0.05)
 })
 
+
+t('el tachado usa el precio de lista que de verdad se cobró', () => {
+  // Paso 1 dejó el producto en $11.500 (guardado). Si después alguien mueve
+  // el porcentaje de inflado a 25%, el tachado NO puede pasar a $12.500:
+  // ese precio no estuvo vigente nunca.
+  const f = simular(prod(11_500), 5_000, { inflar: 1.25, descuento: 0.2 }, cfg, {
+    precioOriginal: 10_000,
+    precioInflado: 11_500,
+  })
+  assert.equal(f.precio_inflado, 11_500)
+  assert.equal(f.precio_oferta, 9_200)
+})
+
+t('sin nada guardado, el inflado se calcula', () => {
+  const f = simular(prod(10_000), 5_000, FACTORES_DEFAULT, cfg, {})
+  assert.equal(f.precio_inflado, 11_500)
+})
+
 console.log(`${ok} casos en verde`)
