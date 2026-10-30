@@ -65,6 +65,28 @@ export default function CyberAdminPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [armando, setArmando] = useState(false)
+  const [resultadoMail, setResultadoMail] = useState('')
+
+  const armarDifusion = async () => {
+    setArmando(true)
+    setResultadoMail('')
+    setError('')
+    try {
+      const r = await fetch('/api/admin/cyber/difusion', { method: 'POST' })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error ?? '')
+      setResultadoMail(
+        d.productos > 0
+          ? `Listo: ${d.productos} productos, hasta ${d.descuento_maximo}% OFF. Revisalo en Mailing antes de mandarlo.`
+          : 'Armado, pero sin ningún producto rebajado todavía: aplicá el descuento y rearmalo.',
+      )
+    } catch (e) {
+      setError((e as Error).message || 'No se pudo armar el borrador.')
+    } finally {
+      setArmando(false)
+    }
+  }
 
   useEffect(() => {
     fetch('/api/admin/config')
@@ -259,6 +281,36 @@ export default function CyberAdminPage() {
         ajusta precios contra el costo del CRM <strong>no toca ningún precio</strong> y
         manda un mail diario de un renglón recordándolo. Vuelve a trabajar solo en cuanto
         la apagues — no hay nada que prender a mano después.
+      </div>
+
+      {/*
+        El borrador del mail se arma acá y se manda desde Mailing.
+
+        Separado a propósito: armarlo lee los precios del momento —por eso se
+        rearma después de aplicar el descuento, no antes— y mandarlo elige
+        destinatarios y filtra bajas. Un solo botón que hiciera las dos cosas
+        mandaría un mail a toda la base por un click de más.
+      */}
+      <div className="mb-6 rounded-2xl border border-brand-border bg-brand-bg-card p-4">
+        <p className="font-semibold text-white">Mail de la promo</p>
+        <p className="mt-1 text-xs text-brand-text-muted">
+          Arma el borrador con los <strong>precios de este momento</strong> y los 8
+          productos que más bajan. Rearmalo después de aplicar el descuento, así el mail
+          dice lo mismo que la tienda. Se manda desde Mailing, eligiendo a quién.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            onClick={armarDifusion}
+            disabled={armando}
+            className="rounded-xl border border-brand-border px-4 py-2 text-sm font-semibold text-brand-text disabled:opacity-50"
+          >
+            {armando ? 'Armando…' : 'Armar el borrador'}
+          </button>
+          <a href="/admin/difusiones" className="text-sm text-brand-purple underline">
+            Ver borradores
+          </a>
+          {resultadoMail && <span className="text-xs text-brand-neon">{resultadoMail}</span>}
+        </div>
       </div>
 
       <a

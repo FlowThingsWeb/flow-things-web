@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { procesarJobsPendientes } from '@/lib/procesar-jobs'
 import { sendEmail } from '@/lib/email'
 import { revisarFeed, htmlDeProblemasFeed } from '@/lib/vigilar-feed'
+import { avisarCyberArrancado } from '@/lib/avisar-cyber'
 import { anotarFallaML, fallaMLDesde, olvidarFallaML, sincronizarLatidoCiclo } from '@/lib/vigilar-crons'
 import {
   cronsFaltantes,
@@ -38,7 +39,20 @@ export async function GET(request: NextRequest) {
   const vigilancia = await avisarCronsCaidos()
   const ml = await avisarMLRoto()
   const feed = await avisarFeedRoto()
-  return NextResponse.json({ ...resultado, vigilancia, ml, feed })
+  /**
+   * Va colgado de acá por lo mismo que los otros vigilantes: esta ruta la
+   * disparan dos cosas distintas y corre cada pocos minutos, así que una
+   * promo programada para las 00:00 se avisa dentro de los primeros minutos
+   * sin montar un cron nuevo para una fecha al año.
+   *
+   * Y nunca rompe la cola: si Telegram falla, los mails de los pedidos
+   * tienen que salir igual.
+   */
+  const cyber = await avisarCyberArrancado().catch((e: unknown) => ({
+    avisado: false,
+    motivo: e instanceof Error ? e.message : 'error',
+  }))
+  return NextResponse.json({ ...resultado, vigilancia, ml, feed, cyber })
 }
 
 /**
