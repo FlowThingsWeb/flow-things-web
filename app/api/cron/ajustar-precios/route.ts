@@ -182,16 +182,26 @@ export async function GET(request: NextRequest) {
      * Avisa todos los días, en un renglón. Ese mail es el recordatorio de que
      * la promo sigue prendida: es lo único que queda prendido sin fecha de
      * fin, así que tiene que hacer ruido.
+     *
+     * PRENDIDA, no "ya empezada": cuenta también la programada. El precio de
+     * lista se sube días antes —tiene que estar vigente un rato para que el
+     * tachado sea cierto— y en esos días el precio inflado está 13% arriba del
+     * margen objetivo, así que el cron lo ve como un error suyo y lo baja de a
+     * 25 por día. Tres días de ventaja son 75 precios desinflados antes de que
+     * la promo empiece, y el lunes el "-20%" se calcula contra un número que
+     * ya no existe.
      */
     const cfgCyber = await getConfig()
     const cyber = estadoCyber(cfgCyber as Record<string, string | undefined>)
-    if (cyber.activo) {
+    if (cyber.activo || cyber.programado) {
       if (process.env.ADMIN_EMAIL) {
         await sendEmail({
           to: process.env.ADMIN_EMAIL,
           asunto: 'Tienda: no toqué ningún precio (Ofertas Cyber prendidas)',
-          cuerpo: `<p>El cron de precios corrió y <b>no cambió nada</b>: las Ofertas Cyber están activas${
-            cyber.desde ? ` desde el ${cyber.desde.replace('T', ' ')}` : ''
+          cuerpo: `<p>El cron de precios corrió y <b>no cambió nada</b>: las Ofertas Cyber ${
+            cyber.activo
+              ? 'están activas'
+              : `arrancan el ${cyber.desde?.replace('T', ' ') ?? '—'} y ya están programadas`
           }.</p>
 <p style="color:#666;font-size:14px">Vuelve a ajustar precios solo, sin que haya que tocar nada, en cuanto apagues la promo desde el panel.</p>`,
         })
