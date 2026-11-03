@@ -382,3 +382,77 @@ export const DEFAULT_DESPACHO_CUERPO = `<!DOCTYPE html>
 </table>
 </body>
 </html>`
+
+/**
+ * "Llega hoy": el pedido salió del depósito y se entrega el mismo día.
+ *
+ * Es otro mail que el de despacho, y no el mismo sin los huecos llenos. El de
+ * despacho está armado alrededor del courier y el código de seguimiento —son
+ * la mitad del cuerpo— y acá no hay ninguno de los dos: el reparto lo hacemos
+ * nosotros, no hay nada que rastrear, y nombrar a quien lo lleva sólo le da al
+ * comprador un teléfono equivocado al que llamar. Lo único que necesita saber
+ * es que ya salió y que llega hoy.
+ */
+export const DEFAULT_LLEGA_HOY_ASUNTO = 'Tu pedido de Flow Things llega hoy &#x1F4E6;'
+
+export const DEFAULT_LLEGA_HOY_CUERPO = `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#ede9f7;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">Ya sali&#xF3; de nuestro dep&#xF3;sito y llega hoy.</div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ede9f7">
+<tr><td align="center" style="padding:36px 16px 48px">
+<table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(80,0,200,0.13)">
+
+<!-- HEADER -->
+<tr><td style="background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 60%,#9333ea 100%);padding:28px 40px 24px;text-align:center">
+  <img src="${LOGO_EMAIL}" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>
+</td></tr>
+
+<!-- HERO -->
+<tr><td style="background:#f5f0ff;padding:36px 40px 28px;text-align:center">
+  <div style="font-size:60px;line-height:1;margin-bottom:12px">&#x1F4E6;</div>
+  <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#1a0040;line-height:1.2">&#xA1;Tu pedido llega hoy!</h1>
+  <p style="margin:0;font-size:15px;color:#6b21a8;font-weight:500">{{nombre}}, ya sali&#xF3; de nuestro dep&#xF3;sito.</p>
+</td></tr>
+
+<!-- HOY -->
+<tr><td style="background:#ffffff;padding:28px 40px">
+  <div style="background:linear-gradient(135deg,#5b21b6,#7C3AED);border-radius:18px;padding:28px 28px 24px;text-align:center">
+    <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#c4b5fd;text-transform:uppercase;letter-spacing:1px">Entrega</p>
+    <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#ffffff">Hoy, {{fecha}}</p>
+    <p style="margin:0;font-size:14px;color:#ede9fe;line-height:1.6">{{direccion}}</p>
+  </div>
+</td></tr>
+
+<!-- RECORDATORIO -->
+<tr><td style="background:#ffffff;padding:0 40px 24px;text-align:center">
+  <p style="margin:0;font-size:14px;color:#4b5563;line-height:1.7">
+    Trat&#xE1; de que haya alguien para recibirlo.<br/>
+    Si hoy no vas a estar, escribinos y lo reprogramamos.
+  </p>
+</td></tr>
+
+<!-- REFERENCIA -->
+<tr><td style="background:#ffffff;padding:0 40px 28px;text-align:center">
+  <p style="margin:0 0 4px;font-size:13px;color:#9ca3af">Pedido <strong style="color:#374151">#{{orden_id}}</strong></p>
+  <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6">
+    &#x1F4E7; <a href="mailto:contacto@flowthings.com.ar" style="color:#7C3AED;text-decoration:none;font-weight:600">contacto@flowthings.com.ar</a>
+    &nbsp;&#xB7;&nbsp;
+    &#x1F4AC; <a href="https://wa.me/5491156075633" style="color:#7C3AED;text-decoration:none;font-weight:600">+54 9 11 5607-5633</a>
+  </p>
+</td></tr>
+
+<!-- FOOTER -->
+<tr><td style="background:#1e0050;padding:28px 40px;text-align:center">
+  <img src="${LOGO_EMAIL}" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>
+  <p style="margin:0">
+    <a href="https://flowthings.com.ar" style="color:#a78bfa;text-decoration:none;font-size:13px;font-weight:600">flowthings.com.ar</a>
+  </p>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
