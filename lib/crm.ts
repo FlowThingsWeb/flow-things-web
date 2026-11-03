@@ -16,6 +16,29 @@ import { ItemOrden } from '@/types'
 const CRM_URL = process.env.CRM_URL
 const CRM_SECRET = process.env.CRM_WEBHOOK_SECRET
 
+/**
+ * "Piso 3 Depto B", a partir de los dos campos del checkout.
+ *
+ * Los campos piden sólo el valor ("3", "B") pero mucha gente escribe la
+ * palabra igual, así que si ya está no se repite: "Piso Piso 3" en la planilla
+ * del cadete es peor que no poner nada.
+ */
+function referenciaPisoDepto(piso?: string | null, depto?: string | null): string | null {
+  const limpio = (v: string | null | undefined, etiqueta: string, palabras: RegExp) => {
+    const t = String(v ?? '').trim()
+    if (!t) return null
+    return palabras.test(t) ? t : `${etiqueta} ${t}`
+  }
+  return (
+    [
+      limpio(piso, 'Piso', /^(piso|p\.?b\.?|pb)\b/i),
+      limpio(depto, 'Depto', /^(d(e?p)?to|departamento|unidad)\b/i),
+    ]
+      .filter(Boolean)
+      .join(' ') || null
+  )
+}
+
 /** True si la integración está configurada. Sin esto, se omite silenciosamente. */
 export function crmHabilitado(): boolean {
   return Boolean(CRM_URL && CRM_SECRET)
@@ -80,6 +103,18 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
       telefono: dc.telefono ?? null,
       email: dc.email ?? null,
       domicilio: [dc.direccion, dc.piso, dc.departamento].filter(Boolean).join(' ') || null,
+      /**
+       * La misma dirección, partida como la pide la planilla del cadete.
+       *
+       * `domicilio` va pegado y es lo que se muestra; la planilla del envío en
+       * el día pide la calle y el número en una columna y el piso/depto en
+       * otra, porque el piso no sirve para ubicar la dirección en el mapa y
+       * mezclado la rompe. Separarlas del string pegado no se puede sin
+       * adivinar —en "Av. 9 de Julio 1250 3 B" cualquier regla sobre los
+       * números se equivoca—, y acá están separadas de entrada.
+       */
+      calle: dc.direccion ?? null,
+      referencia: referenciaPisoDepto(dc.piso, dc.departamento),
       localidad: dc.ciudad ?? null,
       provincia: dc.provincia ?? null,
       cp: dc.codigo_postal ?? null,
