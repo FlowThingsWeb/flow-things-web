@@ -9,18 +9,8 @@
  * Cualquier URL que no sea una derivada se devuelve intacta, así las imágenes
  * viejas todavía no migradas y los estáticos de /public siguen funcionando.
  */
-
-/** Debe coincidir con ANCHOS_DERIVADOS de lib/imagen-derivadas.ts */
-const ANCHOS = [200, 640, 1280]
-
-/** `.../derivadas/<base>-<ancho>.webp` */
-const RE_DERIVADA = /^(.*\/derivadas\/.+)-(\d+)\.webp$/
+import { derivada } from './derivadas-url'
 
 export default function loaderImagen({ src, width }: { src: string; width: number }) {
-  const m = RE_DERIVADA.exec(src)
-  if (!m) return src
-
-  // El primer ancho que alcanza; si piden más que el master, el master.
-  const elegido = ANCHOS.find(a => a >= width) ?? ANCHOS[ANCHOS.length - 1]
-  return `${m[1]}-${elegido}.webp`
+  return derivada(src, width)
 }

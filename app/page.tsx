@@ -18,6 +18,7 @@ import TrustBar from '@/components/TrustBar'
 import RielProductos from '@/components/RielProductos'
 import FaqCategoria, { faqDeTienda } from '@/components/FaqCategoria'
 import { cyberActivo } from '@/lib/cyber'
+import { srcSetDerivadas } from '@/lib/derivadas-url'
 
 /**
  * Medios de pago que se muestran al pie de la home.
@@ -274,6 +275,9 @@ export default async function HomePage({
             ) : (
               <img
                 src={cfg.hero_banner_url || '/banner.png'}
+                srcSet={srcSetDerivadas(cfg.hero_banner_url || '/banner.png')}
+                // Se muestra a 300 px fijos: sin esto se bajaba la de 1280.
+                sizes="300px"
                 alt="Flow Things"
                 width={300}
                 height={225}

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PiezaResuelta } from '@/lib/bannerLineas'
+import { srcSetDerivadas } from '@/lib/derivadas-url'
 
 /**
  * El banner de arriba de la home: una pieza por línea, en carrusel.
@@ -42,6 +43,25 @@ const HUECOS_MOVIL = [
   { burbuja: 'right-[4.1%] top-[1.3%] w-[36.4%] aspect-square', foto: 'right-[5.8%] top-[2.4%] w-[33%]', forma: '57% 43% 48% 52% / 46% 52% 48% 54%', giro: '-8deg' },
   { burbuja: 'right-[7.7%] top-[27.4%] w-[32.8%] aspect-square', foto: 'right-[9.1%] top-[28.3%] w-[30%]', forma: '52% 48% 41% 59% / 50% 56% 44% 50%', giro: '11deg' },
 ]
+
+/**
+ * El `sizes` de un hueco, a partir del ancho que ocupa la foto.
+ *
+ * Sin esto el browser no tiene con qué elegir y se baja la derivada más
+ * grande: 1280 px para mostrarlos al 12% del banner. El ancho del banner es
+ * la pantalla hasta `sm` y de ahí en más llega a 1180 px, así que el tope se
+ * expresa en píxeles y abajo en porcentaje del viewport.
+ *
+ * `pct` es el mismo número que el `w-[...]` del hueco.
+ */
+function sizesHueco(pctDesktop: number, pctMovil: number): string {
+  const tope = Math.round((1180 * pctDesktop) / 100)
+  return `(min-width: 1180px) ${tope}px, (min-width: 640px) ${pctDesktop}vw, ${pctMovil}vw`
+}
+
+/** Los anchos de foto de HUECOS y HUECOS_MOVIL, en el mismo orden. */
+const ANCHO_HUECO = [23.3, 12.7, 12.7, 23.3, 12.7, 12.7]
+const ANCHO_HUECO_MOVIL = [48, 33, 30]
 
 const FAMILIAS: Record<string, string> = {
   serif: 'font-serif tracking-tight',
@@ -256,6 +276,8 @@ function Pieza({
                 />
                 <img
                   src={prod.imagen}
+                  srcSet={srcSetDerivadas(prod.imagen)}
+                  sizes={sizesHueco(ANCHO_HUECO[i], ANCHO_HUECO[i])}
                   alt={prod.nombre}
                   loading={primera && i === 0 ? 'eager' : 'lazy'}
                   decoding="async"
@@ -279,6 +301,8 @@ function Pieza({
                 />
                 <img
                   src={prod.imagen}
+                  srcSet={srcSetDerivadas(prod.imagen)}
+                  sizes={sizesHueco(ANCHO_HUECO_MOVIL[i], ANCHO_HUECO_MOVIL[i])}
                   alt={prod.nombre}
                   loading={primera && i === 0 ? 'eager' : 'lazy'}
                   decoding="async"
@@ -294,6 +318,8 @@ function Pieza({
             <img
               key={prod.sku}
               src={prod.imagen}
+              srcSet={srcSetDerivadas(prod.imagen)}
+              sizes={sizesHueco(17, 17)}
               alt={prod.nombre}
               loading="lazy"
               decoding="async"
@@ -307,6 +333,10 @@ function Pieza({
           {pieza.logo ? (
             <img
               src={pieza.logo}
+              srcSet={srcSetDerivadas(pieza.logo)}
+              // La columna del texto es el 29% del banner en escritorio y casi
+              // toda la pantalla en celular; el logo ocupa su 72% / 56%.
+              sizes="(min-width: 640px) 250px, 52vw"
               alt={pieza.titulo}
               className="h-auto w-[56%] max-w-[310px] sm:w-[72%]"
               loading={primera ? 'eager' : 'lazy'}
