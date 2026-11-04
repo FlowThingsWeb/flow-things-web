@@ -198,6 +198,17 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
         },
       })
       .eq('id', ordenId)
+
+    // El CRM no tiene forma de enterarse del CAE: la factura la emite la
+    // tienda. Va como job porque el aviso de la venta se encoló más arriba y
+    // todavía puede no haber corrido: el reintento es lo que ordena los dos.
+    if (crmHabilitado()) {
+      try {
+        await enqueueJob('crm_comprobantes', { ordenId })
+      } catch (e: any) {
+        console.error('[procesar-pago] No se pudo encolar el aviso de factura al CRM:', e.message)
+      }
+    }
   } catch (facturaErr: any) {
     console.error('[afip] Error emitiendo factura:', facturaErr.message)
     try {

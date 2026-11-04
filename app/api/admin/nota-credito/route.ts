@@ -10,6 +10,8 @@ import {
   DEFAULT_NC_CUERPO,
 } from '@/lib/email'
 import { formatPrecio } from '@/lib/format'
+import { crmHabilitado } from '@/lib/crm'
+import { enqueueJob } from '@/lib/jobs'
 
 /**
  * POST /api/admin/nota-credito
@@ -124,6 +126,19 @@ export async function POST(request: NextRequest) {
 
   if (errGuardar) {
     console.error('[nota-credito] NC emitida pero no se pudo guardar:', errGuardar)
+  }
+
+  /**
+   * El CRM tiene que ver la NC junto con la factura. Si viera sólo la factura
+   * ofrecería emitir una nota de crédito que ya existe, y esa segunda NC
+   * saldría por otro punto de venta contra la misma factura.
+   */
+  if (crmHabilitado()) {
+    try {
+      await enqueueJob('crm_comprobantes', { ordenId })
+    } catch (err) {
+      console.error('[nota-credito] no se pudo encolar el aviso al CRM:', err)
+    }
   }
 
   // ─── PDF + mail al comprador ────────────────────────────────────────────

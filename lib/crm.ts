@@ -167,3 +167,102 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
     `[crm] Orden ${ordenId} informada${body.idempotente ? ' (ya existía)' : ''} → venta ${body.venta_id}`
   )
 }
+
+/**
+ * Le manda al CRM los comprobantes fiscales de una orden.
+ *
+ * La factura de la tienda la emite la tienda, con su certificado y su punto de
+ * venta, así que el CRM no tiene forma de enterarse del CAE: lo ve el contador
+ * en un lado y el CRM muestra la venta sin comprobante. Esto cierra ese hueco.
+ *
+ * Van juntas la factura y la nota de crédito —si existe— por un motivo
+ * concreto: el CRM ofrece emitir la NC de toda venta cancelada que tenga CAE.
+ * Si le llegara sólo la factura, ese botón aparecería sobre una venta que ya
+ * tiene su NC hecha en la tienda, y apretarlo emitiría una segunda NC contra
+ * la misma factura, desde otro punto de venta.
+ *
+ * Lanza si falla, para que el job reintente: el aviso puede llegar antes que
+ * la venta misma —la factura se emite después de encolar la venta— y lo que
+ * corresponde ahí es esperar y volver a intentar.
+ */
+export async function notificarComprobantesCRM(ordenId: string): Promise<void> {
+  if (!crmHabilitado()) {
+    console.log('[crm] CRM_URL/CRM_WEBHOOK_SECRET no configurados — se omite el aviso')
+    return
+  }
+
+  const { data: orden, error } = await supabaseAdmin
+    .from('ordenes')
+    .select('id, total, datos_comprador')
+    .eq('id', ordenId)
+    .single()
+
+  if (error || !orden) {
+    throw new Error(`No se pudo leer la orden ${ordenId}: ${error?.message}`)
+  }
+
+  const c = (orden.datos_comprador ?? {}) as Record<string, unknown>
+  if (!c.factura_cae || !c.factura_nro) {
+    console.warn(`[crm] Orden ${ordenId} sin factura emitida — no hay comprobante que informar`)
+    return
+  }
+
+  const ptoVenta = Number(process.env.AFIP_PTO_VENTA || 5)
+
+  const payload = {
+    orden_id: ordenId,
+    factura: {
+      tipo: 'C',
+      punto_venta: ptoVenta,
+      numero: Number(c.factura_nro),
+      fecha: fechaISO(c.factura_fecha),
+      cae: String(c.factura_cae),
+      cae_vencimiento: fechaISODesdeAfip(c.factura_vto),
+    },
+    ...(c.nc_cae
+      ? {
+          nota_credito: {
+            punto_venta: Number(c.nc_pv ?? ptoVenta),
+            numero: Number(c.nc_nro),
+            fecha: fechaISO(c.nc_fecha),
+            cae: String(c.nc_cae),
+            cae_vencimiento: fechaISODesdeAfip(c.nc_vto),
+            total: Number(orden.total ?? 0),
+          },
+        }
+      : {}),
+  }
+
+  const res = await fetch(`${CRM_URL!.replace(/\/$/, '')}/api/integraciones/tienda/factura`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-tienda-secret': CRM_SECRET!,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const body = await res.json().catch(() => ({}))
+
+  if (!res.ok) {
+    throw new Error(`CRM respondió ${res.status}: ${JSON.stringify(body).slice(0, 300)}`)
+  }
+
+  console.log(
+    `[crm] Orden ${ordenId}: factura ${payload.factura.numero}${payload.nota_credito ? ` + NC ${payload.nota_credito.numero}` : ''} informadas`
+  )
+}
+
+/** "4/11/2026" → "2026-11-04", que es lo que entiende una columna `date`. */
+function fechaISO(fecha: unknown): string | null {
+  const m = String(fecha ?? '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (!m) return null
+  const [, d, mes, a] = m
+  return `${a}-${mes.padStart(2, '0')}-${d.padStart(2, '0')}`
+}
+
+/** "20261114" (formato AFIP) → "2026-11-14". */
+function fechaISODesdeAfip(fecha: unknown): string | null {
+  const t = String(fecha ?? '').trim()
+  return /^\d{8}$/.test(t) ? `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}` : null
+}
