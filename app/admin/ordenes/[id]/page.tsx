@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { notFound } from 'next/navigation'
 import DespacharForm from './DespacharForm'
 import EliminarOrdenButton from './EliminarOrdenButton'
+import NotaCreditoForm from './NotaCreditoForm'
 import { formatPrecio } from '@/lib/format'
 
 // Datos de admin: nunca cachear. Antes lo cubría el force-dynamic del layout
@@ -161,6 +162,39 @@ export default async function OrdenDetailPage({ params }: { params: Promise<{ id
           </a>
         </div>
       )}
+
+      {/* Nota de crédito emitida */}
+      {comprador.nc_cae && (
+        <div className="bg-brand-bg-card border border-yellow-700/50 rounded-2xl p-6 mb-5">
+          <h2 className="font-semibold text-yellow-400 text-sm uppercase tracking-wide mb-4">🧾 Nota de crédito</h2>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+            <div><span className="text-brand-text-muted">CAE</span><p className="text-yellow-300 font-mono mt-0.5">{comprador.nc_cae}</p></div>
+            <div><span className="text-brand-text-muted">Nro. comprobante</span><p className="text-white mt-0.5">{comprador.nc_nro}</p></div>
+            <div><span className="text-brand-text-muted">Fecha</span><p className="text-white mt-0.5">{comprador.nc_fecha}</p></div>
+            <div><span className="text-brand-text-muted">Anula la factura</span><p className="text-white mt-0.5">{comprador.factura_nro}</p></div>
+          </div>
+          <a
+            href={`/api/admin/factura-pdf?ordenId=${id}&tipo=nc`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 mt-4 bg-yellow-600 hover:bg-yellow-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            📄 Ver / descargar PDF
+          </a>
+        </div>
+      )}
+
+      {/* Emitir NC: sólo si hay factura, todavía no se emitió, y la compra no
+          va a seguir adelante (devuelta, cancelada o rechazada). */}
+      {comprador.factura_cae &&
+        !comprador.nc_cae &&
+        ['refunded', 'cancelled', 'rejected'].includes(orden.estado) && (
+          <NotaCreditoForm
+            ordenId={id}
+            emailComprador={comprador.email}
+            total={fmt(Number(orden.total))}
+          />
+        )}
 
       {/* Estado de despacho previo */}
       {yaFueEnviado && (

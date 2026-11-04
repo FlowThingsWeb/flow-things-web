@@ -71,12 +71,37 @@ export interface CAEResult {
   nroComprobante: number
 }
 
+/**
+ * Comprobante que una nota de crédito anula. AFIP lo exige: una NC suelta,
+ * sin decir qué factura corrige, no sirve para nada en el libro de IVA.
+ *
+ * `fecha` va en formato AAAAMMDD. Es opcional porque AFIP la valida contra lo
+ * que tiene registrado: mandarla mal es peor que no mandarla.
+ */
+export interface CbteAsociado {
+  tipo: number
+  ptoVenta: number
+  nro: number
+  fecha?: string
+}
+
+/**
+ * Tipo de comprobante y comprobantes asociados. Por defecto, Factura C (11)
+ * sin asociados, que es lo que emite la tienda en cada venta.
+ */
+export interface OpcionesComprobante {
+  cbteTipo?: number
+  cbtesAsoc?: CbteAsociado[]
+}
+
 export async function solicitarCAE(
   token: string, sign: string, cuit: number,
   ptoVenta: number, nroComprobante: number, total: number,
-  dni?: string
+  dni?: string,
+  opciones: OpcionesComprobante = {}
 ): Promise<CAEResult> {
   const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const cbteTipo = opciones.cbteTipo ?? 11
 
   // DocTipo 96 = DNI (cuando el comprador lo proveyó)
   // DocTipo 99 = Sin identificar / Consumidor Final (fallback)
@@ -84,7 +109,20 @@ export async function solicitarCAE(
   const docTipo   = dniNumero ? '96' : '99'
   const docNro    = dniNumero || '0'
 
-  const xml = `<ar:FECAESolicitar>${authXml(token, sign, cuit)}<ar:FeCAEReq><ar:FeCabReq><ar:CantReg>1</ar:CantReg><ar:PtoVta>${ptoVenta}</ar:PtoVta><ar:CbteTipo>11</ar:CbteTipo></ar:FeCabReq><ar:FeDetReq><ar:FECAEDetRequest><ar:Concepto>1</ar:Concepto><ar:DocTipo>${docTipo}</ar:DocTipo><ar:DocNro>${docNro}</ar:DocNro><ar:CbteDesde>${nroComprobante}</ar:CbteDesde><ar:CbteHasta>${nroComprobante}</ar:CbteHasta><ar:CbteFch>${fecha}</ar:CbteFch><ar:ImpTotal>${total.toFixed(2)}</ar:ImpTotal><ar:ImpTotConc>0.00</ar:ImpTotConc><ar:ImpNeto>${total.toFixed(2)}</ar:ImpNeto><ar:ImpOpEx>0.00</ar:ImpOpEx><ar:ImpIVA>0.00</ar:ImpIVA><ar:ImpTrib>0.00</ar:ImpTrib><ar:MonId>PES</ar:MonId><ar:MonCotiz>1</ar:MonCotiz></ar:FECAEDetRequest></ar:FeDetReq></ar:FeCAEReq></ar:FECAESolicitar>`
+  // Va después de MonCotiz: el orden de los elementos es parte del contrato
+  // del WSDL, no un detalle de formato.
+  const asociados = opciones.cbtesAsoc?.length
+    ? `<ar:CbtesAsoc>${opciones.cbtesAsoc
+        .map(
+          (c) =>
+            `<ar:CbteAsoc><ar:Tipo>${c.tipo}</ar:Tipo><ar:PtoVta>${c.ptoVenta}</ar:PtoVta><ar:Nro>${c.nro}</ar:Nro>${
+              c.fecha ? `<ar:CbteFch>${c.fecha}</ar:CbteFch>` : ''
+            }</ar:CbteAsoc>`,
+        )
+        .join('')}</ar:CbtesAsoc>`
+    : ''
+
+  const xml = `<ar:FECAESolicitar>${authXml(token, sign, cuit)}<ar:FeCAEReq><ar:FeCabReq><ar:CantReg>1</ar:CantReg><ar:PtoVta>${ptoVenta}</ar:PtoVta><ar:CbteTipo>${cbteTipo}</ar:CbteTipo></ar:FeCabReq><ar:FeDetReq><ar:FECAEDetRequest><ar:Concepto>1</ar:Concepto><ar:DocTipo>${docTipo}</ar:DocTipo><ar:DocNro>${docNro}</ar:DocNro><ar:CbteDesde>${nroComprobante}</ar:CbteDesde><ar:CbteHasta>${nroComprobante}</ar:CbteHasta><ar:CbteFch>${fecha}</ar:CbteFch><ar:ImpTotal>${total.toFixed(2)}</ar:ImpTotal><ar:ImpTotConc>0.00</ar:ImpTotConc><ar:ImpNeto>${total.toFixed(2)}</ar:ImpNeto><ar:ImpOpEx>0.00</ar:ImpOpEx><ar:ImpIVA>0.00</ar:ImpIVA><ar:ImpTrib>0.00</ar:ImpTrib><ar:MonId>PES</ar:MonId><ar:MonCotiz>1</ar:MonCotiz>${asociados}</ar:FECAEDetRequest></ar:FeDetReq></ar:FeCAEReq></ar:FECAESolicitar>`
 
   const response = await callWsfe('FECAESolicitar', xml)
 
@@ -114,13 +152,17 @@ export async function emitirFactura(
   token: string, sign: string, cuit: number,
   ptoVenta: number, total: number,
   dni?: string,
-  intentos = 2
+  intentos = 2,
+  opciones: OpcionesComprobante = {}
 ): Promise<CAEResult> {
+  const cbteTipo = opciones.cbteTipo ?? 11
   for (let intento = 1; intento <= intentos; intento++) {
-    const ultimoNro    = await getLastVoucher(token, sign, cuit, ptoVenta, 11)
+    // La numeración corre por punto de venta Y tipo de comprobante: la NC C
+    // tiene su propia serie, independiente de la de las facturas.
+    const ultimoNro    = await getLastVoucher(token, sign, cuit, ptoVenta, cbteTipo)
     const nroSiguiente = ultimoNro + 1
     try {
-      return await solicitarCAE(token, sign, cuit, ptoVenta, nroSiguiente, total, dni)
+      return await solicitarCAE(token, sign, cuit, ptoVenta, nroSiguiente, total, dni, opciones)
     } catch (err: any) {
       const isDuplicate = /ya existe|duplicad|duplicate|already/i.test(err.message ?? '')
       if (isDuplicate && intento < intentos) {

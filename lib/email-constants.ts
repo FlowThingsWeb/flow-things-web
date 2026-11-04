@@ -456,3 +456,80 @@ export const DEFAULT_LLEGA_HOY_CUERPO = `<!DOCTYPE html>
 </table>
 </body>
 </html>`
+
+/**
+ * El mail de la nota de crédito.
+ *
+ * Va solo, y no pegado al aviso de devolución, porque llega cuando la plata ya
+ * volvió: para el comprador la compra terminó hace rato y lo único que falta es
+ * el papel. Por eso el cuerpo no promete ningún reintegro ni pide nada, dice
+ * qué comprobante anula y adjunta el PDF, que es lo que le van a pedir si
+ * alguna vez tiene que justificar la operación.
+ */
+export const DEFAULT_NC_ASUNTO = 'Tu nota de cr&#xE9;dito de Flow Things'
+
+export const DEFAULT_NC_CUERPO = `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#ede9f7;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">La nota de cr&#xE9;dito que anula tu factura, en PDF.</div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ede9f7">
+<tr><td align="center" style="padding:36px 16px 48px">
+<table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;border-radius:24px;overflow:hidden;box-shadow:0 8px 40px rgba(80,0,200,0.13)">
+
+<!-- HEADER -->
+<tr><td style="background:linear-gradient(135deg,#5b21b6 0%,#7C3AED 60%,#9333ea 100%);padding:28px 40px 24px;text-align:center">
+  <img src="${LOGO_EMAIL}" height="64" alt="Flow Things" style="display:block;margin:0 auto"/>
+</td></tr>
+
+<!-- HERO -->
+<tr><td style="background:#f5f0ff;padding:36px 40px 28px;text-align:center">
+  <div style="font-size:60px;line-height:1;margin-bottom:12px">&#x1F9FE;</div>
+  <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#1a0040;line-height:1.2">Tu nota de cr&#xE9;dito</h1>
+  <p style="margin:0;font-size:15px;color:#6b21a8;font-weight:500">{{nombre}}, ac&#xE1; est&#xE1; el comprobante de la compra anulada.</p>
+</td></tr>
+
+<!-- COMPROBANTE -->
+<tr><td style="background:#ffffff;padding:28px 40px">
+  <div style="background:linear-gradient(135deg,#5b21b6,#7C3AED);border-radius:18px;padding:28px 28px 24px;text-align:center">
+    <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#c4b5fd;text-transform:uppercase;letter-spacing:1px">Nota de cr&#xE9;dito C</p>
+    <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#ffffff">{{nc_numero}}</p>
+    <p style="margin:0;font-size:14px;color:#ede9fe;line-height:1.6">
+      Anula la factura {{factura_numero}}<br/>
+      por {{total}}
+    </p>
+  </div>
+</td></tr>
+
+<!-- EXPLICACION -->
+<tr><td style="background:#ffffff;padding:0 40px 24px;text-align:center">
+  <p style="margin:0;font-size:14px;color:#4b5563;line-height:1.7">
+    Te la adjuntamos en PDF.<br/>
+    Es el comprobante de que la factura qued&#xF3; anulada: guardalo.
+  </p>
+</td></tr>
+
+<!-- REFERENCIA -->
+<tr><td style="background:#ffffff;padding:0 40px 28px;text-align:center">
+  <p style="margin:0 0 4px;font-size:13px;color:#9ca3af">Pedido <strong style="color:#374151">#{{orden_id}}</strong></p>
+  <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6">
+    Cualquier duda, escribinos:<br/>
+    &#x1F4E7; <a href="mailto:contacto@flowthings.com.ar" style="color:#7C3AED;text-decoration:none;font-weight:600">contacto@flowthings.com.ar</a>
+    &nbsp;&#xB7;&nbsp;
+    &#x1F4AC; <a href="https://wa.me/5491156075633" style="color:#7C3AED;text-decoration:none;font-weight:600">+54 9 11 5607-5633</a>
+  </p>
+</td></tr>
+
+<!-- FOOTER -->
+<tr><td style="background:#1e0050;padding:28px 40px;text-align:center">
+  <img src="${LOGO_EMAIL}" height="36" alt="Flow Things" style="display:block;margin:0 auto 12px;opacity:0.85"/>
+  <p style="margin:0">
+    <a href="https://flowthings.com.ar" style="color:#a78bfa;text-decoration:none;font-size:13px;font-weight:600">flowthings.com.ar</a>
+  </p>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`

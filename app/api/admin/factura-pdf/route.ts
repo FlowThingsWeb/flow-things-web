@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminToken } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { generateFacturaPDFBase64, facturaFileName } from '@/lib/factura-pdf'
+import { generateFacturaPDFBase64, facturaFileName, notaCreditoFileName } from '@/lib/factura-pdf'
 
 /**
  * GET /api/admin/factura-pdf?ordenId=xxx
@@ -12,8 +12,12 @@ export async function GET(request: NextRequest) {
   const unauth = await verifyAdminToken(request)
   if (unauth) return unauth
 
-  const ordenId = new URL(request.url).searchParams.get('ordenId')
+  const params = new URL(request.url).searchParams
+  const ordenId = params.get('ordenId')
   if (!ordenId) return NextResponse.json({ error: 'Falta ordenId' }, { status: 400 })
+  // ?tipo=nc devuelve la nota de crédito en vez de la factura. Mismo layout,
+  // mismos datos de la orden: lo único que cambia es el comprobante.
+  const esNc = params.get('tipo') === 'nc'
 
   const { data: orden, error } = await supabaseAdmin
     .from('ordenes')
@@ -29,6 +33,12 @@ export async function GET(request: NextRequest) {
   if (!c.factura_cae || !c.factura_nro) {
     return NextResponse.json({ error: 'Esta orden no tiene factura emitida' }, { status: 404 })
   }
+  if (esNc && !c.nc_cae) {
+    return NextResponse.json({ error: 'Esta orden no tiene nota de crédito emitida' }, { status: 404 })
+  }
+
+  const ptoVenta = Number(process.env.AFIP_PTO_VENTA || 5)
+  const dniNumero = String(c.dni ?? '').replace(/\D/g, '')
 
   const direccionCompleta = [
     c.direccion,
@@ -38,14 +48,25 @@ export async function GET(request: NextRequest) {
 
   try {
     const pdfBase64 = await generateFacturaPDFBase64({
-      nroComprobante: Number(c.factura_nro),
-      ptoVenta:       Number(process.env.AFIP_PTO_VENTA || 5),
+      tipoComprobante: esNc ? 'nota_credito' : 'factura',
+      nroComprobante: Number(esNc ? c.nc_nro : c.factura_nro),
+      ptoVenta:       Number((esNc ? c.nc_pv : null) ?? ptoVenta),
       cuit:           Number(process.env.AFIP_CUIT),
-      fecha:          String(c.factura_fecha || new Date(orden.created_at).toLocaleDateString('es-AR')),
+      fecha:          String((esNc ? c.nc_fecha : c.factura_fecha) || new Date(orden.created_at).toLocaleDateString('es-AR')),
       fechaISO:       String(orden.created_at).slice(0, 10),
-      caeFechaVto:    String(c.factura_vto || ''),
-      cae:            String(c.factura_cae),
+      caeFechaVto:    String((esNc ? c.nc_vto : c.factura_vto) || ''),
+      cae:            String(esNc ? c.nc_cae : c.factura_cae),
       totalNumerico:  Number(orden.total ?? 0),
+      ...(esNc
+        ? {
+            comprobanteAsociado: {
+              ptoVenta,
+              nro: Number(c.factura_nro),
+              fecha: String(c.factura_fecha ?? ''),
+            },
+          }
+        : {}),
+      ...(esNc && dniNumero ? { receptor: { tipoDoc: 96, nroDoc: Number(dniNumero) } } : {}),
       cliente: {
         nombre:    c.nombre    || 'Consumidor Final',
         cuitDni:   c.dni        || '–',
@@ -68,7 +89,9 @@ export async function GET(request: NextRequest) {
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="${facturaFileName(Number(c.factura_nro))}"`,
+        'Content-Disposition': `inline; filename="${
+          esNc ? notaCreditoFileName(Number(c.nc_nro)) : facturaFileName(Number(c.factura_nro))
+        }"`,
       },
     })
   } catch (err: unknown) {

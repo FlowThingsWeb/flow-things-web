@@ -21,6 +21,22 @@ export interface FacturaPDFParams {
     cp?:        string
   }
   items: { sku?: string; descripcion: string; cantidad: number; precioUnitario: number }[]
+  /**
+   * Qué comprobante es. El layout es el mismo —misma letra C, mismo detalle—:
+   * cambian el título, el código AFIP del pie y el tipo que viaja en el QR.
+   */
+  tipoComprobante?: 'factura' | 'nota_credito'
+  /**
+   * La factura que una nota de crédito anula. Se imprime en el encabezado
+   * porque es lo primero que busca el contador y lo único que ata los dos
+   * comprobantes a la vista.
+   */
+  comprobanteAsociado?: { ptoVenta: number; nro: number; fecha: string }
+  /**
+   * Documento del receptor para el QR. Sin esto el QR declara consumidor
+   * final, que es lo que se viene mandando en las facturas.
+   */
+  receptor?: { tipoDoc: number; nroDoc: number }
   costoEnvio?: number
   /** Descuento aplicado, en positivo. Se imprime como renglón en negativo. */
   descuentoMonto?: number
@@ -93,6 +109,9 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   const costoEnvio = p.costoEnvio ?? 0
   const descuentoMonto = p.descuentoMonto ?? 0
   const nroCbte = `${String(p.ptoVenta).padStart(4, '0')}-${String(p.nroComprobante).padStart(8, '0')}`
+  const esNc = p.tipoComprobante === 'nota_credito'
+  // 011 = Factura C, 013 = Nota de Crédito C.
+  const codigoCbte = esNc ? 13 : 11
 
   // Solo el QR — el logo no se embebe como imagen para mantener el PDF pequeño
   const QRCode = await import('qrcode').then(m => (m.default ?? m) as { toDataURL: (text: string, opts?: object) => Promise<string> })
@@ -100,9 +119,11 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   const qrObj = {
     ver: 1,
     fecha: p.fechaISO ?? p.fecha.split('/').reverse().join('-'),
-    cuit: p.cuit, ptoVta: p.ptoVenta, tipoCmp: 11,
+    cuit: p.cuit, ptoVta: p.ptoVenta, tipoCmp: codigoCbte,
     nroCmp: p.nroComprobante, importe: p.totalNumerico,
-    moneda: 'PES', ctz: 1, tipoDocRec: 99, nroDocRec: 0,
+    moneda: 'PES', ctz: 1,
+    tipoDocRec: p.receptor?.tipoDoc ?? 99,
+    nroDocRec: p.receptor?.nroDoc ?? 0,
     tipoCodAut: 'E', codAut: Number(p.cae),
   }
   const qrAfipUrl = `https://www.afip.gob.ar/fe/qr/?p=${btoa(JSON.stringify(qrObj))}`
@@ -154,16 +175,21 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
   doc.text('C', midCX, boxY + boxS * 0.72, { align: 'center' })
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
-  doc.text('011', midCX, y + hdrH - 3, { align: 'center' })
+  doc.text(String(codigoCbte).padStart(3, '0'), midCX, y + hdrH - 3, { align: 'center' })
 
   // Right: factura data
   const rx = rightX + 3
   const lineH = 5.4
   doc.setFontSize(8); setBlack()
+  // En la NC la fecha de vencimiento no significa nada y el comprobante que
+  // anula sí, así que ocupa ese renglón: el encabezado tiene lugar para siete.
+  const asociado = p.comprobanteAsociado
+    ? `FC C ${String(p.comprobanteAsociado.ptoVenta).padStart(4, '0')}-${String(p.comprobanteAsociado.nro).padStart(8, '0')}`
+    : '–'
   const rows: [string, string][] = [
-    ['FACTURA:', nroCbte],
+    [esNc ? 'NOTA DE CRÉDITO:' : 'FACTURA:', nroCbte],
     ['Fecha de Emisión:', p.fecha],
-    ['Fecha de Vencimiento:', p.fecha],
+    esNc ? ['Comprobante asoc.:', asociado] : ['Fecha de Vencimiento:', p.fecha],
     ['CUIT:', String(p.cuit)],
     ['Ing. Brutos C.M:', String(p.cuit)],
     ['Inicio de Actividad:', '01/04/2026'],
@@ -369,4 +395,8 @@ export async function generateFacturaPDFBase64(p: FacturaPDFParams): Promise<str
 
 export function facturaFileName(nroComprobante: number): string {
   return `FACTURA #${nroComprobante}.pdf`
+}
+
+export function notaCreditoFileName(nroComprobante: number): string {
+  return `NOTA DE CREDITO #${nroComprobante}.pdf`
 }
