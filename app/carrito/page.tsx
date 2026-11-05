@@ -252,6 +252,8 @@ function CarritoContent() {
   const [envioCalculado, setEnvioCalculado] = useState(false)
   // Fallback: editar la dirección a mano si Google no la ubicó bien.
   const [editarManual, setEditarManual] = useState(false)
+  // Google rechazó la key del mapa: no hay buscador, sólo carga a mano.
+  const [buscadorCaido, setBuscadorCaido] = useState(false)
 
   const subtotal = total()
   const costoEnvio = envioSeleccionado?.precio ?? 0
@@ -893,7 +895,13 @@ function CarritoContent() {
             )}
 
             {/* Buscador en mapa (Google Places) — completa los campos de abajo */}
-            <MapaDireccion onCambio={aplicarDireccionMapa} />
+            <MapaDireccion
+              onCambio={aplicarDireccionMapa}
+              onFalla={() => {
+                setBuscadorCaido(true)
+                setEditarManual(true)
+              }}
+            />
 
             {/* Resumen de la dirección elegida (se completa desde el mapa) */}
             {(form.direccion || form.ciudad || form.codigo_postal || form.provincia) ? (
@@ -917,7 +925,9 @@ function CarritoContent() {
               </div>
             ) : (
               <p className="text-sm text-brand-text-muted">
-                Buscá tu dirección en el mapa y completamos los datos solos.
+                {buscadorCaido
+                  ? 'Completá calle, ciudad, provincia y código postal acá abajo.'
+                  : 'Buscá tu dirección en el mapa y completamos los datos solos.'}
               </p>
             )}
 
@@ -973,20 +983,28 @@ function CarritoContent() {
             {/* Aviso si el mapa no trajo algún dato clave */}
             {form.direccion && (!form.codigo_postal || !form.provincia) && (
               <p className="text-xs text-amber-400">
-                Faltan datos de tu dirección. Ajustá el pin en el mapa o cargalos a mano abajo.
+                {buscadorCaido
+                  ? 'Faltan datos de tu dirección. Cargalos a mano abajo.'
+                  : 'Faltan datos de tu dirección. Ajustá el pin en el mapa o cargalos a mano abajo.'}
               </p>
             )}
 
-            {/* Fallback: editar a mano si Google no ubicó bien la dirección */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setEditarManual(v => !v)}
-                className="text-xs text-brand-text-muted underline hover:text-brand-text"
-              >
-                {editarManual ? 'Ocultar edición manual' : '¿La dirección no es correcta? Editar a mano'}
-              </button>
-            </div>
+            {/*
+              Fallback: editar a mano si Google no ubicó bien la dirección.
+              Con el buscador caído los campos son el único camino, así que no
+              se ofrece cerrarlos.
+            */}
+            {!buscadorCaido && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setEditarManual(v => !v)}
+                  className="text-xs text-brand-text-muted underline hover:text-brand-text"
+                >
+                  {editarManual ? 'Ocultar edición manual' : '¿La dirección no es correcta? Editar a mano'}
+                </button>
+              </div>
+            )}
 
             {editarManual && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-brand-border pt-4">

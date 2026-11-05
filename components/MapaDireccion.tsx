@@ -8,6 +8,10 @@
  *
  * Requiere NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. Si no está, no renderiza nada
  * (el carrito sigue funcionando con los campos manuales).
+ *
+ * Si Google rechaza la key —facturación caída, key vencida, dominio no
+ * permitido— el componente se borra solo y avisa por `onFalla`. Ver
+ * `marcarAuthFallida` abajo.
  */
 import { useEffect, useRef, useState } from 'react'
 
@@ -41,6 +45,27 @@ function normalizarProvincia(raw: string): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type G = any
 
+/**
+ * Google rechazó la key.
+ *
+ * El script del mapa se baja igual con HTTP 200 aunque la key no sirva: el
+ * rechazo llega después, y el único aviso es que la API llama a este global.
+ * Sin esto el `catch` del componente nunca salta y al cliente le queda el
+ * mapa muerto con el cartel de Google encima, justo en el paso de la
+ * dirección. Pasó el 5/11/2026 con la facturación del proyecto cortada
+ * (BillingNotEnabledMapError).
+ *
+ * Es module-level y no un estado de React porque Google avisa una sola vez
+ * para toda la página, en cualquier momento después de cargar el script.
+ */
+let authFallo = false
+const suscriptoresAuth = new Set<() => void>()
+
+function marcarAuthFallida() {
+  authFallo = true
+  for (const avisar of suscriptoresAuth) avisar()
+}
+
 let scriptPromise: Promise<void> | null = null
 function loadGoogle(key: string): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve()
@@ -48,6 +73,10 @@ function loadGoogle(key: string): Promise<void> {
   if ((window as any).google?.maps?.places) return Promise.resolve()
   if (scriptPromise) return scriptPromise
   scriptPromise = new Promise<void>((resolve, reject) => {
+    // Tiene que quedar puesto antes de que el script arranque: la API lo
+    // busca con este nombre exacto y no acepta otra forma de enterarse.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(window as any).gm_authFailure = marcarAuthFallida
     const s = document.createElement('script')
     s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&language=es&region=AR`
     s.async = true
@@ -82,8 +111,11 @@ function parseComponents(components: any[], lat: number, lng: number): Direccion
 
 export default function MapaDireccion({
   onCambio,
+  onFalla,
 }: {
   onCambio: (d: DireccionParseada) => void
+  /** Se llama si el buscador no va a funcionar, para abrir la carga a mano. */
+  onFalla?: () => void
 }) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
   const inputRef = useRef<HTMLInputElement>(null)
@@ -93,10 +125,26 @@ export default function MapaDireccion({
   const geocoderRef = useRef<G>(null)
   const [error, setError] = useState('')
   const [listo, setListo] = useState(false)
+  const [caido, setCaido] = useState(false)
+
+  // Por ref: así avisar al carrito no depende de que el padre memorice la
+  // función, y el efecto no se vuelve a correr en cada render.
+  const onFallaRef = useRef(onFalla)
+  onFallaRef.current = onFalla
 
   useEffect(() => {
     if (!apiKey) return
     let cancelado = false
+
+    const caerse = () => {
+      if (cancelado) return
+      setCaido(true)
+      onFallaRef.current?.()
+    }
+    suscriptoresAuth.add(caerse)
+    // Ya había fallado antes de montar este componente (volvió al carrito).
+    if (authFallo) caerse()
+
     loadGoogle(apiKey)
       .then(() => {
         if (cancelado || !inputRef.current || !mapDivRef.current) return
@@ -157,14 +205,32 @@ export default function MapaDireccion({
 
         setListo(true)
       })
-      .catch(() => setError('No se pudo cargar el mapa. Cargá la dirección manualmente abajo.'))
+      .catch(() => {
+        setError('No se pudo cargar el mapa. Cargá la dirección manualmente abajo.')
+        caerse()
+      })
     return () => {
       cancelado = true
+      suscriptoresAuth.delete(caerse)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey])
 
   if (!apiKey) return null
+
+  /**
+   * Caído: se saca de la página el input y el mapa. El input no autocompleta
+   * nada y el div es donde Google dibuja su propio cartel de error; dejarlos
+   * sólo hace que el cliente pelee con un buscador que no busca.
+   */
+  if (caido) {
+    return (
+      <p className="text-sm text-amber-400">
+        El buscador de direcciones no está disponible en este momento. Cargá tu
+        dirección a mano acá abajo: el envío se calcula igual.
+      </p>
+    )
+  }
 
   return (
     <div className="space-y-2">
