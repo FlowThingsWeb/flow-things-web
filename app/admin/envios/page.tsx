@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { HORA_CORTE } from '@/lib/zonas-cadeteria'
 
 function formatPrecio(val: string) {
   const n = Number(val)
@@ -307,10 +308,12 @@ export default function EnviosAdminPage() {
           cada zona ahí.
         </p>
         <p className="text-xs text-brand-text-muted mt-2">
-          El día de entrega no se escribe: sale del reloj de Buenos Aires. Hasta las 13 de un
-          día que reparte dice <strong className="text-brand-text">&quot;Llega hoy&quot;</strong>;
+          El día de entrega no se escribe: sale del reloj de Buenos Aires. Hasta las {HORA_CORTE} de
+          un día que reparte dice <strong className="text-brand-text">&quot;Llega hoy&quot;</strong>;
           en la última hora antes del corte,{' '}
-          <strong className="text-brand-text">&quot;Llega hoy si comprás antes de las 13&quot;</strong>;
+          <strong className="text-brand-text">
+            &quot;Llega hoy si comprás antes de las {HORA_CORTE}&quot;
+          </strong>;
           después, &quot;Llega mañana&quot; o el día que toque.
         </p>
       </div>

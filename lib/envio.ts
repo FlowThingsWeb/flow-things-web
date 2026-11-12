@@ -222,7 +222,7 @@ export async function calcularEnvio(
        * El día se calcula, no se escribe.
        *
        * Era un texto fijo —"Hoy si comprás antes de las 13 hs"— y eso es
-       * verdad hasta las 13 y mentira el resto del día, el fin de semana
+       * verdad hasta la hora de corte y mentira el resto del día, el fin de semana
        * entero y los feriados. Lo que ve el comprador ahora sale del reloj de
        * Buenos Aires: "Llega hoy" sólo cuando llega hoy de verdad.
        */

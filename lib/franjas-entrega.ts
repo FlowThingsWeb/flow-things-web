@@ -148,8 +148,9 @@ export function franjasEntrega(
      * Hora después de la cual la compra ya no sale hoy.
      *
      * Por defecto son las 16, que es cuando cierra el despacho propio. El
-     * envío en el día del cadete corta a las 13: sin poder pasarle su hora,
-     * entre las 13 y las 16 el carrito ofrecía una franja de hoy al lado de un
+     * envío en el día del cadete corta antes (ver HORA_CORTE en
+     * zonas-cadeteria): sin poder pasarle su hora, el carrito ofrecía entre
+     * una y otra una franja de hoy al lado de un
      * "Llega mañana", o sea dos promesas distintas en la misma pantalla.
      */
     horaCorte?: number;

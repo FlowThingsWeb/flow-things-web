@@ -14,7 +14,7 @@ import { Moped } from '@phosphor-icons/react/dist/ssr'
  * Buenos Aires, no la del visitante. Un comprador con el reloj mal puesto, o
  * mirando desde otro huso, vería un día que no es. Y por qué no viene en el
  * HTML: la ficha se cachea 5 minutos, así que un "Llega hoy" generado a las
- * 12:58 seguiría en pantalla a las 13:02.
+ * 11:58 seguiría en pantalla a las 12:02.
  */
 
 export interface Entrega {

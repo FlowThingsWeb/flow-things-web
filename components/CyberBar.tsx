@@ -14,9 +14,9 @@ import { useEntregaEnElDia } from '@/components/EntregaEnElDia'
  * siguiente, ve que terminaba y sigue ahí, y a partir de ahí no le cree nada
  * más a la tienda.
  *
- * La urgencia la da lo único que sí tiene reloj de verdad: el cadete sale a
- * las 13. "Comprá antes de las 13 y llega hoy" es urgente, es cierto, y es
- * algo que casi nadie más puede ofrecer.
+ * La urgencia la da lo único que sí tiene reloj de verdad: la hora a la que
+ * sale el cadete (HORA_CORTE en zonas-cadeteria). "Comprá antes y llega hoy"
+ * es urgente, es cierto, y es algo que casi nadie más puede ofrecer.
  */
 export default function CyberBar({
   titulo,

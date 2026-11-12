@@ -82,13 +82,13 @@ export function getZonaCadeteria(codigoPostal?: string | null): ZonaCadeteria | 
 /* ───────────────────────── Cuándo llega ───────────────────────── */
 
 /** Después de esta hora de Buenos Aires, el paquete sale al día siguiente. */
-export const HORA_CORTE = 13
+export const HORA_CORTE = 12
 
 /**
  * Cuando falta menos que esto para el corte, la promesa se condiciona.
  *
- * "Llega hoy" a las 12:58 es una promesa que el comprador no llega a cumplir:
- * entre que lee, carga la tarjeta y paga, pasaron las 13. Decirle la condición
+ * "Llega hoy" a las 11:58 es una promesa que el comprador no llega a cumplir:
+ * entre que lee, carga la tarjeta y paga, pasaron las 12. Decirle la condición
  * en vez del resultado es lo único honesto, y además apura, que es lo que
  * quiere el que está por comprar.
  */
@@ -126,7 +126,7 @@ export interface EntregaCadeteria {
 /**
  * Cuándo le llega al comprador si compra ahora.
  *
- * La regla del cadete: antes de las 13 de Buenos Aires sale —y llega— el mismo
+ * La regla del cadete: antes de las 12 de Buenos Aires sale —y llega— el mismo
  * día; después, al siguiente día que reparte. No reparte sábados, domingos ni
  * los feriados que estén cargados.
  *

@@ -234,8 +234,8 @@ function CarritoContent() {
       return
     }
     /*
-      Con el envío en el día, las franjas cortan a las 13 y no a las 16: es la
-      hora del cadete. Sin esto, entre las 13 y las 16 el carrito ofrecía una
+      Con el envío en el día, las franjas cortan a las 12 y no a las 16: es la
+      hora del cadete. Sin esto, entre las 12 y las 16 el carrito ofrecía una
       franja de hoy justo al lado de un "Llega mañana".
     */
     setFranjas(

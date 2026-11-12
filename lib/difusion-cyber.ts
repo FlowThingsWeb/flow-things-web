@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { escapeHtml } from '@/lib/escape-html'
 import { getConfig } from '@/lib/config'
 import { estadoCyber } from '@/lib/cyber'
+import { HORA_CORTE } from '@/lib/zonas-cadeteria'
 import { leerTodo, traerCostos } from '@/lib/cyber-aplicar'
 import { FACTORES_DEFAULT } from '@/lib/cyber-precios'
 
@@ -237,7 +238,7 @@ export function cuerpoDifusionCyber(
   ${
     llegaHoy
       ? `<tr><td style="background:#f6f2ff;border-radius:12px;padding:12px 14px;font-size:14px;color:#1a0040">
-      &#x1F6F5; <strong>Llega hoy</strong> en CABA y alrededores, comprando antes de las 13.
+      &#x1F6F5; <strong>Llega hoy</strong> en CABA y alrededores, comprando antes de las ${HORA_CORTE}.
     </td></tr>`
       : ''
   }

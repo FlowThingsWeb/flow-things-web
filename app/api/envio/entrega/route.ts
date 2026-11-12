@@ -10,7 +10,7 @@ import { FERIADOS } from '@/lib/franjas-entrega'
  *
  * Existe porque la ficha de producto se cachea 5 minutos (`revalidate = 300`).
  * Si el día de entrega se renderizara en el servidor junto con la página, un
- * HTML generado a las 12:58 seguiría diciendo "Llega hoy" a las 13:02, que es
+ * HTML generado a las 11:58 seguiría diciendo "Llega hoy" a las 12:02, que es
  * exactamente el minuto en que deja de ser verdad. Esto se pide aparte y sin
  * caché, así que la promesa es siempre la de este segundo.
  *

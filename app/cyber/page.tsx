@@ -6,6 +6,7 @@ import { getCategorias, getItemsDeCategoria, getRatings } from '@/lib/catalogo'
 import { filtrosDe, type SearchParams } from '@/components/PaginaCategoria'
 import { getConfig } from '@/lib/config'
 import { estadoCyber } from '@/lib/cyber'
+import { HORA_CORTE } from '@/lib/zonas-cadeteria'
 import { Lightning, Moped, CreditCard, Truck } from '@phosphor-icons/react/dist/ssr'
 
 const BASE = (process.env.NEXT_PUBLIC_APP_URL || 'https://flowthings.com.ar').replace(/\/$/, '')
@@ -138,7 +139,7 @@ export default async function CyberPage({ searchParams }: PageProps) {
           */}
           <ul className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
             {[
-              { Icon: Moped, t: 'Llega hoy', d: 'En CABA y alrededores, comprando antes de las 13' },
+              { Icon: Moped, t: 'Llega hoy', d: `En CABA y alrededores, comprando antes de las ${HORA_CORTE}` },
               { Icon: CreditCard, t: '3 cuotas', d: 'Sin interés, con todas las tarjetas' },
               {
                 Icon: Truck,
