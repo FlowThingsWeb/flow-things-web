@@ -83,7 +83,7 @@ export async function avisarCyberArrancado(): Promise<{ avisado: boolean; motivo
       (rebajados > 0
         ? `${rebajados} producto(s) con precio rebajado.`
         : `⚠️ <b>Ningún producto tiene precio rebajado.</b> La promo está prendida pero la tienda no muestra ofertas: falta aplicar el descuento en /admin/cyber/precios.`) +
-      `\n\n<a href="${url}/cyber">Ver la página</a>`,
+      `\n\n<a href="${url}/productos?orden=descuento">Ver la página</a>`,
   )
 
   return { avisado: true }

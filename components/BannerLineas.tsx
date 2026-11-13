@@ -372,16 +372,11 @@ function Pieza({
           <Link
             href={pieza.href}
             /*
-              La píldora lima es la firma de Flow y va en las cuatro líneas,
-              tengan el fondo que tengan: cada pieza es de su color y el botón
-              es siempre el mismo. La única que cambia es la de campaña, que
-              usa el violeta para no competir con el resalte lima del título.
+              La píldora lima es la firma de Flow y va en todas las piezas,
+              tengan el fondo que tengan: cada una es de su color y el botón
+              es siempre el mismo.
             */
-            className={`rounded-full px-10 py-4 text-sm font-extrabold tracking-wider transition-transform hover:scale-[1.03] ${
-              pieza.id === 'cyber-monday'
-                ? 'bg-brand-purple text-white'
-                : 'bg-brand-neon text-[#212121]'
-            }`}
+            className="rounded-full bg-brand-neon px-10 py-4 text-sm font-extrabold tracking-wider text-[#212121] transition-transform hover:scale-[1.03]"
           >
             {pieza.cta}
           </Link>

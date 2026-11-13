@@ -257,7 +257,7 @@ ${
 }
 
 <p style="margin:18px 0 0;text-align:center">
-  <a href="${link('/cyber', 'cta')}" style="display:inline-block;background:#1a0040;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:15px 38px;border-radius:12px">Ver todas las ofertas</a>
+  <a href="${link('/productos?orden=descuento', 'cta')}" style="display:inline-block;background:#1a0040;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:15px 38px;border-radius:12px">Ver todas las ofertas</a>
 </p>
 `.trim()
 

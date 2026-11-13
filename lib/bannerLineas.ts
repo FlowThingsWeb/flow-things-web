@@ -114,34 +114,6 @@ export const PIEZAS: PiezaBanner[] = [
     mosaico: '#4B3C87',
     skus: ['2726', '2716', '2718', '2727', '2714', '2719'],
   },
-  /**
-   * Cyber Monday. Se muestra sola entre el 2 y el 12 de noviembre y después
-   * desaparece: una campaña con fecha que hay que acordarse de bajar es una
-   * campaña que va a quedar puesta en enero.
-   *
-   * Los SKU son los doce que más unidades movieron entre el 22/8 y el 21/10
-   * de 2026. Conviene rehacer esa lista antes de cada campaña; si un producto
-   * se quedó sin stock, el banner lo saltea solo.
-   */
-  {
-    id: 'cyber-monday',
-    href: '/productos?orden=descuento',
-    titulo: 'CYBER',
-    bajada: ['¡Del 2 al 12 de noviembre!', 'Los doce que más se vendieron'],
-    cta: 'VER OFERTAS',
-    fondo: '#F2F1F4',
-    claro: true,
-    burbujaIzq: '',
-    burbujaDer: '',
-    arco: '',
-    mosaico: '#212121',
-    skus: [
-      '4763-15TD', '86315', '4722-20', '86331', 'SF601', '7801-02',
-      '86311', '86320', '86318', 'CL1774K', '4432-24', '86332',
-    ],
-    desde: '2026-11-02',
-    hasta: '2026-11-12',
-  },
 ]
 
 export type ProductoBanner = {
