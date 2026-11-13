@@ -2,6 +2,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getConfig } from '@/lib/config'
 import { estadoCyber } from '@/lib/cyber'
+import { costosDePacks } from '@/lib/packs'
 import { guardarBorradorCyber } from '@/lib/difusion-cyber'
 import {
   CONFIG_CYBER_DEFAULT,
@@ -72,6 +73,14 @@ export async function traerCostos(): Promise<{
         ventas.set(c.sku, Number(c.unidades_vendidas))
       }
     }
+    /**
+     * El pack no se compra, se arma: el CRM lo manda sin costo. La cuenta
+     * —suma de las partes— se hace acá, que es donde vive la composición.
+     */
+    for (const pack of await costosDePacks(costos)) {
+      costos.set(pack.sku, pack.costo_con_iva)
+    }
+
     return { costos, ventas, error: null }
   } catch (e) {
     return { ...vacio, error: e instanceof Error ? e.message : 'Error al hablar con el CRM' }

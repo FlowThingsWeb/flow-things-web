@@ -186,6 +186,46 @@ export async function recalcularStockPacks(): Promise<
   return cambios
 }
 
+/**
+ * El costo de un pack, que tampoco es un dato: es la suma de sus partes.
+ *
+ * Un pack no se compra, se arma: no tiene fila en las compras del CRM ni en
+ * la lista del proveedor, así que el CRM lo manda sin costo. Y "sin costo"
+ * es exactamente lo que el ajuste de precios y el panel de promos leen como
+ * "no sé si estoy abajo del piso de margen", que es el único freno que
+ * impide publicar una oferta que pierde plata. El 2/11/2026 los cinco packs
+ * quedaron afuera de las Ofertas Cyber por eso.
+ *
+ * Esta cuenta la hacía el CRM cuando era el dueño de la composición. Ahora
+ * la composición vive acá, así que la cuenta también.
+ *
+ * Se emite SÓLO si todos los componentes tienen costo: con uno que falte la
+ * suma da de menos, y un costo subestimado es peor que ninguno —el piso
+ * pasaría dando por bueno un precio que no lo es—.
+ */
+export async function costosDePacks(
+  costoPorSku: Map<string, number>,
+): Promise<{ sku: string; costo_con_iva: number }[]> {
+  const packs = await leerPacks()
+  const salida: { sku: string; costo_con_iva: number }[] = []
+  for (const pack of packs) {
+    if (pack.componentes.length === 0) continue
+    let total = 0
+    let completo = true
+    for (const c of pack.componentes) {
+      const costo = costoPorSku.get(c.sku)
+      if (costo == null || !Number.isFinite(costo) || costo <= 0) {
+        completo = false
+        break
+      }
+      total += costo * c.cantidad
+    }
+    if (!completo) continue
+    salida.push({ sku: pack.sku, costo_con_iva: Math.round(total) })
+  }
+  return salida
+}
+
 export type ResultadoExpansion = {
   /** Los items ya sin packs: listos para que el CRM mapee SKU → producto. */
   items: ItemVentaCRM[]

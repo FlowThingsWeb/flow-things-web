@@ -11,6 +11,7 @@ import {
 } from '@/lib/precios-web'
 import { registrarLatido } from '@/lib/vigilar-crons'
 import { estadoCyber } from '@/lib/cyber'
+import { costosDePacks } from '@/lib/packs'
 
 export const maxDuration = 60
 
@@ -73,7 +74,35 @@ async function traerCostosDelCrm(): Promise<CostoCrm[]> {
     throw new Error(`El CRM respondió ${r.status}: ${detalle.slice(0, 300)}`)
   }
   const data = await r.json()
-  return (data.resultados ?? []) as CostoCrm[]
+  const costos = (data.resultados ?? []) as CostoCrm[]
+
+  /**
+   * Los packs, costeados por la suma de sus partes.
+   *
+   * Un pack no se compra, se arma: el CRM no tiene con qué costearlo y lo
+   * manda sin costo. Sin esto, el ajuste de precios lo saltea —no puede
+   * saber si queda abajo del piso de margen— y el pack se queda con el
+   * precio que tenía mientras sus componentes se mueven.
+   */
+  const porSku = new Map(
+    costos
+      .filter((c) => Number(c.costo_con_iva) > 0)
+      .map((c) => [c.sku, Number(c.costo_con_iva)]),
+  )
+  for (const pack of await costosDePacks(porSku)) {
+    costos.push({
+      sku: pack.sku,
+      costo_con_iva: pack.costo_con_iva,
+      // Las ventas se registran contra los componentes, no contra el pack:
+      // sumarlas haría parecer al pack el más vendido de la tienda sólo por
+      // tener cuatro productos adentro.
+      unidades_vendidas: 0,
+      // Un pack no se publica en Mercado Libre, así que no hay precio de allá
+      // contra el cual compararse.
+      precio_ml: null,
+    })
+  }
+  return costos
 }
 
 /** Unidades vendidas por SKU en la tienda, para no tocar lo que ya funciona. */
