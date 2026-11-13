@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabaseAdmin'
+import { expandirPacks } from '@/lib/packs'
 import { ItemOrden } from '@/types'
 
 /**
@@ -79,6 +80,26 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
     )
   }
 
+  /**
+   * Un pack es un producto de la tienda que por dentro son varios. El CRM no
+   * los conoce —su stock, su FIFO y sus reportes están escritos sobre
+   * productos—, así que se abre acá y del otro lado llegan los componentes
+   * de siempre, con el precio del pack repartido a prorrata.
+   */
+  const expansion = await expandirPacks(
+    items.map((i) => ({
+      sku: i.sku as string,
+      variante: i.variante_nombre ?? null,
+      cantidad: i.cantidad,
+      precio_unitario: i.precio,
+    })),
+  )
+  const itemsCRM = expansion.items
+  const packsAbiertos = expansion.packsAbiertos
+  if (expansion.avisos.length > 0) {
+    console.warn(`[crm] orden ${ordenId}: ${expansion.avisos.join(' · ')}`)
+  }
+
   // Total REAL cobrado (= productos + envío − descuento), para que el CRM no
   // marque saldo pendiente por la diferencia. El envío y el descuento se mandan
   // aparte para el detalle.
@@ -138,12 +159,13 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
      * llevar el paquete.
      */
     franjas_entrega: Array.isArray(dc.franjas_entrega) ? dc.franjas_entrega : null,
-    items: items.map((i) => ({
-      sku: i.sku,
-      variante: i.variante_nombre ?? null,
-      cantidad: i.cantidad,
-      precio_unitario: i.precio,
-    })),
+    items: itemsCRM,
+    /**
+     * Los packs que se abrieron, para que la venta del CRM lo deje dicho.
+     * El CRM ya no conoce los packs: ve los componentes sueltos, y sin esta
+     * nota no habría forma de saber que esos cuatro renglones eran una caja.
+     */
+    packs_abiertos: packsAbiertos.length > 0 ? packsAbiertos : undefined,
   }
 
   const res = await fetch(`${CRM_URL!.replace(/\/$/, '')}/api/integraciones/tienda/venta`, {

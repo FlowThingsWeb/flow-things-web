@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 import { timingSafeEqual } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { recalcularStockPacks } from '@/lib/packs'
 
 /**
  * POST /api/integraciones/stock
@@ -124,13 +125,38 @@ export async function POST(request: NextRequest) {
     console.warn('[integraciones/stock] sin mapear:', sinMapear)
   }
 
+  /**
+   * El stock de los packs sale de acá y no del CRM: el pack no tiene stock
+   * propio, tiene el que permita armar su componente más escaso, y los
+   * componentes se acaban de actualizar en el loop de arriba.
+   *
+   * Se recalculan todos y no sólo los que tocaron SKUs de este push: el tope
+   * de un pack lo pone el mínimo, así que puede cambiar por un componente
+   * que no vino en esta tanda.
+   */
+  let packsCambiados: { sku: string; de: number; a: number }[] = []
+  try {
+    packsCambiados = await recalcularStockPacks()
+    if (packsCambiados.length > 0) {
+      console.log(
+        '[integraciones/stock] packs recalculados:',
+        packsCambiados.map((p) => `${p.sku} ${p.de}→${p.a}`).join(', '),
+      )
+    }
+  } catch (err) {
+    // No tumba el push: el stock de los productos ya quedó bien y el de los
+    // packs se arregla en el siguiente.
+    console.error('[integraciones/stock] no se pudo recalcular packs:', err)
+  }
+
   // El catálogo del sitio sale de caché; sin esto, un cambio de stock podía
   // tardar hasta un minuto en verse. Con el tag se ve en la próxima visita.
-  if (actualizados.length > 0) revalidateTag('catalogo')
+  if (actualizados.length > 0 || packsCambiados.length > 0) revalidateTag('catalogo')
 
   return NextResponse.json({
     ok: true,
     actualizados: actualizados.length,
+    packs_recalculados: packsCambiados.length,
     sin_mapear: sinMapear,
   })
 }

@@ -9,6 +9,7 @@ const navItems = [
   { href: '/admin', label: 'Dashboard', icon: '📊', exact: true },
   { href: '/admin/productos', label: 'Productos', icon: '📦', exact: false },
   { href: '/admin/ordenes', label: 'Órdenes', icon: '🛍️', exact: false },
+  { href: '/admin/packs', label: 'Packs', icon: '🎁', exact: false },
   { href: '/admin/descuentos', label: 'Descuentos', icon: '🏷️', exact: false },
   { href: '/admin/cyber', label: 'Ofertas Cyber', icon: '⚡', exact: false },
   { href: '/admin/envios', label: 'Envíos', icon: '🚚', exact: false },
