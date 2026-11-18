@@ -3,7 +3,6 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { crearPreferencia } from '@/lib/mercadopago'
 import { calcularEnvio } from '@/lib/envio'
 import { seCoordinaPorHora } from '@/lib/zonas-envio'
-import { etiquetasValidas } from '@/lib/franjas-entrega'
 import { marcarCheckoutConvertido } from '@/lib/checkout-en-progreso'
 import { ItemOrden, DatosComprador } from '@/types'
 
@@ -25,7 +24,7 @@ export async function POST(request: NextRequest) {
       primer_compra,
       envio_tipo,
       envio_nombre,
-      franjas_entrega,
+      indicaciones_entrega,
       sin_piso_depto,
     }: {
       items: ItemOrden[]
@@ -38,7 +37,13 @@ export async function POST(request: NextRequest) {
        * Franjas en las que el comprador puede recibir, con la restricción que
        * haya escrito para ese día (sólo envío por cercanía).
        */
-      franjas_entrega?: { etiqueta?: string; restriccion?: string | null }[] | null
+      /**
+       * Lo que el comprador quiere que sepamos para entregarle: "dejar en
+       * seguridad", "el timbre no anda". Reemplaza a las franjas horarias,
+       * que se sacaron cuando la entrega pasó a tener día fijo —antes de las
+       * 12 y en zona, hoy; si no, mañana—.
+       */
+      indicaciones_entrega?: string | null
       /** El comprador declaró que su dirección no tiene piso ni departamento. */
       sin_piso_depto?: boolean
       // Nota: envio_costo ya no se acepta del frontend — se recalcula en el servidor
@@ -245,31 +250,19 @@ export async function POST(request: NextRequest) {
     }
 
     /**
-     * Las franjas de entrega se validan con el reloj del servidor.
+     * Lo que pidió el comprador para la entrega.
      *
-     * El navegador propone lo que calculó al abrir el checkout, pero entre eso
-     * y el pago pueden pasar horas: lo que ya no es ofrecible se descarta acá.
-     * Sólo se guardan para los envíos que llevamos nosotros —el de cercanía y
-     * el envío en el día—, que son los que se coordinan por hora; en los del
-     * correo no significan nada.
+     * Texto libre: se recorta y se le sacan los saltos de línea, que después
+     * rompen el renglón en el CRM, en la planilla del cadete y en el mail.
+     * Sólo se guarda donde la entrega la hacemos nosotros —el de km y el
+     * envío en el día—: en los del correo no la lee nadie.
      */
-    const franjasGuardadas =
-      seCoordinaPorHora(envioTipoFinal) && Array.isArray(franjas_entrega)
-        ? franjas_entrega
-            .map((f) => ({
-              etiqueta: String(f?.etiqueta ?? '').trim(),
-              // La restricción es texto libre del comprador: se recorta y se
-              // le sacan los saltos de línea, que después rompen el renglón
-              // en el CRM y en el mail.
-              restriccion: String(f?.restriccion ?? '')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .slice(0, 120),
-            }))
-            .filter((f) => etiquetasValidas().has(f.etiqueta))
-            .map((f) => (f.restriccion ? `${f.etiqueta} (${f.restriccion})` : f.etiqueta))
-            .slice(0, 6)
-        : []
+    const indicacionesEntrega = seCoordinaPorHora(envioTipoFinal)
+      ? String(indicaciones_entrega ?? '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 300) || null
+      : null
 
     const total = subtotalConDescuento + costoEnvio
 
@@ -284,8 +277,8 @@ export async function POST(request: NextRequest) {
           user_id: userId,
           datos_comprador: {
             ...comprador,
-            ...(franjasGuardadas.length > 0
-              ? { franjas_entrega: franjasGuardadas }
+            ...(indicacionesEntrega
+              ? { indicaciones_entrega: indicacionesEntrega }
               : {}),
             ...(sin_piso_depto ? { sin_piso_depto: true } : {}),
             ...(envioTipoFinal

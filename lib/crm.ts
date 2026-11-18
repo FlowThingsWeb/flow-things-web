@@ -162,6 +162,16 @@ export async function notificarVentaCRM(ordenId: string): Promise<number | null>
      * llevar el paquete.
      */
     franjas_entrega: Array.isArray(dc.franjas_entrega) ? dc.franjas_entrega : null,
+    /**
+     * Lo que pidió el comprador para la entrega, suelto.
+     *
+     * Va además de pegado adentro de `franjas_entrega`, que se queda como
+     * está porque es lo que se lee bien en pantalla. Suelto hace falta para
+     * la columna Observaciones de la planilla del cadete: ahí entra el
+     * pedido, no la franja, y de la franja no se puede separar sin adivinar
+     * —la etiqueta también lleva paréntesis—.
+     */
+    entrega_indicaciones: dc.indicaciones_entrega ?? null,
     items: itemsCRM,
     /**
      * Los packs que se abrieron, para que la venta del CRM lo deje dicho.

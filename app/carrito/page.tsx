@@ -14,10 +14,8 @@ import { empezarCheckout, verCarrito, itemsDeCarrito } from '@/lib/eventos-compr
 import CuotasMP from '@/components/CuotasMP'
 import MercadoPagoBadge from '@/components/MercadoPagoBadge'
 import { formatPrecio } from '@/lib/format'
-import { franjasEntrega, type FranjaEntrega } from '@/lib/franjas-entrega'
 import { leerDestino, guardarDestino } from '@/lib/destino-envio'
 import { getZonaEnvio, seCobraPorDistancia, seCoordinaPorHora } from '@/lib/zonas-envio'
-import { HORA_CORTE as HORA_CORTE_CADETERIA } from '@/lib/zonas-cadeteria'
 
 function validarDNI(dni: string): boolean {
   const limpio = (dni || '').replace(/\./g, '').trim()
@@ -198,19 +196,21 @@ function CarritoContent() {
   const [calculandoEnvio, setCalculandoEnvio] = useState(false)
   const [envioError, setEnvioError] = useState('')
   /**
-   * Franjas en las que el comprador puede recibir. Sólo se preguntan en el
-   * envío por cercanía: es el que sale del local y se coordina por hora.
+   * Lo que el comprador quiere que sepamos para entregarle.
+   *
+   * Antes esto se preguntaba por franja horaria: el comprador marcaba los días
+   * en los que podía recibir y escribía una restricción para cada uno. Se sacó
+   * porque la promesa ya no se negocia —si entra antes de las 12 y está en
+   * zona, llega hoy; si no, mañana— y elegir franjas sobre una entrega que ya
+   * tiene día era pedirle al comprador que decida algo que no decide.
+   *
+   * Lo que sí queda es esto, que es lo único que el cadete necesita leer:
+   * "dejar en seguridad", "el timbre no anda", "es una concesionaria a la
+   * calle". Va a la columna Observaciones de su planilla.
    */
-  const [franjas, setFranjas] = useState<FranjaEntrega[]>([])
-  const [franjasElegidas, setFranjasElegidas] = useState<string[]>([])
-  /**
-   * Restricción escrita a mano para una franja puntual: "portería cierra 13 a
-   * 14", "tocar timbre del 2do". Va por día porque eso es lo que cambia: el
-   * miércoles puede haber alguien toda la tarde y el jueves sólo temprano.
-   */
-  const [restricciones, setRestricciones] = useState<Record<string, string>>({})
-  // El de km y el envío en el día: los dos los llevamos nosotros y los dos se
-  // coordinan por hora.
+  const [indicaciones, setIndicaciones] = useState('')
+  // El de km y el envío en el día: los dos los llevamos nosotros, así que son
+  // los dos donde una indicación sirve de algo. En los del correo la lee nadie.
   const esCercania = seCoordinaPorHora(envioSeleccionado?.id)
   /**
    * "Mi dirección no tiene piso ni departamento".
@@ -221,34 +221,11 @@ function CarritoContent() {
    */
   const [sinPisoDepto, setSinPisoDepto] = useState(false)
 
-  /**
-   * Las franjas se calculan en el navegador al elegir el envío, con la hora
-   * del momento. El servidor las vuelve a calcular con su propio reloj al
-   * cobrar: acá se muestran, allá se validan.
-   */
+  // Cambiar a un envío que lleva el correo borra la indicación: la escribió
+  // para el cadete y allá no la lee nadie.
   useEffect(() => {
-    if (!esCercania) {
-      setFranjas([])
-      setFranjasElegidas([])
-      setRestricciones({})
-      return
-    }
-    /*
-      Con el envío en el día, las franjas cortan a las 12 y no a las 16: es la
-      hora del cadete. Sin esto, entre las 12 y las 16 el carrito ofrecía una
-      franja de hoy justo al lado de un "Llega mañana".
-    */
-    setFranjas(
-      franjasEntrega(
-        new Date(),
-        envioSeleccionado?.id === 'cadeteria' ? { horaCorte: HORA_CORTE_CADETERIA } : undefined,
-      ),
-    )
-    setFranjasElegidas([])
-    setRestricciones({})
-    // Depende también del envío elegido: cambiar de cadete a correo cambia la
-    // hora de corte, y con ella qué franjas se pueden ofrecer.
-  }, [esCercania, envioSeleccionado?.id])
+    if (!esCercania) setIndicaciones('')
+  }, [esCercania])
   const [envioCalculado, setEnvioCalculado] = useState(false)
   // Fallback: editar la dirección a mano si Google no la ubicó bien.
   const [editarManual, setEditarManual] = useState(false)
@@ -458,10 +435,6 @@ function CarritoContent() {
     if (calculandoEnvio) return 'Calculando el envío…'
     if (envioError) return 'Revisá tu dirección para calcular el envío'
     if (!envioSeleccionado) return 'Elegí cómo querés recibir el pedido'
-    // En el envío por cercanía la franja es parte del pedido: sin ella no se
-    // puede coordinar la entrega.
-    if (esCercania && franjas.length > 0 && franjasElegidas.length === 0)
-      return 'Marcá cuándo podés recibirlo'
     return null
   })()
 
@@ -588,11 +561,6 @@ function CarritoContent() {
       return
     }
 
-    if (esCercania && franjas.length > 0 && franjasElegidas.length === 0) {
-      setError('Marcá al menos una franja en la que puedas recibir el pedido.')
-      return
-    }
-
     setLoading(true)
 
     // Arrancó el checkout: a Meta y a GA4.
@@ -639,12 +607,8 @@ function CarritoContent() {
           // Que la dirección no tenga piso es un dato, no un campo vacío: sin
           // esto, en el depósito no se distingue de "se olvidó de cargarlo".
           sin_piso_depto: sinPisoDepto,
-          franjas_entrega: esCercania
-            ? franjasElegidas.map((etiqueta) => ({
-                etiqueta,
-                restriccion: (restricciones[etiqueta] ?? '').trim() || null,
-              }))
-            : null,
+          // Sólo donde la entrega la hacemos nosotros: ver el estado.
+          indicaciones_entrega: esCercania ? indicaciones.trim() || null : null,
           // envio_costo NO se envía: el servidor lo recalcula desde la config.
         }),
       })
@@ -1136,79 +1100,27 @@ function CarritoContent() {
 
             {esCercania && (
               <div className="mt-4 border-t border-brand-border pt-4">
-                <p className="text-sm font-medium text-white">
-                  ¿Cuándo podés recibirlo?
-                </p>
+                <label
+                  htmlFor="indicaciones"
+                  className="text-sm font-medium text-white"
+                >
+                  ¿Alguna indicación para la entrega?
+                </label>
                 <p className="text-xs text-brand-text-muted mt-0.5">
-                  Marcá todas las franjas que te sirvan: con más de una es más
-                  fácil que llegue antes.
+                  Opcional. Lo lee quien te lo lleva.
                 </p>
-                {franjas.length === 0 ? (
-                  <p className="text-xs text-brand-text-muted mt-2">
-                    Te escribimos para coordinar el día y la hora.
-                  </p>
-                ) : (
-                  <div className="space-y-2 mt-3">
-                    {franjas.map((f) => {
-                      const elegida = franjasElegidas.includes(f.etiqueta)
-                      return (
-                        <div
-                          key={f.etiqueta}
-                          className={`rounded-xl border transition-colors ${
-                            elegida
-                              ? 'border-brand-purple bg-brand-purple/10'
-                              : 'border-brand-border hover:border-brand-purple/50'
-                          }`}
-                        >
-                          <label className="flex items-center gap-3 p-3 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={elegida}
-                              onChange={() => {
-                                setFranjasElegidas((prev) =>
-                                  prev.includes(f.etiqueta)
-                                    ? prev.filter((x) => x !== f.etiqueta)
-                                    : [...prev, f.etiqueta],
-                                )
-                                // Destildar borra la restricción: queda de una
-                                // franja que ya no se eligió.
-                                if (elegida) {
-                                  setRestricciones((prev) => {
-                                    const { [f.etiqueta]: _, ...resto } = prev
-                                    return resto
-                                  })
-                                }
-                              }}
-                              className="accent-brand-purple"
-                            />
-                            <span className="text-sm text-white">{f.etiqueta}</span>
-                          </label>
-                          {elegida && (
-                            <div className="px-3 pb-3">
-                              {/* Textarea y no input: en el celular —que es
-                                  de dónde entra casi toda la gente— un input
-                                  de una línea corta el texto a la mitad y el
-                                  comprador no ve lo que escribió. */}
-                              <textarea
-                                value={restricciones[f.etiqueta] ?? ''}
-                                onChange={(e) =>
-                                  setRestricciones((prev) => ({
-                                    ...prev,
-                                    [f.etiqueta]: e.target.value,
-                                  }))
-                                }
-                                rows={2}
-                                maxLength={120}
-                                placeholder="¿Alguna restricción? (opcional)"
-                                className="input-dark text-sm resize-none"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+                {/* Textarea y no input: en el celular —que es de dónde entra
+                    casi toda la gente— un input de una línea corta el texto a
+                    la mitad y el comprador no ve lo que escribió. */}
+                <textarea
+                  id="indicaciones"
+                  value={indicaciones}
+                  onChange={(e) => setIndicaciones(e.target.value)}
+                  rows={2}
+                  maxLength={300}
+                  placeholder="Ej: dejar en seguridad, el timbre no anda, es un local a la calle"
+                  className="input-dark text-sm resize-none mt-3"
+                />
               </div>
             )}
           </div>

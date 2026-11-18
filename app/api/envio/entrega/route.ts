@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getConfig } from '@/lib/config'
 import { entregaCadeteria, parsearFeriados } from '@/lib/zonas-cadeteria'
-import { FERIADOS } from '@/lib/franjas-entrega'
+import { FERIADOS } from '@/lib/feriados'
 
 /**
  * GET /api/envio/entrega

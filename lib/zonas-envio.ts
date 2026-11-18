@@ -87,17 +87,18 @@ export function seCobraPorDistancia(zona: ZonaEnvio): boolean {
 }
 
 /**
- * ¿Este envío se coordina por hora con el comprador?
+ * ¿Este envío lo llevamos nosotros?
  *
- * Son los que llevamos nosotros y llegan el mismo día o al siguiente: el de
- * cercanía por km y el envío en el día del cadete. En esos dos tiene sentido
- * preguntarle cuándo puede recibir; en los del correo la franja no significa
- * nada, porque el día lo decide el correo.
+ * El de cercanía por km y el envío en el día del cadete. Son los dos donde una
+ * indicación del comprador —"dejar en seguridad", "el timbre no anda"— llega a
+ * manos de alguien: en los del correo no la lee nadie, así que ni se pregunta.
  *
- * Es una función y no una comparación suelta porque la pregunta se hace en
- * tres lugares —el carrito al mostrar las franjas, el checkout al guardarlas y
- * el CRM al mostrarlas— y hasta ahora cada uno comparaba contra 'cercania' a
- * mano. Agregar el envío en el día habría dejado a alguno afuera.
+ * Se llamaba así porque antes servía para otra cosa: decidir a quién
+ * preguntarle en qué franja horaria podía recibir. Las franjas se sacaron —la
+ * entrega ya tiene día, antes de las 12 y en zona llega hoy y si no mañana—
+ * pero la pregunta "¿esto lo llevamos nosotros?" sigue siendo la misma y se
+ * hace en dos lugares: el carrito al mostrar el campo y el checkout al
+ * guardarlo. Como función, agregar un envío propio no deja a ninguno afuera.
  */
 export function seCoordinaPorHora(idEnvio: string | null | undefined): boolean {
   return idEnvio === 'cercania' || idEnvio === 'cadeteria'

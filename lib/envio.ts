@@ -11,7 +11,7 @@ import {
   parsearFeriados,
 } from '@/lib/zonas-cadeteria'
 import { distanciaManejoKm, geocodificar, type UbicacionGeo } from '@/lib/google-maps'
-import { FERIADOS } from '@/lib/franjas-entrega'
+import { FERIADOS } from '@/lib/feriados'
 
 /**
  * Zonas y códigos postales viven en `lib/zonas-envio`, sin dependencias, para
@@ -192,12 +192,11 @@ export async function calcularEnvio(
     /**
      * Los feriados de la casa, más los que se carguen a mano.
      *
-     * `FERIADOS` ya existía para las franjas de entrega y está mantenida con
-     * los trasladables resueltos —el 20 de noviembre de 2026 cae viernes y se
-     * corre al lunes 23, el 7 de diciembre es puente turístico—. Dos listas de
-     * feriados en el mismo repo se separan sin que nadie se entere, y la forma
-     * en que se separan es la peor: el carrito no ofrece franjas ese día y el
-     * envío igual promete "Llega hoy".
+     * `FERIADOS` está mantenida con los trasladables resueltos —el 20 de
+     * noviembre de 2026 cae viernes y se corre al lunes 23, el 7 de diciembre
+     * es puente turístico—. Dos listas de feriados en el mismo repo se separan
+     * sin que nadie se entere, y la forma en que se separan es la peor: la
+     * ficha de producto promete "Llega hoy" un día que no sale nadie.
      *
      * El campo de configuración suma, no reemplaza: sirve para el feriado
      * provincial o el día que el cadete avisa que no sale, sin esperar a un
