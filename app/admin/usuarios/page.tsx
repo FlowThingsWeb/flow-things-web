@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { etiquetaOrden } from '@/lib/orden-numero'
 
 interface Usuario {
   id: string
@@ -34,6 +35,8 @@ interface DetalleUsuario {
   } | null
   ordenes: {
     id: string
+    /** El número de venta del CRM. Null mientras la orden no llegó al CRM. */
+    numero: number | null
     total: number
     estado: string
     created_at: string
@@ -319,7 +322,7 @@ export default function AdminUsuariosPage() {
                             return (
                               <div key={orden.id} className="bg-brand-bg-soft border border-brand-border rounded-xl p-4">
                                 <div className="flex items-center justify-between mb-1.5">
-                                  <p className="text-xs font-mono text-brand-text-muted">#{orden.id.slice(0, 8).toUpperCase()}</p>
+                                  <p className="text-xs font-mono text-brand-text-muted">{etiquetaOrden(orden)}</p>
                                   <span className={`text-xs font-semibold ${estadoInfo.color}`}>{estadoInfo.label}</span>
                                 </div>
                                 <p className="text-xs text-brand-text-muted mb-1">{formatFechaHora(orden.created_at)}</p>

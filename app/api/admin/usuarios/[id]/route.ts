@@ -27,7 +27,7 @@ export async function GET(
   // Órdenes
   const { data: ordenes } = await supabaseAdmin
     .from('ordenes')
-    .select('id, total, estado, created_at, items')
+    .select('id, numero, total, estado, created_at, items')
     .eq('user_id', id)
     .order('created_at', { ascending: false })
 

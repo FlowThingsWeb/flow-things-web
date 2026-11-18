@@ -12,6 +12,7 @@ import {
 import { formatPrecio } from '@/lib/format'
 import { crmHabilitado } from '@/lib/crm'
 import { enqueueJob } from '@/lib/jobs'
+import { numeroOrden } from '@/lib/orden-numero'
 
 /**
  * POST /api/admin/nota-credito
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
 
   const { data: orden, error } = await supabaseAdmin
     .from('ordenes')
-    .select('id, total, items, datos_comprador, created_at, descuento_monto, codigo_descuento')
+    .select('id, numero, total, items, datos_comprador, created_at, descuento_monto, codigo_descuento')
     .eq('id', ordenId)
     .single()
 
@@ -202,7 +203,7 @@ export async function POST(request: NextRequest) {
         nc_numero: ncNumero,
         factura_numero: facturaNumero,
         total: formatPrecio(total),
-        orden_id: ordenId,
+        orden_id: numeroOrden(orden),
       }
 
       await sendEmail({

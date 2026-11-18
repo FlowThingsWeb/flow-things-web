@@ -7,6 +7,7 @@ import {
   DEFAULT_LLEGA_HOY_ASUNTO,
   DEFAULT_LLEGA_HOY_CUERPO,
 } from '@/lib/email'
+import { numeroOrden } from '@/lib/orden-numero'
 
 /**
  * POST /api/integraciones/despachado
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
 
   const { data: orden, error } = await supabaseAdmin
     .from('ordenes')
-    .select('id, datos_comprador')
+    .select('id, numero, datos_comprador')
     .eq('id', ordenId)
     .single()
 
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
 
   const vars: Record<string, string> = {
     nombre: String(dc.nombre ?? 'Hola').trim() || 'Hola',
-    orden_id: ordenId,
+    orden_id: numeroOrden(orden),
     fecha: fechaHoy(),
     direccion,
   }

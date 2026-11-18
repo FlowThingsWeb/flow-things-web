@@ -11,7 +11,8 @@ import { generateFacturaPDFBase64, facturaFileName } from './factura-pdf'
 import { sendWhatsApp, DEFAULT_WPP_MENSAJE } from './whatsapp'
 import { formatMonto } from './format'
 import { enqueueJob } from './jobs'
-import { crmHabilitado } from './crm'
+import { crmHabilitado, notificarVentaCRM } from './crm'
+import { codigoCortoOrden } from './orden-numero'
 import { firmaCarrito, firmaOrden } from './compra-identica'
 import { revalidateTag } from 'next/cache'
 
@@ -97,15 +98,40 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
   revalidateTag('catalogo')
 
   // ─── Informar la venta al CRM (canal 'tienda') ──────────────────────────────
-  // Va como job aparte: si el CRM está caído reintenta solo, sin volver a
-  // disparar factura ni emails. El endpoint del CRM es idempotente por orden_id.
+  /**
+   * Se intenta en el acto, y recién si falla va a la cola.
+   *
+   * No es por velocidad: el número de pedido lo asigna el CRM, y el mail de
+   * confirmación y el aviso de Telegram salen unas líneas más abajo. Con el
+   * aviso sólo encolado, el cliente recibía el mail llamando a su compra
+   * "#BC28C084" y un minuto más tarde la misma compra pasaba a llamarse
+   * "#314" en su cuenta — dos nombres para lo mismo, y el segundo es el que
+   * después le decís vos por WhatsApp.
+   *
+   * Esto corre dentro del job `post_pago`, no dentro del webhook de MP, así
+   * que el segundo que agrega no le hace perder un pago a nadie.
+   *
+   * Si el CRM no contesta, se encola como antes y sigue todo: el endpoint es
+   * idempotente por orden_id, el reintento no duplica nada, y el mail sale
+   * con el código corto. Perder el número bonito no vale cancelar una venta.
+   */
+  let numeroCRM: number | null = null
   if (crmHabilitado()) {
     try {
-      await enqueueJob('crm_venta', { ordenId })
+      numeroCRM = await notificarVentaCRM(ordenId)
     } catch (e: any) {
-      console.error('[procesar-pago] No se pudo encolar el aviso al CRM:', e.message)
+      console.error('[procesar-pago] El CRM no tomó la venta, va a la cola:', e.message)
+      try {
+        await enqueueJob('crm_venta', { ordenId })
+      } catch (e2: any) {
+        console.error('[procesar-pago] No se pudo encolar el aviso al CRM:', e2.message)
+      }
     }
   }
+
+  /** Cómo se llama este pedido en todos lados. Ver `lib/orden-numero.ts`. */
+  const etiquetaNumero =
+    numeroCRM !== null ? String(numeroCRM) : codigoCortoOrden(ordenId)
 
   // ─── Incrementar uso del código de descuento ──────────────────────────────────
   if (orden.codigo_descuento && orden.codigo_descuento !== '__PRIMER_COMPRA__') {
@@ -257,7 +283,7 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
     const mappedItems = items.map((i: any) => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
     const vars: Record<string, string> = {
       nombre:          compradorData.nombre || 'cliente',
-      orden_id:        String(ordenId),
+      orden_id:        etiquetaNumero,
       total:           totalFmt,
       subtotal:        fmt(subtotal),
       desglose_items:  buildDesgloseItems(mappedItems),
@@ -354,6 +380,7 @@ export async function procesarPagoAprobado(ordenId: string): Promise<void> {
 
   const msg = formatVentaMsg({
     ordenId,
+    numero: numeroCRM,
     total: orden.total ?? 0,
     comprador: { nombre: comprador.nombre, email: comprador.email, telefono: comprador.telefono },
     items: (orden.items ?? []).map((i: any) => ({

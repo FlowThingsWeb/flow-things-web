@@ -47,11 +47,14 @@ export function crmHabilitado(): boolean {
 
 /**
  * Informa una venta aprobada al CRM. Lanza si falla, para que el job reintente.
+ *
+ * Devuelve el número de venta que asignó el CRM, que es el número de pedido
+ * de la tienda: no hay dos numeraciones. Ver `lib/orden-numero.ts`.
  */
-export async function notificarVentaCRM(ordenId: string): Promise<void> {
+export async function notificarVentaCRM(ordenId: string): Promise<number | null> {
   if (!crmHabilitado()) {
     console.log('[crm] CRM_URL/CRM_WEBHOOK_SECRET no configurados — se omite el aviso')
-    return
+    return null
   }
 
   const { data: orden, error } = await supabaseAdmin
@@ -65,7 +68,7 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
   }
   if (orden.estado !== 'approved') {
     console.warn(`[crm] Orden ${ordenId} no está approved (${orden.estado}) — no se informa`)
-    return
+    return null
   }
 
   const items = (orden.items as ItemOrden[]) ?? []
@@ -185,9 +188,44 @@ export async function notificarVentaCRM(ordenId: string): Promise<void> {
     )
   }
 
+  /**
+   * El número de la venta se guarda en la orden: desde acá en adelante el
+   * pedido se llama igual en la tienda y en el CRM.
+   *
+   * Se guarda también en el camino idempotente —cuando el CRM contesta que
+   * ya la tenía—, porque ese es justamente el caso en el que la orden pudo
+   * haberse quedado sin número: un reintento después de que el primer
+   * intento creó la venta y murió antes de guardarlo.
+   *
+   * Si el update falla, no se tira la operación: la venta ya está en el
+   * CRM y volver a lanzar haría que el job reintente un aviso que ya no
+   * hace falta. Queda el log y la orden muestra el código corto.
+   */
+  const numero = Number(body.numero)
+  const numeroValido = Number.isFinite(numero) && numero > 0 ? numero : null
+
+  if (numeroValido !== null) {
+    const { error: errNumero } = await supabaseAdmin
+      .from('ordenes')
+      .update({ numero: numeroValido })
+      .eq('id', ordenId)
+    if (errNumero) {
+      console.error(
+        `[crm] Orden ${ordenId}: no se pudo guardar el número ${numeroValido}:`,
+        errNumero.message
+      )
+    }
+  } else {
+    console.error(
+      `[crm] Orden ${ordenId}: el CRM no devolvió número de venta`
+    )
+  }
+
   console.log(
-    `[crm] Orden ${ordenId} informada${body.idempotente ? ' (ya existía)' : ''} → venta ${body.venta_id}`
+    `[crm] Orden ${ordenId} informada${body.idempotente ? ' (ya existía)' : ''} → venta ${body.venta_id}${numeroValido !== null ? ` (#${numeroValido})` : ''}`
   )
+
+  return numeroValido
 }
 
 /**

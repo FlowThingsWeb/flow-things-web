@@ -1,6 +1,8 @@
 'use client'
 
 export interface FilaCSV {
+  /** El número de pedido, que es el de la venta en el CRM. Primera columna a propósito: es por donde se cruza con el CRM. */
+  pedido: string
   fecha: string
   cliente: string
   email: string
@@ -19,9 +21,9 @@ function csvCampo(v: string | number): string {
 
 export default function ExportCSV({ filas }: { filas: FilaCSV[] }) {
   const exportar = () => {
-    const headers = ['Fecha', 'Cliente', 'Email', 'Items', 'Total', 'Estado', 'ID Pago']
+    const headers = ['Pedido', 'Fecha', 'Cliente', 'Email', 'Items', 'Total', 'Estado', 'ID Pago']
     const lineas = filas.map((f) =>
-      [f.fecha, f.cliente, f.email, f.items, f.total, f.estado, f.pago].map(csvCampo).join(',')
+      [f.pedido, f.fecha, f.cliente, f.email, f.items, f.total, f.estado, f.pago].map(csvCampo).join(',')
     )
     // BOM para que Excel abra bien los acentos
     const csv = '﻿' + [headers.join(','), ...lineas].join('\n')

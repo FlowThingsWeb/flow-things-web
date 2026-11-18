@@ -4,6 +4,7 @@ import DespacharForm from './DespacharForm'
 import EliminarOrdenButton from './EliminarOrdenButton'
 import NotaCreditoForm from './NotaCreditoForm'
 import { formatPrecio } from '@/lib/format'
+import { etiquetaOrden } from '@/lib/orden-numero'
 
 // Datos de admin: nunca cachear. Antes lo cubría el force-dynamic del layout
 // raíz, que se quitó para que el sitio público pueda cachear.
@@ -60,7 +61,7 @@ export default async function OrdenDetailPage({ params }: { params: Promise<{ id
           ← Órdenes
         </a>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-white">Orden #{id.slice(0, 8)}</h1>
+          <h1 className="text-2xl font-bold text-white">Pedido {etiquetaOrden(orden)}</h1>
           <p className="text-brand-text-muted text-sm mt-0.5">{fmtFecha(orden.created_at)}</p>
         </div>
         <span className={`text-sm font-medium px-3 py-1.5 rounded-full border ${estadoColores[orden.estado] || 'bg-gray-100 text-gray-600'}`}>

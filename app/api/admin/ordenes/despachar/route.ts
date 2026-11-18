@@ -8,6 +8,7 @@ import {
   DEFAULT_DESPACHO_ASUNTO,
   DEFAULT_DESPACHO_CUERPO,
 } from '@/lib/email'
+import { numeroOrden } from '@/lib/orden-numero'
 
 export async function POST(req: NextRequest) {
   const unauth = await verifyAdminToken(req)
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     // Cargar datos de la orden
     const { data: orden, error: ordenErr } = await supabaseAdmin
       .from('ordenes')
-      .select('datos_comprador, id, created_at')
+      .select('datos_comprador, id, numero, created_at')
       .eq('id', ordenId)
       .single()
 
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
 
     const vars: Record<string, string> = {
       nombre:          compradorData.nombre || 'cliente',
-      orden_id:        String(ordenId),
+      orden_id:        numeroOrden(orden),
       courier:         courier,
       tracking_numero: tracking_numero,
       tracking_url:    tracking_url || '',

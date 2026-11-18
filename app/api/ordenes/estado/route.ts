@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from('ordenes')
-    .select('estado, total, items, descuento_monto, datos_comprador')
+    .select('numero, estado, total, items, descuento_monto, datos_comprador')
     .eq('id', id)
     .single()
 
@@ -47,5 +47,23 @@ export async function GET(request: NextRequest) {
   const cfg = await getConfig()
   const cupon_postcompra = cfg.cupon_postcompra_codigo || ''
 
-  return NextResponse.json({ estado: data.estado, total: data.total, items, envio, descuento, cupon_postcompra })
+  /**
+   * El número de pedido, que es el número de venta del CRM.
+   *
+   * Puede venir null: la orden se aprueba primero y el CRM la registra unos
+   * segundos después. La pantalla de gracias sigue preguntando hasta que
+   * aparece, y mientras tanto muestra el código corto del UUID.
+   *
+   * No es dato sensible: es el mismo número que el cliente va a ver en su
+   * mail de confirmación, y para pedirlo ya hace falta tener el UUID.
+   */
+  return NextResponse.json({
+    numero: data.numero ?? null,
+    estado: data.estado,
+    total: data.total,
+    items,
+    envio,
+    descuento,
+    cupon_postcompra,
+  })
 }

@@ -33,10 +33,19 @@ function escAttr(url: string): string {
   return escHtml(url).replace(/'/g, '&#39;')
 }
 
+import { numeroOrden } from './orden-numero'
+
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.flowthings.com.ar').replace(/\/$/, '')
 
 export function formatVentaMsg(params: {
   ordenId: string
+  /**
+   * El número de venta del CRM, que es el número de pedido.
+   *
+   * Si todavía no está —el CRM no contestó al informar la venta— el mensaje
+   * cae al código corto del UUID, igual que el resto de la tienda.
+   */
+  numero?: number | null
   total: number
   comprador: { nombre?: string; email?: string; telefono?: string }
   /** `slug` arma el link a la ficha; sin él, el nombre va sin enlazar. */
@@ -59,7 +68,7 @@ export function formatVentaMsg(params: {
   }
   descuento?: { monto?: number | null; codigo?: string | null }
 }): string {
-  const { ordenId, total, comprador, items, envio, destino, descuento } = params
+  const { ordenId, numero, total, comprador, items, envio, destino, descuento } = params
   const pesos = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`
 
   /**
@@ -111,7 +120,7 @@ export function formatVentaMsg(params: {
 
   return (
     `🛍️ <b>¡Nueva venta!</b>\n\n` +
-    `📦 <b>Orden:</b> #${ordenId.slice(0, 8).toUpperCase()}\n` +
+    `📦 <b>Orden:</b> #${numeroOrden({ id: ordenId, numero })}\n` +
     `👤 <b>Cliente:</b> ${escHtml(comprador.nombre) || 'Sin nombre'}\n` +
     `📧 <b>Email:</b> ${escHtml(comprador.email) || '-'}\n` +
     `📱 <b>Tel:</b> ${escHtml(comprador.telefono) || '-'}\n` +

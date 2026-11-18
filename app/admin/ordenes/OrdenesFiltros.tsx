@@ -44,7 +44,7 @@ export default function OrdenesFiltros() {
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Nombre o email..."
+          placeholder="Número, nombre o email..."
           className="input-dark w-full text-sm"
         />
       </div>

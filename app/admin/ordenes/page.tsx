@@ -4,6 +4,7 @@ import { ClickableRow } from './ClickableRow'
 import OrdenesFiltros from './OrdenesFiltros'
 import ExportCSV, { FilaCSV } from './ExportCSV'
 import { formatPrecio } from '@/lib/format'
+import { codigoCortoOrden, etiquetaOrden, numeroOrden } from '@/lib/orden-numero'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,10 +61,22 @@ export default async function AdminOrdenesPage({ searchParams }: PageProps) {
   // Set base: filtrado por fecha en DB
   const base = await getOrdenes(desde, hasta)
 
-  // Búsqueda por cliente/email en JS sobre el set base
+  /**
+   * Búsqueda por número, cliente o email, en JS sobre el set base.
+   *
+   * El número va primero y con coincidencia exacta: si escribís "314" querés
+   * el pedido #314, no los doce que tienen un 314 adentro del UUID o del id
+   * de pago. "#314" también entra — es como figura en pantalla y en el mail.
+   * Lo demás sigue siendo "contiene", que es lo que sirve para un apellido.
+   */
   const term = q?.trim().toLowerCase()
+  const termNumero = term?.replace(/^#/, '')
   const filtradas = term
     ? base.filter((o) => {
+        if (termNumero && /^\d+$/.test(termNumero)) {
+          if (String(o.numero ?? '') === termNumero) return true
+        }
+        if (termNumero && codigoCortoOrden(o.id).toLowerCase() === termNumero) return true
         const nombre = String(o.datos_comprador?.nombre ?? '').toLowerCase()
         const email = String(o.datos_comprador?.email ?? '').toLowerCase()
         return nombre.includes(term) || email.includes(term)
@@ -95,6 +108,7 @@ export default async function AdminOrdenesPage({ searchParams }: PageProps) {
 
   // Filas para el CSV (del set visible)
   const filasCSV: FilaCSV[] = ordenes.map((o) => ({
+    pedido: numeroOrden(o),
     fecha: formatFecha(o.created_at),
     cliente: o.datos_comprador?.nombre ?? '',
     email: o.datos_comprador?.email ?? '',
@@ -150,9 +164,10 @@ export default async function AdminOrdenesPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px]">
+            <table className="w-full min-w-[820px]">
               <thead>
                 <tr className="border-b border-brand-border">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-brand-text-muted uppercase tracking-wide">Pedido</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-brand-text-muted uppercase tracking-wide">Fecha</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-brand-text-muted uppercase tracking-wide">Cliente</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-brand-text-muted uppercase tracking-wide">Items</th>
@@ -164,6 +179,17 @@ export default async function AdminOrdenesPage({ searchParams }: PageProps) {
               <tbody className="divide-y divide-brand-border">
                 {ordenes.map((orden) => (
                   <ClickableRow key={orden.id} href={`/admin/ordenes/${orden.id}`} className="hover:bg-brand-bg-soft/50 transition-colors">
+                    <td className="px-5 py-4">
+                      {/* El mismo número que la venta en el CRM. Sin él, el código corto del UUID. */}
+                      <p
+                        className={`text-sm font-mono font-bold whitespace-nowrap ${
+                          orden.numero ? 'text-brand-text' : 'text-brand-text-muted'
+                        }`}
+                        title={orden.numero ? `Venta #${orden.numero} en el CRM` : 'Todavía sin número del CRM'}
+                      >
+                        {etiquetaOrden(orden)}
+                      </p>
+                    </td>
                     <td className="px-5 py-4">
                       <p className="text-xs text-brand-text-muted whitespace-nowrap">
                         {formatFecha(orden.created_at)}

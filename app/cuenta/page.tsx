@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import DireccionesManager from '@/components/DireccionesManager'
 import { formatPrecio } from '@/lib/format'
+import { etiquetaOrden } from '@/lib/orden-numero'
 
 interface Perfil {
   nombre: string | null
@@ -85,7 +86,7 @@ export default function CuentaPage() {
 
     supabase
       .from('ordenes')
-      .select('id, total, estado, created_at, items')
+      .select('id, numero, total, estado, created_at, items')
       .eq('user_id', user.id)
       // Solo compras realizadas — ocultar pendientes/rechazadas/canceladas
       .in('estado', ['approved', 'refunded'])
@@ -355,7 +356,7 @@ export default function CuentaPage() {
                 return (
                   <div key={orden.id} className="border border-brand-border rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-mono text-brand-text-muted">#{orden.id.slice(0, 8).toUpperCase()}</p>
+                      <p className="text-xs font-mono text-brand-text-muted">{etiquetaOrden(orden)}</p>
                       <span className={`text-xs font-semibold ${estadoInfo.color}`}>{estadoInfo.label}</span>
                     </div>
                     <p className="text-sm text-brand-text-muted mb-1">

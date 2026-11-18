@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { etiquetaOrden } from '@/lib/orden-numero'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -29,6 +30,7 @@ function ExitoContent() {
   const [aprobado, setAprobado] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const [cuponProxima, setCuponProxima] = useState('')
+  const [numero, setNumero] = useState<number | null>(null)
   const trackedRef = useRef(false)
 
   // Sin orden_id no hay nada que mostrar — redirigir al catálogo
@@ -45,7 +47,7 @@ function ExitoContent() {
     if (!ordenId) return
     let cancelado = false
     let intentos = 0
-    const MAX_INTENTOS = 15 // ~30s
+    const MAX_INTENTOS = 40 // ~80s: la aprobación llega enseguida, el número del CRM tarda
 
     async function poll() {
       try {
@@ -57,6 +59,7 @@ function ExitoContent() {
         if (typeof data.envio === 'number') setEnvio(data.envio)
         if (typeof data.descuento === 'number') setDescuento(data.descuento)
         if (typeof data.cupon_postcompra === 'string') setCuponProxima(data.cupon_postcompra)
+        if (typeof data.numero === 'number') setNumero(data.numero)
         if (data.estado === 'approved') {
           clearCart()
           setAprobado(true)
@@ -105,7 +108,14 @@ function ExitoContent() {
               })
             } catch {}
           }
-          return // pago confirmado — dejar de pollear
+          /**
+           * El pago está confirmado, pero el número de pedido lo asigna el
+           * CRM unos segundos más tarde: se sigue preguntando hasta que
+           * aparece. Si no aparece dentro de los intentos, la pantalla se
+           * queda con el código corto y no pasa nada — el número igual va a
+           * estar en el mail y en "Mi cuenta".
+           */
+          if (typeof data.numero === 'number') return
         }
       } catch {
         // falla de red transitoria — reintentar
@@ -149,7 +159,7 @@ function ExitoContent() {
         {/* Número de orden */}
         {ordenId && (
           <p className="text-xs text-brand-text-light bg-brand-bg-soft rounded-lg px-4 py-2.5 mb-6 font-mono text-center tracking-wider">
-            Orden #{ordenId.slice(0, 8).toUpperCase()}
+            Pedido {etiquetaOrden({ id: ordenId, numero })}
           </p>
         )}
 
