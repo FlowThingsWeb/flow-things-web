@@ -98,7 +98,7 @@ export const getCatalogoCompleto = unstable_cache(async (): Promise<Producto[]> 
   const CON_SUB = '*, categorias(id, nombre, slug), subcategorias(id, nombre, slug), variantes(*)'
   const SIN_SUB = '*, categorias(id, nombre, slug), variantes(*)'
 
-  // Hasta que corra supabase_subcategorias.sql la tabla no existe y el select
+  // Hasta que corra supabase/migrations/20260903_subcategorias.sql la tabla no existe y el select
   // devuelve 400. El catálogo no puede caerse por eso: se reintenta sin las
   // subcategorías y el sitio queda como estaba.
   const consulta = (select: string) =>

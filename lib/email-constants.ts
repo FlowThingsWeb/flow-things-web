@@ -141,7 +141,7 @@ export const DEFAULT_EMAIL_CUERPO = `<!DOCTYPE html>
 // ─── Recuperación de carrito abandonado ─────────────────────────────────────
 export const DEFAULT_CARRITO_ASUNTO = '¿Te quedó algo en el carrito? &#x1F6D2;'
 
-/** El cupón del tercer mail. Ver supabase_carrito_abandonado_secuencia.sql. */
+/** El cupón del tercer mail. Ver supabase/migrations/20260903b_carrito_abandonado_secuencia.sql. */
 export const CUPON_CARRITO = 'VOLVE5'
 export const CUPON_CARRITO_PCT = 5
 

@@ -123,7 +123,7 @@ export function clasificarClicks(filas: ClickCrudo[]): ClickClasificado[] {
 
   // Regla de ráfaga: agrupa por campaña + familia de user agent, que es lo más
   // parecido a "el mismo visitante" que tenemos. A propósito no guardamos IP
-  // (ver supabase_clicks_email.sql), así que el user agent es la única llave.
+  // (ver supabase/migrations/20260908b_clicks_email.sql), así que el user agent es la única llave.
   const grupos = new Map<string, ClickClasificado[]>()
   for (const c of salida) {
     if (!c.user_agent?.trim()) continue

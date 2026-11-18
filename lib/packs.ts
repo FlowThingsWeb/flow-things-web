@@ -93,13 +93,13 @@ export async function leerPacks(): Promise<PackConComponentes[]> {
   if (error) {
     /**
      * 42P01 = la tabla todavía no existe. Pasa en la ventana entre deployar
-     * esto y correr `supabase_packs.sql`: en ese rato no hay packs, que es
+     * esto y correr `supabase/migrations/20261113_packs.sql`: en ese rato no hay packs, que es
      * exactamente lo que devolver vacío significa. Cualquier otro error sí
      * explota — un pack que no se abre es una venta que descuenta el stock
      * equivocado, y eso no se traga en silencio.
      */
     if ((error as { code?: string }).code === '42P01') {
-      console.warn('[packs] la tabla items_pack todavía no existe — falta correr supabase_packs.sql')
+      console.warn('[packs] la tabla items_pack todavía no existe — falta correr supabase/migrations/20261113_packs.sql')
       return []
     }
     throw new Error(`items_pack: ${error.message}`)
